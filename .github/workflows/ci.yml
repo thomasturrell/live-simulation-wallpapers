@@ -1,0 +1,34 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate changes
+    runs-on: macos-26
+    timeout-minutes: 15
+    steps:
+      - name: Check out the pull request merge commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+
+      - name: Check repository files and patch whitespace
+        run: |
+          test -s README.md
+          test -s LICENSE
+          git diff --check HEAD^1 HEAD
+
+      - name: Run the Game of Life tests when the package is present
+        run: |
+          if [[ -f Life/Package.swift ]]; then
+            Life/Packaging/test.sh
+          else
+            echo 'The Game of Life package is absent from this revision.'
+          fi
