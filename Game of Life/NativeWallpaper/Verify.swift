@@ -38,6 +38,8 @@ enum VerifyWallpaper {
             throw BridgeError.noSurface
         }
 
+        try await verifyPreviewPlayback()
+
         let first = DisplayPlayback(logicalSize: landscape, checkpointKey: "landscape", storage: state)
         let second = DisplayPlayback(logicalSize: portrait, checkpointKey: "portrait", storage: state)
         first.views[UUID()] = left
@@ -116,6 +118,42 @@ enum VerifyWallpaper {
         decoder.decodingFailurePolicy = .setErrorAndReturn
         guard let decoded = cls.init(coder: decoder) else { throw BridgeError.incompatible }
         return Presentation(decoded)
+    }
+
+    private static func verifyPreviewPlayback() async throws {
+        let size = CGSize(width: 480, height: 300)
+        var request = Presentation(nil)
+        request.preview = true
+        let view = RemoteView(size: size, request: request)
+        let playback = DisplayPlayback(logicalSize: size, checkpointKey: nil)
+        playback.views[UUID()] = view
+        playback.draw(animate: false)
+        let firstFrame = playback.scene.image(scale: 1, dark: true)?.dataProvider?.data
+
+        playback.refresh(hint: false)
+        try await Task.sleep(for: .seconds(1.3))
+        let nextFrame = playback.scene.image(scale: 1, dark: true)?.dataProvider?.data
+        precondition(firstFrame != nil && nextFrame != nil && firstFrame != nextFrame)
+
+        request.activity = "suspended"
+        _ = view.apply(request)
+        playback.refresh(hint: true)
+        let suspended = playback.phase
+        try await Task.sleep(for: .seconds(1.3))
+        precondition(playback.phase == suspended)
+
+        request.activity = "active"
+        _ = view.apply(request)
+        playback.refresh(hint: false)
+        try await Task.sleep(for: .seconds(1.3))
+        precondition(playback.phase > suspended)
+
+        playback.views.removeAll()
+        playback.refresh(hint: false)
+        let released = playback.phase
+        try await Task.sleep(for: .seconds(1.3))
+        precondition(playback.phase == released)
+        print("Preview frames change independently of the desktop, pause when suspended and stop on release.")
     }
 
     private static func verifyFullFrame(_ view: RemoteView, size: CGSize, scale: CGFloat) {
