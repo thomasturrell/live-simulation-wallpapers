@@ -10,7 +10,7 @@ The first wallpaper is based on [Conway’s Game of Life](https://en.wikipedia.o
 
 *Illustrative preview of Game of Life on the macOS Lock Screen.*
 
-[Game of Life setup and build instructions](Game%20of%20Life/README.md)
+[Download Game of Life from GitHub Releases](https://github.com/thomasturrell/live-simulation-wallpapers/releases) · [Game of Life setup and build instructions](Game%20of%20Life/README.md)
 
 ## City Simulation
 
@@ -23,6 +23,17 @@ A living isometric pixel-art city with neighbourhoods, a downtown skyline, parks
 Build with `cd "City Simulation" && ./NativeWallpaper/build.sh`. Move **City Simulation Wallpaper.app** into Applications and open it once to register it. Then select **City Simulation** under both Wallpaper and Screen Saver in System Settings.
 
 [City Simulation installation, preview and compatibility notes](City%20Simulation/README.md)
+
+## Publishing a release
+
+From the commit you want to release, which must contain the release workflow, create and push a tag in `vMAJOR.MINOR.PATCH` format.
+
+```sh
+git tag -a v1.0.0 -m "Release v1.0.0"
+git push origin v1.0.0
+```
+
+GitHub Actions tests the tagged commit and publishes a release with generated notes and three macOS ZIPs. The downloads include the native wallpaper, the menu-bar app with its screen saver, and the Dynamic Desktop wallpaper with its screen saver. The bundles use ad-hoc signing.
 
 ## Planned wallpapers
 

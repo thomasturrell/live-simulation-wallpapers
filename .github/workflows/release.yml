@@ -1,0 +1,69 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+
+concurrency:
+  group: release-${{ github.ref }}
+
+jobs:
+  release:
+    name: Package and publish Game of Life
+    if: github.event.created
+    runs-on: macos-26
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    defaults:
+      run:
+        shell: bash
+        working-directory: Game of Life
+    steps:
+      - name: Check out the tagged commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Run the Game of Life tests
+        run: ./Packaging/test.sh
+
+      - name: Build and archive the macOS downloads
+        run: |
+          packages="$RUNNER_TEMP/game-of-life"
+          assets="$RUNNER_TEMP/release-assets"
+          mkdir -p "$packages/fallback" "$assets"
+
+          ./package-macos.sh "$packages/desktop"
+          ./NativeWallpaper/build.sh "$packages/native"
+          xcrun swift Packaging/verify-saver.swift "$packages/desktop/Game of Life.saver"
+
+          ditto "$packages/desktop/Game of Life.saver" "$packages/fallback/Game of Life.saver"
+          "$packages/desktop/Game of Life.app/Contents/MacOS/GameOfLife" --export-wallpaper "$packages/fallback"
+
+          cp Setup.txt ../LICENSE "$packages/desktop/"
+          cp NativeWallpaper/INSTALL.md ../LICENSE "$packages/native/"
+          cp Packaging/Wallpaper-Setup.txt ../LICENSE "$packages/fallback/"
+
+          ditto -c -k "$packages/desktop" "$assets/Game-of-Life-Desktop-App.zip"
+          ditto -c -k "$packages/native" "$assets/Game-of-Life-Native-Wallpaper.zip"
+          ditto -c -k "$packages/fallback" "$assets/Game-of-Life-Wallpaper-and-Screen-Saver.zip"
+
+      - name: Publish the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          if is_draft="$(gh release view "$GITHUB_REF_NAME" --json isDraft --jq .isDraft)"; then
+            if [[ "$is_draft" == false ]]; then
+              echo "Release $GITHUB_REF_NAME is already published."
+              exit 0
+            fi
+          else
+            gh release create "$GITHUB_REF_NAME" --verify-tag --draft --generate-notes \
+              --notes "The macOS bundles use ad-hoc signing."
+          fi
+
+          gh release upload "$GITHUB_REF_NAME" "$RUNNER_TEMP/release-assets/"*.zip --clobber
+          gh release edit "$GITHUB_REF_NAME" --tag "$GITHUB_REF_NAME" --verify-tag --draft=false

@@ -6,8 +6,8 @@
     <key>CFBundleIdentifier</key><string>io.github.thomasturrell.live-simulation-wallpapers.life.saver</string>
     <key>CFBundleExecutable</key><string>LifeSaver</string>
     <key>CFBundlePackageType</key><string>BNDL</string>
-    <key>CFBundleVersion</key><string>2</string>
-    <key>CFBundleShortVersionString</key><string>1.1</string>
+    <key>CFBundleVersion</key><string>1</string>
+    <key>CFBundleShortVersionString</key><string>1.0.0</string>
     <key>LSMinimumSystemVersion</key><string>13.0</string>
     <key>NSPrincipalClass</key><string>LifeSaverView</string>
 </dict></plist>

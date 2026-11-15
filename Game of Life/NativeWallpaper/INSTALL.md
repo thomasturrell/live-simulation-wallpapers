@@ -1,4 +1,4 @@
-# Game of Life Wallpaper 2.0.3
+# Game of Life Wallpaper 1.0.0
 
 ## Install
 
