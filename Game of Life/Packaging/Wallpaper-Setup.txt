@@ -1,0 +1,31 @@
+GAME OF LIFE
+Dynamic Desktop and screen saver for macOS
+
+WALLPAPER
+1. Move Game of Life.heic to a folder where you’ll keep it.
+2. Open System Settings → Wallpaper → Your Photos → Add Photo →
+   Choose File and select Game of Life.heic.
+3. Select Dynamic in the wallpaper options if macOS offers it.
+   The wallpaper contains eight 5120 × 3200 Conway generations
+   scheduled across the local day, from graphite at night to warm white
+   at midday. The cycle repeats each day.
+
+If your macOS version imports custom HEIC files as stills, you can
+choose either of the included Light or Dark PNGs instead.
+
+SCREEN SAVER
+1. Double-click Game of Life.saver in Finder to install the screen
+   saver for your account.
+2. In System Settings → Wallpaper → Screen Saver, choose Custom and
+   select Game of Life under Other. On older macOS versions, use
+   the separate Screen Saver pane.
+3. Set the idle delay. If manual lock shows a still image on your Mac,
+   a Start Screen Saver hot corner starts the saver directly.
+
+macOS handles the desktop and screen saver. If you tried the earlier
+menu-bar app, quit it so the macOS wallpaper is visible.
+
+The wallpaper switches among still images. The screen saver runs
+Conway’s rules live. macOS does not provide a public way to carry a
+custom saver’s last frame into the desktop or play it through unlock
+like Apple’s built-in animated wallpapers.
