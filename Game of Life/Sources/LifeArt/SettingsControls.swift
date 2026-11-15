@@ -29,6 +29,10 @@ public struct LifeSettingsControls: View {
                     ForEach(LifeAppearance.allCases) { Text($0.rawValue).tag($0) }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
+                Picker("Colour", selection: $settings.colour) {
+                    ForEach(LifeColour.allCases) { Text($0.title).tag($0) }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
                 Picker("New patterns", selection: $settings.injection) {
                     ForEach(LifeSettings.injectionOptions, id: \.self) { seconds in
                         Text(seconds > 0 ? "Every \(Int(seconds)) s" : "Off").tag(seconds)

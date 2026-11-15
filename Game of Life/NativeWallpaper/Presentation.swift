@@ -1,5 +1,6 @@
 import AppKit
 import CoreGraphics
+import LifeArt
 
 struct Presentation {
     var size: CGSize?
@@ -8,12 +9,19 @@ struct Presentation {
     var mode: String?
     var activity: String?
     var dark: Bool?
+    var colour: LifeColour?
     var preview = false
     var hasPlacement = false
 
     init(_ request: Any?) {
         guard let request, let value = Mirror(reflecting: request).children.first?.value else { return }
         let data = Mirror(reflecting: value)
+        // WallpaperAgent supplies option values in the creation descriptor.
+        if let options = data.descendant("descriptor", "optionValues", "some", "values") as? [String: Any],
+           let option = options[lifeColourOptionID],
+           let id = Mirror(reflecting: option).descendant("picker", "id") as? String {
+            colour = LifeColour(rawValue: id)
+        }
         let description = String(describing: value)
         func enumCase(_ label: String) -> String? {
             guard let range = description.range(of: "\(label): ") else { return nil }

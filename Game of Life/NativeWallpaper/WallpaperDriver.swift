@@ -10,6 +10,7 @@ final class WallpaperDriver {
     private var owners: [UUID: DisplayPlayback] = [:]
     private var saverHint: Bool?
     private var observers: [NSObjectProtocol] = []
+    private var colourObserver: NSObjectProtocol?
     var invalidateSnapshots: (() -> Void)?
 
     private init() {
@@ -28,6 +29,11 @@ final class WallpaperDriver {
                     WallpaperDriver.shared.refreshAll()
                 }
             }
+        }
+        colourObserver = NotificationCenter.default.addObserver(
+            forName: NSColor.systemColorsDidChangeNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated { self?.refreshAccent() }
         }
     }
 
@@ -84,6 +90,17 @@ final class WallpaperDriver {
 
     private func refreshAll() {
         for display in displays.values { display.refresh(hint: saverHint) }
+    }
+
+    private func refreshAccent() {
+        var changed = false
+        for display in displays.values {
+            for view in display.views.values where view.colour == .accent {
+                view.updatePalette(display.scene, phase: display.phase)
+                changed = true
+            }
+        }
+        if changed { invalidateSnapshots?() }
     }
 }
 
@@ -237,6 +254,7 @@ final class RemoteView {
     private var size: CGSize
     private var scale: CGFloat
     private var dark: Bool
+    let colour: LifeColour
     private var hasPlacement: Bool
     private(set) var presentationMode: String
     private(set) var suspended: Bool
@@ -250,6 +268,7 @@ final class RemoteView {
         self.size = size
         scale = request.scale ?? 1
         dark = request.dark ?? true
+        colour = request.colour ?? .original
         hasPlacement = request.hasPlacement
         presentationMode = request.mode ?? "default"
         suspended = request.activity == "suspended"
@@ -278,8 +297,13 @@ final class RemoteView {
     }
 
     private func darkness(phase: UInt16) -> Double {
+        guard colour == .original else { return dark ? 1 : 0 }
         let pulse = (1 - cos(2 * .pi * Double(phase) / Double(DisplayPlayback.cycle))) / 2
         return dark ? 1 - 0.055 * pulse : 0.045 * pulse
+    }
+
+    func updatePalette(_ scene: LifeScene, phase: UInt16) {
+        art.setPalette(scene.palette(darkness: darkness(phase: phase), colour: colour))
     }
 
     private func projection(_ scene: LifeScene) -> (zoom: CGFloat, offset: CGPoint) {
@@ -302,7 +326,7 @@ final class RemoteView {
         art.root.setAffineTransform(CGAffineTransform(scaleX: zoom, y: zoom))
         let layerScale = min(8, scale * zoom)
         if art.contentsScale != layerScale { art.contentsScale = layerScale }
-        art.setDarkness(darkness(phase: phase))
+        updatePalette(scene, phase: phase)
         art.draw(scene, animate: animate, duration: duration)
         CATransaction.commit()
     }
@@ -313,7 +337,7 @@ final class RemoteView {
         let width = Int((size.width * pixelScale).rounded(.up))
         let height = Int((size.height * pixelScale).rounded(.up))
         let sourceScale = min(pixelScale * zoom, 5120 / max(scene.viewport.width, scene.viewport.height))
-        guard let image = scene.image(scale: sourceScale, darkness: darkness(phase: phase)),
+        guard let image = scene.image(scale: sourceScale, darkness: darkness(phase: phase), colour: colour),
               let surface = IOSurface(properties: [
                 .width: width, .height: height, .bytesPerElement: 4,
                 .pixelFormat: UInt32(0x42475241) // BGRA

@@ -7,6 +7,8 @@
 3. Reopen System Settings and choose **Game of Life** as the desktop wallpaper. Under **Wallpaper → Screen Saver → Custom**, choose **Game of Life** there too. If you have more than one display or Space, select it on each one or use **Show on all Spaces**.
 4. Start the screen saver or lock the Mac. After unlock, allow a few seconds for the generation changes to slow and the desktop to settle.
 
+Use the **Colour** menu for Game of Life in Wallpaper settings. **Spectrum** blends through six hues as the simulation runs, **Random** picks a hue for each simulation cycle, and **Accent** follows the macOS accent colour. Choose a named colour for a fixed hue or **Original** for the default palette.
+
 This developer build is ad-hoc signed. The extension targets macOS 26 and later and contains Apple silicon and Intel slices. For distribution, use Developer ID signing and notarization. The wallpaper interface is undocumented and may change with macOS updates. If the choice is absent or renders incorrectly, select another wallpaper and use the separate **Wallpaper and Screen Saver** fallback ZIP. It includes the public `.saver` and still images. Its HEIC offers a scheduled Dynamic mode on macOS versions that recognise custom schedules. The fallback cannot animate through unlock.
 
 ## Integration

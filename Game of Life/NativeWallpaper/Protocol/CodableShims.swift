@@ -226,13 +226,27 @@ struct ChoiceDescriptor: Codable, Equatable {
     var options: [WallpaperOption]
 }
 
-/// PLACEHOLDER — never populate. Apple decodes `options` as
-/// `[WallpaperOptionEnum]` (a one-key enum container per element), and
-/// this empty struct encodes as `{}`, which the real decoder rejects
-/// ("Invalid number of keys found, expected one"). Production always
-/// sends `options: []`, which decodes fine; the ABI canary test pins
-/// both facts (CodableShimsABITests).
-struct WallpaperOption: Codable, Equatable {}
+// WallpaperTypes encodes these associated values as picker._0 and item._0.
+enum WallpaperOption: Codable, Equatable {
+    case picker(MenuPickerOption)
+}
+
+struct MenuPickerOption: Codable, Equatable {
+    var id: String
+    var localizedLabel: String
+    var defaultValueID: String
+    var items: [MenuPickerEntry]
+}
+
+enum MenuPickerEntry: Codable, Equatable {
+    case item(MenuPickerItem)
+}
+
+struct MenuPickerItem: Codable, Equatable {
+    var id: String
+    var localizedName: String
+    var isDownloaded: Bool
+}
 
 struct ChoiceProviderID: Codable, Equatable {
     var rawValue: String

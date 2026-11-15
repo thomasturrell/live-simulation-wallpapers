@@ -27,8 +27,7 @@ package final class LifeLayers {
         }
     }
 
-    package func setDarkness(_ darkness: Double) {
-        let palette = LifePalette(darkness: darkness)
+    package func setPalette(_ palette: LifePalette) {
         CATransaction.begin()
         CATransaction.setDisableActions(true)
         backdrop.colors = palette.background

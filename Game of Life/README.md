@@ -1,6 +1,6 @@
 # Game of Life
 
-A native macOS wallpaper app and idle screen saver based on Conway’s Game of Life. The palette uses graphite, warm whites, and muted sage, lilac, and ochre. Every frame is drawn from the simulation.
+A native macOS wallpaper app and idle screen saver based on Conway’s Game of Life. Every frame is drawn from the simulation. The **Colour** menu offers the original graphite and warm-white palette, eight fixed colours, Spectrum, Random and the macOS accent colour.
 
 ## Native WallpaperAgent extension
 
