@@ -1,0 +1,4 @@
+.build/
+.swiftpm/
+.DS_Store
+/Game of Life/dist/

@@ -1,0 +1,39 @@
+GAME OF LIFE
+Conway’s Game of Life for macOS
+
+Version 1.1 · Apple silicon and Intel · macOS 13 or later
+
+DESKTOP
+Unzip the download and open Game of Life.app. Its grid icon stays in
+the menu bar after you close the settings window.
+
+• Set Desktop motion to Settle on Return. The desktop evolves briefly
+  when it comes back into view, then stays still. Keep Game of Life
+  running in the menu bar. The menu also offers Continuous and Off.
+• Choose Set Still Wallpaper to keep a still composition after quitting.
+  This replaces the wallpaper on connected displays. To switch back,
+  choose your previous wallpaper in System Settings.
+• Use Pause to hold the current generation, and Regenerate to start a
+  fresh composition.
+
+LOCK SCREEN
+Open Game of Life.saver in Finder to install it for your account.
+Replace the previous copy if you installed version 1.0. On
+macOS 26 and later, go to System Settings → Wallpaper → Screen Saver,
+choose Custom, then look under Other for Game of Life. On earlier
+versions, open the Screen Saver pane directly. Use Options to customise
+the screen saver and set its idle delay in System Settings.
+
+Try Apple menu → Lock Screen and unlock again. macOS controls when it
+shows the custom screen saver. On a Mac that shows a still image on
+manual lock, use a Start Screen Saver hot corner to start it directly.
+For a locked saver, keep Require password after screen saver begins
+set to Immediately in Lock Screen settings.
+
+The desktop and saver use independent worlds. To match their palettes
+or grid settings, use the saver’s Options if macOS stores its settings
+separately. The desktop uses a window below Finder icons and desktop
+modes can affect when it becomes visible.
+
+This local build is ad-hoc signed. For distribution to other Macs, build
+with a Developer ID Application certificate and notarise both bundles.
