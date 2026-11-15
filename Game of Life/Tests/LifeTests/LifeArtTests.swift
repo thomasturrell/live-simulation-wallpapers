@@ -28,6 +28,7 @@ func rotatedGridCoversAllCorners(viewport: CGSize, angle: Double) {
     // An isolated suite exercises persistence without touching app preferences.
     let domain = "test.\(UUID().uuidString)"
     let defaults = UserDefaults(suiteName: domain)!
+    #expect(LifeSettings(defaults: defaults).colour == .original)
     var settings = LifeSettings()
     settings.speed = 2.5
     settings.size = 9
@@ -35,6 +36,7 @@ func rotatedGridCoversAllCorners(viewport: CGSize, angle: Double) {
     settings.angle = -10
     settings.injection = 0
     settings.appearance = .dark
+    settings.colour = .green
     settings.paused = true
     settings.seed = UInt64.max
     settings.save(to: defaults)
@@ -42,10 +44,40 @@ func rotatedGridCoversAllCorners(viewport: CGSize, angle: Double) {
     #expect(LifeSettings(defaults: defaults) == settings)
     defaults.set(-5.0, forKey: "speed")
     defaults.set("unknown", forKey: "appearance")
+    defaults.set("unknown", forKey: "colour")
     let restored = LifeSettings(defaults: defaults)
     #expect(restored.speed == LifeSettings().speed)
     #expect(restored.appearance == .system)
+    #expect(restored.colour == .original)
     #expect(restored.seed == UInt64.max)
+}
+
+@Test func recolouringChangesTheSnapshotWithoutReseeding() throws {
+    var settings = LifeSettings()
+    let size = CGSize(width: 200, height: 120)
+    var scene = LifeScene(viewport: size, settings: settings)
+    scene.advance(by: 1)
+    let world = try PropertyListEncoder().encode(scene.checkpoint)
+    let initialImage = try #require(scene.image(scale: 1, dark: true)?.dataProvider?.data)
+
+    settings.colour = .green
+    scene.configure(viewport: size, settings: settings)
+    let greenImage = try #require(scene.image(scale: 1, dark: true)?.dataProvider?.data)
+    let recolouredWorld = try PropertyListEncoder().encode(scene.checkpoint)
+    #expect(recolouredWorld == world)
+    #expect(greenImage as Data != initialImage as Data)
+}
+
+@Test func spectrumCyclesAndRandomHoldsItsColourWithinACycle() {
+    func background(_ colour: LifeColour, at generation: Int) -> [CGColor] {
+        LifePalette(darkness: 1, colour: colour, generation: generation, seed: 42).background
+    }
+    #expect(background(.spectrum, at: 0) == background(.green, at: 0))
+    #expect(background(.spectrum, at: 20) != background(.green, at: 20))
+    #expect(background(.spectrum, at: 40) == background(.yellow, at: 40))
+    #expect(background(.spectrum, at: 240) == background(.green, at: 240))
+    #expect(background(.random, at: 0) == background(.random, at: 239))
+    #expect(background(.random, at: 0) != background(.random, at: 240))
 }
 
 @Test func snapshotHasRetinaDimensionsAndDoesNotAdvanceWorld() throws {

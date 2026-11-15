@@ -17,6 +17,15 @@ public enum LifeAppearance: String, CaseIterable, Identifiable {
     }
 }
 
+public enum LifeColour: String, CaseIterable, Identifiable {
+    case spectrum, random, accent
+    case green, yellow, orange, red, purple, blue, grey, darkGrey
+    case original
+
+    public var id: String { rawValue }
+    public var title: String { self == .darkGrey ? "Dark Grey" : rawValue.capitalized }
+}
+
 public struct LifeSettings: Equatable {
     public static let moduleID = "io.github.thomasturrell.live-simulation-wallpapers.life.saver"
     public static let speedRange = 0.25...6.0
@@ -31,6 +40,7 @@ public struct LifeSettings: Equatable {
     public var angle = 12.0
     public var injection = 16.0
     public var appearance = LifeAppearance.system
+    public var colour = LifeColour.original
     public var paused = false
     public var seed: UInt64 = 0x2B7D_A8C3_63FE_6491
     public var pitch: Double { size + spacing }
@@ -55,6 +65,7 @@ public struct LifeSettings: Equatable {
         let interval = read("injection", fallback: injection, in: 0...120)
         if Self.injectionOptions.contains(interval) { injection = interval }
         appearance = defaults.string(forKey: "appearance").flatMap(LifeAppearance.init) ?? .system
+        colour = defaults.string(forKey: "colour").flatMap(LifeColour.init) ?? .original
         paused = defaults.bool(forKey: "paused")
         if let value = defaults.string(forKey: "seed").flatMap(UInt64.init) { seed = value }
     }
@@ -66,6 +77,7 @@ public struct LifeSettings: Equatable {
         defaults.set(angle, forKey: "angle")
         defaults.set(injection, forKey: "injection")
         defaults.set(appearance.rawValue, forKey: "appearance")
+        defaults.set(colour.rawValue, forKey: "colour")
         defaults.set(paused, forKey: "paused")
         defaults.set(String(seed), forKey: "seed")
     }

@@ -1,37 +1,6 @@
 import AppKit
 import LifeEngine
 
-struct LifePalette {
-    let background: [CGColor]
-    let cells: [CGColor]
-
-    init(dark: Bool) {
-        self.init(darkness: dark ? 1 : 0)
-    }
-
-    init(darkness: Double) {
-        let lightBackground = [0xf5f3ee, 0xeceae5]
-        let darkBackground = [0x151618, 0x101112]
-        let lightCells = [0xa8aaa5, 0x8d908b, 0x799387, 0x9887a1, 0xa28e6d]
-        let darkCells = [0x505457, 0x686b6c, 0x677b70, 0x72647c, 0x82745d]
-        background = zip(lightBackground, darkBackground).map {
-            Self.blend(light: $0, dark: $1, darkness: darkness)
-        }
-        cells = zip(lightCells, darkCells).map {
-            Self.blend(light: $0, dark: $1, darkness: darkness)
-        }
-    }
-
-    private static func blend(light: Int, dark: Int, darkness: Double) -> CGColor {
-        func channel(_ shift: Int) -> CGFloat {
-            let a = Double((light >> shift) & 255)
-            let b = Double((dark >> shift) & 255)
-            return (a + (b - a) * darkness) / 255
-        }
-        return CGColor(srgbRed: channel(16), green: channel(8), blue: channel(0), alpha: 1)
-    }
-}
-
 struct LifeLayout {
     let viewport: CGSize
     let pitch: CGFloat
@@ -180,7 +149,12 @@ public struct LifeScene {
         image(scale: scale, darkness: dark ? 1 : 0)
     }
 
-    package func image(scale: CGFloat, darkness: Double) -> CGImage? {
+    package func palette(darkness: Double, colour: LifeColour? = nil) -> LifePalette {
+        LifePalette(darkness: darkness, colour: colour ?? settings.colour,
+                    generation: world.generation, seed: settings.seed)
+    }
+
+    package func image(scale: CGFloat, darkness: Double, colour: LifeColour? = nil) -> CGImage? {
         let width = Int((layout.viewport.width * scale).rounded())
         let height = Int((layout.viewport.height * scale).rounded())
         guard width > 0, height > 0, let colorSpace = CGColorSpace(name: CGColorSpace.sRGB),
@@ -188,7 +162,7 @@ public struct LifeScene {
                                       bytesPerRow: 0, space: colorSpace,
                                       bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue) else { return nil }
         context.scaleBy(x: scale, y: scale)
-        let palette = LifePalette(darkness: darkness)
+        let palette = palette(darkness: darkness, colour: colour)
         if let gradient = CGGradient(colorsSpace: colorSpace, colors: palette.background as CFArray, locations: nil) {
             context.drawLinearGradient(gradient,
                                        start: CGPoint(x: 0, y: layout.viewport.height),

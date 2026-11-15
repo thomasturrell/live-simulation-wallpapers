@@ -10,18 +10,23 @@ enum VerifyWallpaper {
         let thumbnail = URL(fileURLWithPath: CommandLine.arguments[1])
         let state = URL(fileURLWithPath: CommandLine.arguments[2], isDirectory: true)
         guard LifeLoadWallpaperABI() else { throw BridgeError.incompatible }
-        guard let settings = buildSettingsViewModelsXPC(thumbnail: thumbnail),
-              String(describing: type(of: settings)).contains("WallpaperSettingsViewModelsXPC"),
-              Mirror(reflecting: settings).children.count > 0 else { throw BridgeError.incompatible }
-        print("WallpaperExtensionKit classes and real settings model decode passed.")
+        try verifyColourPicker(thumbnail: thumbnail)
+        let green = try creationRequest(colourID: LifeColour.green.id)
+        precondition(green.colour == .green && green.size == CGSize(width: 400, height: 240))
+        let legacy = try creationRequest(colourID: nil)
+        precondition(legacy.colour == nil)
+        print("The real WallpaperTypes model and creation requests decoded the Colour picker and selection.")
 
-        var locked = Presentation(nil)
+        var locked = green
         locked.mode = "locked"
         locked.scale = 2
+        locked.preview = false
         let landscape = CGSize(width: 780, height: 440)
         let portrait = CGSize(width: 442, height: 780)
         let left = RemoteView(size: landscape, request: locked)
-        let right = RemoteView(size: portrait, request: locked)
+        let right = RemoteView(size: portrait, request: legacy)
+        precondition(left.colour == .green && right.colour == .original)
+        _ = right.apply(locked)
 
         verifyFullFrame(left, size: landscape, scale: 2)
         verifyFullFrame(right, size: portrait, scale: 1)
@@ -63,6 +68,54 @@ enum VerifyWallpaper {
         recreated.views.removeAll()
         recreated.refresh(hint: false)
         print("Two remote layers, two IOSurface snapshots, slowdown, stopped timer and checkpoint resume passed.")
+    }
+
+    private static func verifyColourPicker(thumbnail: URL) throws {
+        guard let settings = buildSettingsViewModelsXPC(thumbnail: thumbnail) else {
+            throw BridgeError.incompatible
+        }
+        let mirror = Mirror(reflecting: settings)
+        for surface in ["desktop", "screenSaver"] {
+            guard let group = (mirror.descendant("box", "rawValue", surface, "some", "groups") as? [Any])?.first,
+                  let item = (Mirror(reflecting: group).descendant("items") as? [Any])?.first,
+                  let option = (Mirror(reflecting: item).descendant("choice", "options") as? [Any])?.first else {
+                throw BridgeError.incompatible
+            }
+            let picker = Mirror(reflecting: option)
+            guard picker.descendant("picker", "localizedLabel") as? String == "Colour",
+                  picker.descendant("picker", "defaultValueID") as? String == LifeColour.original.id,
+                  let items = picker.descendant("picker", "items") as? [Any],
+                  items.compactMap({ Mirror(reflecting: $0).descendant("item", "id") as? String })
+                    == LifeColour.allCases.map(\.id) else {
+                throw BridgeError.incompatible
+            }
+        }
+    }
+
+    private static func creationRequest(colourID: String?) throws -> Presentation {
+        guard let cls = NSClassFromString("WallpaperCreationRequestXPC") as? any NSSecureCoding.Type,
+              let space = CGColorSpace(name: CGColorSpace.sRGB)?.copyPropertyList() else {
+            throw BridgeError.incompatible
+        }
+        let colorSpace = try PropertyListSerialization.data(fromPropertyList: space, format: .binary, options: 0)
+        var request: [String: Any] = [
+            "configuration": Data(), "isPreview": false, "debugBackgrounds": false,
+            "destination": ["size": [400, 240], "scaleFactor": 1, "colorSpace": colorSpace],
+            "presentationMode": ["idle": [:]], "activityState": ["active": [:]], "systemAppearance": ["dark": [:]]
+        ]
+        if let colourID {
+            request["optionValues"] = ["values": [lifeColourOptionID: ["picker": ["_0": ["id": colourID]]]]]
+        }
+        let archive = NSKeyedArchiver(requiringSecureCoding: true)
+        archive.encode([], forKey: "files")
+        archive.encode(nil, forKey: "cacheDirectory")
+        archive.encode(request, forKey: "codable")
+        let decoder = try NSKeyedUnarchiver(forReadingFrom: archive.encodedData)
+        defer { decoder.finishDecoding() }
+        decoder.requiresSecureCoding = true
+        decoder.decodingFailurePolicy = .setErrorAndReturn
+        guard let decoded = cls.init(coder: decoder) else { throw BridgeError.incompatible }
+        return Presentation(decoded)
     }
 
     private static func verifyFullFrame(_ view: RemoteView, size: CGSize, scale: CGFloat) {

@@ -53,7 +53,8 @@ public final class LifeView: NSView {
         super.init(frame: frame)
         wantsLayer = true
         layer = art.root
-        updatePalette()
+        NotificationCenter.default.addObserver(self, selector: #selector(systemColorsChanged(_:)),
+                                               name: NSColor.systemColorsDidChangeNotification, object: nil)
 
         let workspace = NSWorkspace.shared.notificationCenter
         workspace.addObserver(self, selector: #selector(suspendDisplays(_:)),
@@ -129,6 +130,9 @@ public final class LifeView: NSView {
     }
 
     @objc private func visibilityChanged(_ notification: Notification) { updateClock() }
+    @objc private func systemColorsChanged(_ notification: Notification) {
+        if settings.colour == .accent { updatePalette() }
+    }
     @objc private func suspendDisplays(_ notification: Notification) { displaysAwake = false; updateClock() }
     @objc private func wakeDisplays(_ notification: Notification) { displaysAwake = true; updateClock() }
     @objc private func suspendSession(_ notification: Notification) { sessionActive = false; updateClock() }
@@ -206,11 +210,13 @@ public final class LifeView: NSView {
     }
 
     private func updatePalette() {
-        art.setDarkness(settings.appearance.isDark(in: effectiveAppearance) ? 1 : 0)
+        guard let scene else { return }
+        art.setPalette(scene.palette(darkness: settings.appearance.isDark(in: effectiveAppearance) ? 1 : 0))
     }
 
     private func advance(by interval: TimeInterval, transition: TimeInterval? = nil) {
         scene?.advance(by: interval)
+        if settings.colour == .spectrum || settings.colour == .random { updatePalette() }
         drawGeneration(animate: true, transition: transition)
     }
 

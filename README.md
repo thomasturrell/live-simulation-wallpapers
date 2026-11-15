@@ -15,7 +15,6 @@ The first wallpaper is based on [Conway’s Game of Life](https://en.wikipedia.o
 
 ## Planned customisation
 
-- **Colour themes** to change the look of each wallpaper.
 - **Optional logo overlays** for a personal or company watermark. Supply your own logo or keep the wallpaper unbranded.
 
 ## Licence
