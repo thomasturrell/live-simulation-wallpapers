@@ -175,8 +175,7 @@ final class DisplayPlayback {
     }
 
     func refresh(hint: Bool?) {
-        let visible = views.values.filter { !$0.preview && !$0.suspended }
-        let shouldRun = !visible.isEmpty && (hint ?? visible.contains { $0.isSaver })
+        let visible = views.values.filter { !$0.suspended }
         if visible.isEmpty {
             timer?.cancel()
             timer = nil
@@ -185,6 +184,9 @@ final class DisplayPlayback {
             return
         }
 
+        // System Settings acquires its own preview world. Keep it playing
+        // while visible, regardless of the desktop's saver notifications.
+        let shouldRun = visible.contains { $0.preview } || (hint ?? visible.contains { $0.isSaver })
         guard shouldRun != running else { return }
         running = shouldRun
         timer?.cancel()
