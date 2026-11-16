@@ -9,8 +9,12 @@ public enum LifeAppearance: String, CaseIterable, Identifiable {
     public var id: String { rawValue }
 
     public func isDark(in appearance: NSAppearance) -> Bool {
+        isDark(systemDark: appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua)
+    }
+
+    package func isDark(systemDark: Bool) -> Bool {
         switch self {
-        case .system: return appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+        case .system: return systemDark
         case .light: return false
         case .dark: return true
         }
