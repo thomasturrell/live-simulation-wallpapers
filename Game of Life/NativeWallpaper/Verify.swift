@@ -94,15 +94,16 @@ enum VerifyWallpaper {
         }
     }
 
-    private static func creationRequest(colourID: String?) throws -> Presentation {
+    private static func creationRequest(colourID: String?, preview: Bool = false,
+                                        size: CGSize = CGSize(width: 400, height: 240)) throws -> Presentation {
         guard let cls = NSClassFromString("WallpaperCreationRequestXPC") as? any NSSecureCoding.Type,
               let space = CGColorSpace(name: CGColorSpace.sRGB)?.copyPropertyList() else {
             throw BridgeError.incompatible
         }
         let colorSpace = try PropertyListSerialization.data(fromPropertyList: space, format: .binary, options: 0)
         var request: [String: Any] = [
-            "configuration": Data(), "isPreview": false, "debugBackgrounds": false,
-            "destination": ["size": [400, 240], "scaleFactor": 1, "colorSpace": colorSpace],
+            "configuration": Data(), "isPreview": preview, "debugBackgrounds": false,
+            "destination": ["size": [size.width, size.height], "scaleFactor": 1, "colorSpace": colorSpace],
             "presentationMode": ["idle": [:]], "activityState": ["active": [:]], "systemAppearance": ["dark": [:]]
         ]
         if let colourID {
@@ -121,18 +122,32 @@ enum VerifyWallpaper {
     }
 
     private static func verifyPreviewPlayback() async throws {
-        let size = CGSize(width: 480, height: 300)
-        var request = Presentation(nil)
-        request.preview = true
+        let size = CGSize(width: 1512, height: 982)
+        var request = try creationRequest(colourID: LifeColour.green.id, preview: true, size: size)
+        precondition(request.preview && request.size == size)
         let view = RemoteView(size: size, request: request)
-        let playback = DisplayPlayback(logicalSize: size, checkpointKey: nil)
+        let playback = DisplayPlayback(logicalSize: size, preview: request.preview, checkpointKey: nil)
+        let viewport = playback.scene.viewport
+        precondition(view.colour == .green && viewport.width <= size.width / 5)
+        precondition(abs(viewport.width / viewport.height - size.width / size.height) < 0.001)
         playback.views[UUID()] = view
         playback.draw(animate: false)
-        let firstFrame = playback.scene.image(scale: 1, dark: true)?.dataProvider?.data
+        precondition(view.root.frame.size == size)
+        func thumbnailPixels() -> CFData? {
+            let width = 160
+            let height = Int((Double(width) * size.height / size.width).rounded())
+            guard let bitmap = CGContext(data: nil, width: width, height: height, bitsPerComponent: 8,
+                                         bytesPerRow: width * 4, space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                                         bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return nil }
+            bitmap.scaleBy(x: Double(width) / size.width, y: Double(height) / size.height)
+            view.root.render(in: bitmap)
+            return bitmap.makeImage()?.dataProvider?.data
+        }
+        let firstFrame = thumbnailPixels()
 
         playback.refresh(hint: false)
         try await Task.sleep(for: .seconds(1.3))
-        let nextFrame = playback.scene.image(scale: 1, dark: true)?.dataProvider?.data
+        let nextFrame = thumbnailPixels()
         precondition(firstFrame != nil && nextFrame != nil && firstFrame != nextFrame)
 
         request.activity = "suspended"
@@ -153,7 +168,7 @@ enum VerifyWallpaper {
         let released = playback.phase
         try await Task.sleep(for: .seconds(1.3))
         precondition(playback.phase == released)
-        print("Preview frames change independently of the desktop, pause when suspended and stop on release.")
+        print("Preview uses a coarser grid and the chosen colour, animates, pauses when suspended and stops on release.")
     }
 
     private static func verifyFullFrame(_ view: RemoteView, size: CGSize, scale: CGFloat) {
