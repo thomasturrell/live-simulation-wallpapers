@@ -45,7 +45,7 @@ final class WallpaperDriver {
         // still have a live scene and subscribers.
         let key = request.preview ? "preview-\(id)" : (request.displayKey ?? "session-\(id)")
         let playback = displays[key] ?? DisplayPlayback(
-            logicalSize: size, checkpointKey: request.preview ? nil : request.displayKey
+            logicalSize: size, preview: request.preview, checkpointKey: request.preview ? nil : request.displayKey
         )
         if let old = owners[id], old !== playback { invalidate(id) }
         if !surface.preview && surface.isSaver && owners[id] == nil { saverHint = nil }
@@ -134,7 +134,7 @@ final class DisplayPlayback {
     private var running = false
     private var remaining: ArraySlice<Double> = []
 
-    init(logicalSize: CGSize, checkpointKey: String?, storage: URL? = nil) {
+    init(logicalSize: CGSize, preview: Bool = false, checkpointKey: String?, storage: URL? = nil) {
         var path: URL?
         if let checkpointKey,
            let base = storage ?? FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first {
@@ -149,7 +149,12 @@ final class DisplayPlayback {
         self.path = path
         var settings = LifeSettings()
         settings.speed = 1.0
-        if let checkpointKey {
+        if preview {
+            // A small grid shows fewer colonies. Start with an active composition
+            // and introduce new patterns more often to keep the preview moving.
+            settings.seed = 0x2B7D_A8C3_63FE_64E8
+            settings.injection = 4
+        } else if let checkpointKey {
             // Unlike Swift's randomized Hasher, this displacement is stable between launches.
             for byte in checkpointKey.utf8 { settings.seed = (settings.seed ^ UInt64(byte)) &* 1_099_511_628_211 }
         }
@@ -161,8 +166,12 @@ final class DisplayPlayback {
             scene = restored
             phase = saved.phase
         } else {
-            scene = LifeScene(viewport: CGSize(width: max(16, logicalSize.width),
-                                               height: max(16, logicalSize.height)), settings: settings)
+            // System Settings requests a full display surface and scales it down for the preview.
+            // Limit the scene to about 30 cells along its longer edge so motion stays visible.
+            let scale = preview ? min(1, 240 / max(logicalSize.width, logicalSize.height)) : 1
+            let viewport = CGSize(width: max(16, logicalSize.width * scale),
+                                  height: max(16, logicalSize.height * scale))
+            scene = LifeScene(viewport: viewport, settings: settings)
         }
     }
 
