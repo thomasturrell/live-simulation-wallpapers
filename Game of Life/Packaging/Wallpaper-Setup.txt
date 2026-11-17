@@ -18,13 +18,8 @@ If your macOS version imports custom HEIC files as stills, you can
 choose either of the included Light or Dark PNGs instead.
 
 SCREEN SAVER
-1. Double-click Game of Life.saver in Finder to install the screen
-   saver for your account.
-2. In System Settings → Wallpaper → Screen Saver, choose Custom and
-   select Game of Life under Other. On older macOS versions, use
-   the separate Screen Saver pane.
-3. Set the idle delay. If manual lock shows a still image on your Mac,
-   a Start Screen Saver hot corner starts the saver directly.
+Follow the LOCK SCREEN section in ../Setup.txt (relative to this file)
+to install Game of Life.saver and configure idle or manual activation.
 
 macOS handles the desktop and screen saver. If you tried the earlier
 menu-bar app, quit it so the macOS wallpaper is visible.
