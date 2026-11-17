@@ -48,11 +48,16 @@ public struct CityViewport: Equatable {
         let u = width / 32 + 2
         let near = (-origin.y - 12) / 8
         let far = (height - origin.y + 80) / 8
-        return (near...far).flatMap { sum in
-            ((sum - u) / 2 - 1...(sum + u) / 2 + 1).map { x in
-                Plot(x + CityMap.center.x, sum - x + CityMap.center.y)
+        let center = CityMap.center
+        var plots: [Plot] = []
+        for sum in near...far {
+            let firstX = (sum - u) / 2 - 1
+            let lastX = (sum + u) / 2 + 1
+            for x in firstX...lastX {
+                plots.append(Plot(x + center.x, sum - x + center.y))
             }
         }
+        return plots
     }
 }
 
