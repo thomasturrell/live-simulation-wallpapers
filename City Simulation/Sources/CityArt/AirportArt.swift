@@ -34,45 +34,65 @@ extension Pixels {
         rectangle(3.7, 0.5, 8.3, 3.1, c.sidewalk)
         rectangle(0.8, 0.5, 3.3, 3.1, c.sidewalk)
         rectangle(10, 0.5, 12.3, 3.1, c.sidewalk)
-        rectangle(0.9, 2.96, 12.2, 3.04, c.paint)
-        rectangle(1.16, 3, 1.24, 4.4, c.paint)
-        rectangle(11.56, 3, 11.64, 5, c.paint)
-        rectangle(5.96, 1.2, 6.04, 3, c.paint)
-        rectangle(5.65, 1.65, 6.35, 1.72, c.paint)
-        // Runway edges, centre dashes, aiming points and threshold bars.
-        let white = c.color(0xD8D4BD, 0x92939A)
-        rectangle(0.65, 4.42, 13, 4.48, white)
-        rectangle(0.65, 5.52, 13, 5.58, white)
-        for n in 3...11 where n.isMultiple(of: 2) {
-            rectangle(Double(n) - 0.3, 4.97, Double(n) + 0.3, 5.06, white)
-        }
-        for end in [0.9, 12.3] {
-            for stripe in [4.58, 4.8, 5.12, 5.34] { rectangle(end, stripe, end + 0.55, stripe + 0.1, white) }
-        }
-        for end in [3.0, 10.6] {
-            rectangle(end, 4.6, end + 0.45, 4.76, white)
-            rectangle(end, 5.24, end + 0.45, 5.4, white)
-        }
-        for end in [2, 12] where plot == airport.designPlot(end, 5) {
-            let digits = end == 2 ? [0, 9] : [2, 7]
-            let glyphs = [[7, 5, 5, 5, 7], [2, 6, 2, 2, 7], [7, 1, 7, 4, 7],
-                          [7, 1, 7, 1, 7], [5, 5, 7, 1, 1], [7, 4, 7, 1, 7],
-                          [7, 4, 7, 5, 7], [7, 1, 1, 1, 1], [7, 5, 7, 5, 7], [7, 5, 7, 1, 7]]
-            for (i, digit) in digits.enumerated() {
-                for (row, bits) in glyphs[digit].enumerated() {
-                    for column in 0..<3 where bits & (1 << (2 - column)) != 0 {
-                        let dot = point(Double(end) - 0.14 + Double(row) / 16, 5 - 0.22 + Double(i * 4 + column) / 16)
-                        span(dot.x, dot.x, dot.y, white)
-                    }
-                }
-            }
-        }
-        for offset in [-0.14, 0.14] { rectangle(0.85, 4.1 + offset, 1.55, 4.16 + offset, c.paint) }
         // Low perimeter posts, interrupted at the passenger entrance.
         if local.v == 0 && !(5...7).contains(where: { airport.designPlot($0, 0) == plot }) {
             let a = point(leftEdge, -0.4), b = point(rightEdge, -0.4)
             line(a.offset(0, -1), b.offset(0, -1), c.curb)
             line(a, a.offset(0, -3), c.outline)
+        }
+    }
+
+    /// Markings use whole world pixels on the compact runway, rather than shrinking
+    /// font pixels or clipping subpixel strokes independently to each terrain tile.
+    mutating func airportMarkings(at p: Dot, airport: Airport, palette c: Palette) {
+        func dot(_ u: Int, _ v: Int) -> Dot {
+            airport.alongY ? p.iso(v, u) : p.iso(u, v)
+        }
+        func stroke(_ u: Int, _ v: Int, _ endU: Int, _ endV: Int, _ ink: Ink) {
+            line(dot(u, v), dot(endU, endV), ink)
+        }
+        func rectangle(_ u: Int, _ v: Int, _ w: Int, _ d: Int, _ ink: Ink) {
+            polygon([dot(u, v), dot(u + w, v), dot(u + w, v + d), dot(u, v + d)], ink)
+        }
+
+        // A single ground pass keeps each guide line continuous across lot boundaries.
+        stroke(11, 40, 166, 40, c.paint)
+        stroke(15, 40, 15, 58, c.paint)
+        stroke(158, 40, 158, 58, c.paint)
+        stroke(81, 15, 81, 40, c.paint)
+        stroke(77, 21, 85, 21, c.paint)
+        for v in [53, 56] { stroke(11, v, 19, v, c.paint) }
+
+        let white = c.color(0xD8D4BD, 0x92939A)
+        stroke(8, 59, 177, 59, white)
+        stroke(8, 75, 177, 75, white)
+        for u in [52, 78, 104, 130] { stroke(u - 4, 67, u + 4, 67, white) }
+        for u in [12, 163] {
+            for v in [61, 65, 69, 73] { stroke(u, v, u + 8, v, white) }
+        }
+        for u in [40, 137] {
+            rectangle(u, 61, 6, 2, white)
+            rectangle(u, 71, 6, 2, white)
+        }
+
+        // Outline numerals retain open counters at this scale. The opposite threshold
+        // is rotated 180 degrees so each designation faces its approaching aircraft.
+        let glyphs = [0x3F, 0x06, 0x5B, 0x4F, 0x66, 0x6D, 0x7D, 0x07, 0x7F, 0x6F]
+        let segments = [(0, 0, 0, 4), (0, 4, 4, 4), (4, 4, 8, 4), (8, 4, 8, 0),
+                        (8, 0, 4, 0), (4, 0, 0, 0), (4, 0, 4, 4)]
+        for farEnd in [false, true] {
+            let digits = farEnd ? [2, 7] : [0, 9]
+            let top = farEnd ? 153 : 30
+            let left = farEnd ? 72 : 62
+            let along = farEnd ? 1 : -1
+            let across = -along
+            for (index, digit) in digits.enumerated() {
+                for (bit, segment) in segments.enumerated() where glyphs[digit] & (1 << bit) != 0 {
+                    let (row, column, endRow, endColumn) = segment
+                    stroke(top + row * along, left + (index * 6 + column) * across,
+                           top + endRow * along, left + (index * 6 + endColumn) * across, white)
+                }
+            }
         }
     }
 

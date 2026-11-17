@@ -163,6 +163,9 @@ public final class CityRenderer {
             pixels.ground(lot, at: p, plot: plot, map: city.map, palette: c)
             if lot.ground == .water, lot.detail % 3 == 0 { water.append((p, lot.detail)) }
         }
+        if let airport = city.map.airport {
+            pixels.airportMarkings(at: viewport.project(airport.origin), airport: airport, palette: c)
+        }
         for (plot, p, lot) in plots where lot.ground == .grass || lot.ground == .park {
             if lot.building != nil {
                 pixels.tile(p.offset(4, 1), -6, -5, 12, 13, c.shadow)
