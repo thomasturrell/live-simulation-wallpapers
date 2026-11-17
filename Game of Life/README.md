@@ -4,7 +4,7 @@ A native macOS wallpaper app and idle screen saver based on Conway’s Game of L
 
 ## Native WallpaperAgent extension
 
-**Game of Life Wallpaper 2.0.2** embeds an ExtensionKit wallpaper and screen saver for macOS 26 or later. It persists the Conway world and colour phase per display, animates during saver playback, then settles the desktop and stops its timers. The carrier app can close after installation.
+**Game of Life Wallpaper 2.0.3** embeds an ExtensionKit wallpaper and screen saver for macOS 26 or later. It persists the Conway world and colour phase per display, animates during saver playback, then settles the desktop and stops its timers. The carrier app can close after installation.
 
 [Installation, compatibility and build notes](NativeWallpaper/INSTALL.md)
 
