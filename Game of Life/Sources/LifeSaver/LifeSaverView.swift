@@ -6,7 +6,6 @@ import LifeArt
 @objc(LifeSaverView)
 public final class LifeSaverView: ScreenSaverView {
     private let defaults = LifeSettings.moduleDefaults()
-    private let brandingStore = LifeBrandingStore.local()
     private var art: LifeView?
     private var options: NSWindow?
     private var signalledStart = false
@@ -14,7 +13,6 @@ public final class LifeSaverView: ScreenSaverView {
     public override init?(frame: NSRect, isPreview: Bool) {
         super.init(frame: frame, isPreview: isPreview)
         let view = LifeView(frame: bounds, settings: LifeSettings(defaults: defaults),
-                            branding: brandingStore?.load() ?? LifeBranding(),
                             previewScale: isPreview ? 0.55 : 1, tracksWindowOcclusion: false)
         view.playbackEnabled = false
         view.autoresizingMask = [.width, .height]
@@ -28,7 +26,6 @@ public final class LifeSaverView: ScreenSaverView {
 
     public override func startAnimation() {
         art?.settings = LifeSettings(defaults: defaults)
-        art?.branding = brandingStore?.load() ?? LifeBranding()
         super.startAnimation()
         art?.playbackEnabled = true
         if !isPreview, !signalledStart {
@@ -58,27 +55,15 @@ public final class LifeSaverView: ScreenSaverView {
 
     public override var configureSheet: NSWindow? {
         if let options { return options }
-        let startingBranding = brandingStore?.load() ?? LifeBranding()
-        let model = SaverOptions(settings: LifeSettings(defaults: defaults), branding: startingBranding)
-        let panel = NSPanel(contentRect: NSRect(x: 0, y: 0, width: 540, height: 335),
+        let model = SaverOptions(settings: LifeSettings(defaults: defaults))
+        let panel = NSPanel(contentRect: NSRect(x: 0, y: 0, width: 540, height: 280),
                             styleMask: [.titled], backing: .buffered, defer: false)
         panel.title = "Conway’s Game of Life"
         panel.contentView = NSHostingView(rootView: SaverSettingsView(model: model) { [weak self, weak panel] save in
             guard let self, let panel else { return }
             if save {
-                if model.branding != startingBranding {
-                    do {
-                        guard let store = self.brandingStore else { throw CocoaError(.fileNoSuchFile) }
-                        try store.save(model.branding)
-                    } catch {
-                        let alert = NSAlert(error: error)
-                        alert.beginSheetModal(for: panel)
-                        return
-                    }
-                }
                 model.settings.save(to: self.defaults)
                 self.art?.settings = model.settings
-                self.art?.branding = model.branding
             }
             if let parent = panel.sheetParent { parent.endSheet(panel) } else { panel.orderOut(nil) }
             panel.contentView = nil
@@ -92,12 +77,8 @@ public final class LifeSaverView: ScreenSaverView {
 @MainActor
 private final class SaverOptions: ObservableObject {
     @Published var settings: LifeSettings
-    @Published var branding: LifeBranding
 
-    init(settings: LifeSettings, branding: LifeBranding) {
-        self.settings = settings
-        self.branding = branding
-    }
+    init(settings: LifeSettings) { self.settings = settings }
 }
 
 private struct SaverSettingsView: View {
@@ -107,8 +88,6 @@ private struct SaverSettingsView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             LifeSettingsControls(settings: $model.settings)
-            Divider()
-            LifeBrandingControls(branding: model.branding) { model.branding = $0 }
             HStack {
                 Toggle("Pause animation", isOn: $model.settings.paused)
                 Spacer()

@@ -11,9 +11,6 @@ final class WallpaperDriver {
     private var saverHint: Bool?
     private var observers: [NSObjectProtocol] = []
     private var colourObserver: NSObjectProtocol?
-    private let brandingStore = LifeBrandingStore.shared()
-    private var branding = LifeBranding()
-    private var brandingArtwork = LifeBrandingArtwork()
     var invalidateSnapshots: (() -> Void)?
 
     private init() {
@@ -22,9 +19,8 @@ final class WallpaperDriver {
             "com.apple.screensaver.didstop": false,
             "com.apple.screenIsUnlocked": false
         ]
-        let notifications = DistributedNotificationCenter.default()
         observers = names.map { name, active in
-            notifications.addObserver(
+            DistributedNotificationCenter.default().addObserver(
                 forName: .init(name), object: nil, queue: .main
             ) { note in
                 guard note.object as? String != "runFromPref" else { return }
@@ -39,17 +35,11 @@ final class WallpaperDriver {
         ) { [weak self] _ in
             MainActor.assumeIsolated { self?.refreshAccent() }
         }
-        observers.append(notifications.addObserver(forName: LifeBranding.didChange, object: nil, queue: .main) {
-            [weak self] _ in
-            MainActor.assumeIsolated { self?.refreshBranding() }
-        })
-        refreshBranding()
     }
 
     func acquire(_ id: UUID, _ request: Presentation) throws -> Any {
         guard LifeLoadWallpaperABI(), let size = request.size else { throw BridgeError.incompatible }
         let surface = RemoteView(size: size, request: request)
-        surface.brandingArtwork = brandingArtwork
         guard let wrapped = surface.makeContext(display: request.displayID) else { throw BridgeError.incompatible }
         // Make the successor first. A repeated acquire with the same ID may
         // still have a live scene and subscribers.
@@ -113,19 +103,6 @@ final class WallpaperDriver {
             }
         }
         if changed { invalidateSnapshots?() }
-    }
-
-    private func refreshBranding() {
-        guard let updated = brandingStore?.load(), updated != branding else { return }
-        branding = updated
-        brandingArtwork = LifeBrandingArtwork(updated)
-        for display in displays.values {
-            for view in display.views.values {
-                view.brandingArtwork = brandingArtwork
-                view.updatePalette(display.scene, phase: display.phase)
-            }
-        }
-        invalidateSnapshots?()
     }
 }
 
@@ -286,11 +263,6 @@ final class DisplayPlayback {
 final class RemoteView {
     let root = CALayer()
     private let art = LifeLayers()
-    private let logo = LifeBrandingLayer()
-    var brandingArtwork: LifeBrandingArtwork {
-        get { logo.artwork }
-        set { logo.artwork = newValue }
-    }
     private var context: AnyObject?
     private var size: CGSize
     private var scale: CGFloat
@@ -323,7 +295,6 @@ final class RemoteView {
         root.contentsScale = scale
         art.root.anchorPoint = .zero
         root.addSublayer(art.root)
-        root.addSublayer(logo.layer)
     }
 
     func makeContext(display: UInt32?) -> Any? {
@@ -350,9 +321,7 @@ final class RemoteView {
     }
 
     func updatePalette(_ scene: LifeScene, phase: UInt16) {
-        let palette = scene.palette(darkness: darkness(phase: phase), colour: colour)
-        art.setPalette(palette)
-        logo.update(viewport: size, palette: palette)
+        art.setPalette(scene.palette(darkness: darkness(phase: phase), colour: colour))
     }
 
     private func projection(_ scene: LifeScene) -> (zoom: CGFloat, offset: CGPoint) {
@@ -402,8 +371,6 @@ final class RemoteView {
         ctx.scaleBy(x: pixelScale, y: pixelScale)
         ctx.draw(image, in: CGRect(origin: offset, size: CGSize(width: scene.viewport.width * zoom,
                                                                  height: scene.viewport.height * zoom)))
-        brandingArtwork.draw(in: ctx, viewport: size,
-                             palette: scene.palette(darkness: darkness(phase: phase), colour: colour))
         return LifeWrapWallpaperSnapshot(surface)
     }
 }
