@@ -38,6 +38,7 @@ enum VerifyWallpaper {
             throw BridgeError.noSurface
         }
 
+        try verifyBranding(request: locked, directory: state)
         try await verifyPreviewPlayback()
 
         let first = DisplayPlayback(logicalSize: landscape, checkpointKey: "landscape", storage: state)
@@ -70,6 +71,35 @@ enum VerifyWallpaper {
         recreated.views.removeAll()
         recreated.refresh(hint: false)
         print("Two remote layers, two IOSurface snapshots, slowdown, stopped timer and checkpoint resume passed.")
+    }
+
+    private static func verifyBranding(request: Presentation, directory: URL) throws {
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let source = directory.appendingPathComponent("probe-logo.svg")
+        defer { try? FileManager.default.removeItem(at: source) }
+        let svg = #"<svg xmlns="http://www.w3.org/2000/svg" width="100" height="50"><rect x="10" y="10" width="80" height="30" fill="white"/></svg>"#
+        try Data(svg.utf8).write(to: source)
+        let branding = LifeBranding(primary: try LifeLogo(importing: source))
+
+        let landscape = CGSize(width: 780, height: 440)
+        let portrait = CGSize(width: 440, height: 780)
+        let view = RemoteView(size: landscape, request: request)
+        let scene = LifeScene(viewport: landscape, settings: LifeSettings())
+        view.brandingArtwork = LifeBrandingArtwork(branding)
+        for size in [landscape, portrait] {
+            var update = Presentation(nil)
+            update.size = size
+            _ = view.apply(update)
+            view.draw(scene, phase: 0, animate: false, duration: 0)
+            guard let layer = view.root.sublayers?.last else { throw BridgeError.noSurface }
+            precondition(!layer.isHidden && layer.contents != nil)
+            precondition(layer.frame.midX > size.width * 0.8 && layer.frame.midY < size.height * 0.2)
+            precondition(view.snapshot(scene, phase: 0) != nil)
+        }
+        view.brandingArtwork = LifeBrandingArtwork()
+        view.updatePalette(scene, phase: 0)
+        precondition(view.root.sublayers?.last?.isHidden == true)
+        print("SVG branding follows the physical corner across display sizes and renders in native snapshots.")
     }
 
     private static func verifyColourPicker(thumbnail: URL) throws {

@@ -22,6 +22,8 @@ The binaries target macOS 13 or later and include Apple silicon and Intel slices
 
 ### Desktop and screen saver
 
+- **Add Logo** puts optional branding in the bottom right of the desktop and its still exports. Import a self-contained SVG with outlined lettering or a transparent PNG. For a second version, use the same crop and proportions. The wallpaper selects the artwork that contrasts better with its current colour. Use **Remove** on the primary logo to clear both versions.
+- The menu-bar app copies logos into `~/Library/Application Support/Game of Life/Branding`. The standalone screen saver also offers logo import in its options, using the Application Support directory available to its macOS host.
 - **Settle on Return** runs a few increasingly spaced generations when the desktop comes back into view, then stops the timer. **Continuous** is available in the same Desktop motion menu. Both use a mouse-transparent window beneath Finder icons on each display while the app is open. Spaces and desktop modes can affect when AppKit reports the window as visible.
 - **Set Still Wallpaper** saves a Retina-size PNG for each connected display and applies it with `NSWorkspace`. The PNGs live in the app’s Application Support folder so macOS can continue to load them after the app quits. An applied still keeps its captured colours. Set it again after changing appearance if you want a new still.
 - **Lock Screen motion** comes from the selected screen saver. Apple’s Lock Screen command can start it on supported macOS versions, and a Start Screen Saver hot corner starts it directly. Use Screen Saver Options to match the desktop settings if macOS isolates the host preferences.
