@@ -4,15 +4,19 @@
 
 import AppKit
 import Foundation
-import LifeArt
 
-private let lifeChoiceID = "game-of-life"
-private let lifeDisplayName = "Game of Life"
-let lifeColourOptionID = "colorScheme"
+struct WallpaperChoice {
+    let id: String
+    let name: String
+    let description: String
+    let bundleID: String
+    let thumbnail: String
+    var options: [WallpaperOption] = []
+}
 
 func buildSettingsViewModelsXPC(thumbnail: URL? = nil) -> AnyObject? {
-    let bundleID = Bundle.main.bundleIdentifier ?? "io.github.thomasturrell.live-simulation-wallpapers.life.wallpaper.Extension"
-    let groupID = GroupID(id: "game-of-life-group")
+    let bundleID = Bundle.main.bundleIdentifier ?? wallpaperChoice.bundleID
+    let groupID = GroupID(id: "\(wallpaperChoice.id)-group")
 
     guard let thumbnailURL = thumbnail ?? bundledThumbnailURL() else {
         debugLog("  [Settings] Failed to generate thumbnail")
@@ -20,36 +24,29 @@ func buildSettingsViewModelsXPC(thumbnail: URL? = nil) -> AnyObject? {
     }
 
     let choiceID = ChoiceID(
-        id: lifeChoiceID,
+        id: wallpaperChoice.id,
         descriptor: ChoiceIDDescriptor(
             provider: ChoiceProviderID(rawValue: bundleID),
-            identifier: lifeChoiceID,
+            identifier: wallpaperChoice.id,
             files: [],
-            configuration: Data(lifeChoiceID.utf8),
+            configuration: Data(wallpaperChoice.id.utf8),
         ),
     )
 
     let choiceDescriptor = ChoiceDescriptor(
         id: choiceID,
         provider: ChoiceProviderID(rawValue: bundleID),
-        identifier: lifeChoiceID,
-        name: lifeDisplayName,
-        localizedDescription: "Conway’s Game of Life",
+        identifier: wallpaperChoice.id,
+        name: wallpaperChoice.name,
+        localizedDescription: wallpaperChoice.description,
         thumbnail: .image(url: thumbnailURL),
         isDownloaded: true,
-        options: [.picker(MenuPickerOption(
-            id: lifeColourOptionID,
-            localizedLabel: "Colour",
-            defaultValueID: LifeColour.original.id,
-            items: LifeColour.allCases.map {
-                .item(MenuPickerItem(id: $0.id, localizedName: $0.title, isDownloaded: true))
-            }
-        ))],
+        options: wallpaperChoice.options,
     )
 
     let item = SettingsItem(
         id: choiceID,
-        localizedName: lifeDisplayName,
+        localizedName: wallpaperChoice.name,
         thumbnail: .image(url: thumbnailURL),
         choice: choiceDescriptor,
         contentBadge: .dynamic,
@@ -61,7 +58,7 @@ func buildSettingsViewModelsXPC(thumbnail: URL? = nil) -> AnyObject? {
     let group = SettingsGroup(
         id: groupID,
         items: [item],
-        localizedName: lifeDisplayName,
+        localizedName: wallpaperChoice.name,
         disposability: .none,
         sortOrder: -50,
         sortID: GroupSortID(id: "com.apple.wallpaper.aerials"),
@@ -143,7 +140,7 @@ private func remapToRealXPC(_ viewModels: SettingsViewModels) -> AnyObject? {
 /// previous generated thumbnail used and is known to be readable by WallpaperAgent.)
 private func bundledThumbnailURL() -> URL? {
     let fm = FileManager.default
-    guard let src = Bundle.main.url(forResource: "life-thumbnail", withExtension: "png") else {
+    guard let src = Bundle.main.url(forResource: wallpaperChoice.thumbnail, withExtension: "png") else {
         debugLog("  [Settings] Bundled thumbnail not found")
         return nil
     }
@@ -151,9 +148,10 @@ private func bundledThumbnailURL() -> URL? {
         return src
     }
     try? fm.createDirectory(at: cacheDir, withIntermediateDirectories: true)
-    let dst = cacheDir.appendingPathComponent("life-thumbnail-photo.png")
+    let dst = cacheDir.appendingPathComponent("\(wallpaperChoice.thumbnail)-photo.png")
     do {
-        try Data(contentsOf: src).write(to: dst, options: .atomic)
+        let data = try Data(contentsOf: src)
+        if (try? Data(contentsOf: dst)) != data { try data.write(to: dst, options: .atomic) }
         return dst
     } catch {
         debugLog("  [Settings] Failed to stage thumbnail: \(error)")
