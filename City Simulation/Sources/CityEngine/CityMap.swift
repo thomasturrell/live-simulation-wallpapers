@@ -50,47 +50,36 @@ struct CityRandom: Codable, Equatable {
 public struct CityMap: Codable, Equatable {
     public static let side = 56
     public static let center = Plot(27, 26)
-    public static let downtown = Plot(25, 23)
     public static let plots = (0..<side * side).map { Plot($0 % side, $0 / side) }
+    let downtown: Plot
+    private let river: CityRiver
     private(set) var lots: [Lot]
 
-    init(random: inout CityRandom) {
+    init(random: inout CityRandom, generateLayout: Bool) {
+        let layout = generateLayout ? CityLayout(random: &random) : nil
+        river = layout?.river ?? .defaultRiver
+        downtown = layout?.downtown ?? Plot(25, 23)
         lots = Self.plots.map { point in
-            var lot = Self.landscape(at: point)
+            var lot = layout?.lot(at: point) ?? Self.defaultLot(at: point)
             lot.detail = random.pick(120)
-            let x = point.x, y = point.y
-            let acrossRiver = [7, 13, 19, 25, 31, 37, 43, 49].contains(y)
-            let crossing = [19, 31, 43].contains(y)
-            let avenue = [6, 12, 18, 24, 29, 38, 44, 50].contains(x)
-            if lot.ground == .water {
-                if crossing && (6...50).contains(x) { lot.ground = .bridge }
-            } else if (avenue && (7...49).contains(y)) ||
-                        (acrossRiver && (6...50).contains(x) && (lot.ground != .promenade || crossing)) {
-                lot.ground = .road
-            }
-            if x >= 38 && (26...42).contains(y) {
-                lot.zone = .industry
-            } else if ((19...30).contains(x) && (15...29).contains(y)) ||
-                        ((38...45).contains(x) && (15...22).contains(y)) {
-                lot.zone = .commerce
-            }
-            if lot.ground == .grass {
-                let park = ((20...23).contains(x) && (20...23).contains(y)) ||
-                    ((25...28).contains(x) && (32...35).contains(y)) ||
-                    ((13...16).contains(x) && (14...17).contains(y)) ||
-                    ((39...42).contains(x) && (8...11).contains(y))
-                if park { lot.ground = .park }
-            }
             return lot
         }
-        for point in Self.plots {
+        let frontage = Self.plots.filter {
+            (6...50).contains($0.x) && (7...49).contains($0.y) &&
+                self[$0].ground == .grass && roadAccess(at: $0) != nil
+        }
+        let civic: [Plot]
+        if generateLayout {
+            civic = frontage.min { $0.distance(to: downtown) < $1.distance(to: downtown) }.map { [$0] } ?? []
+        } else {
+            civic = [Plot(23, 24), Plot(17, 24), Plot(39, 18)]
+        }
+        for point in frontage {
             var lot = self[point]
-            guard lot.ground == .grass, roadAccess(at: point) != nil,
-                  (6...50).contains(point.x), (7...49).contains(point.y) else { continue }
-            if [Plot(23, 24), Plot(17, 24), Plot(39, 18)].contains(point) {
+            if civic.contains(point) {
                 lot.zone = .civic
                 lot.building = Building(level: 1, style: point.x)
-            } else if point == Plot(28, 24) {
+            } else if !generateLayout && point == Plot(28, 24) {
                 lot.building = Building(level: 5, style: Building.riversideTowerStyle)
             } else {
                 let occupancy = lot.zone == .commerce ? 91 : 84
@@ -104,12 +93,41 @@ public struct CityMap: Codable, Equatable {
         }
     }
 
-    public static func landscape(at point: Plot) -> Lot {
-        let bank = 31 + (point.y >= 35 ? 1 : 0) - (point.y < 13 ? 1 : 0)
+    private static func defaultLot(at point: Plot) -> Lot {
+        var lot = Lot(ground: CityRiver.defaultRiver.ground(at: point))
+        let x = point.x, y = point.y
+        let acrossRiver = [7, 13, 19, 25, 31, 37, 43, 49].contains(y)
+        let crossing = [19, 31, 43].contains(y)
+        let avenue = [6, 12, 18, 24, 29, 38, 44, 50].contains(x)
+        if lot.ground == .water {
+            if crossing && (6...50).contains(x) { lot.ground = .bridge }
+        } else if (avenue && (7...49).contains(y)) ||
+                    (acrossRiver && (6...50).contains(x) && (lot.ground != .promenade || crossing)) {
+            lot.ground = .road
+        }
+        if x >= 38 && (26...42).contains(y) {
+            lot.zone = .industry
+        } else if ((19...30).contains(x) && (15...29).contains(y)) ||
+                    ((38...45).contains(x) && (15...22).contains(y)) {
+            lot.zone = .commerce
+        }
+        if lot.ground == .grass {
+            let park = ((20...23).contains(x) && (20...23).contains(y)) ||
+                ((25...28).contains(x) && (32...35).contains(y)) ||
+                ((13...16).contains(x) && (14...17).contains(y)) ||
+                ((39...42).contains(x) && (8...11).contains(y))
+            if park { lot.ground = .park }
+        }
+        return lot
+    }
+
+    var isValid: Bool {
+        lots.count == Self.side * Self.side && contains(downtown) && river.isValid
+    }
+
+    public func landscape(at point: Plot) -> Lot {
         let detail = Int(UInt(bitPattern: (point.x &* 15607) ^ (point.y &* 8821)) % 120)
-        if (bank...bank + 4).contains(point.x) { return Lot(ground: .water, detail: detail) }
-        if point.x == bank - 1 || point.x == bank + 5 { return Lot(ground: .promenade, detail: detail) }
-        return Lot(detail: detail)
+        return Lot(ground: river.ground(at: point), detail: detail)
     }
 
     public func contains(_ plot: Plot) -> Bool {
@@ -117,7 +135,7 @@ public struct CityMap: Codable, Equatable {
     }
 
     public subscript(_ plot: Plot) -> Lot {
-        get { contains(plot) ? lots[plot.y * Self.side + plot.x] : Self.landscape(at: plot) }
+        get { contains(plot) ? lots[plot.y * Self.side + plot.x] : landscape(at: plot) }
         set { lots[plot.y * Self.side + plot.x] = newValue }
     }
 
@@ -129,9 +147,9 @@ public struct CityMap: Codable, Equatable {
     public func capacity(at point: Plot) -> Int {
         switch self[point].zone {
         case .civic, .industry: return 1
-        case .homes: return point.distance(to: Self.downtown) < 18 ? 3 : 2
+        case .homes: return point.distance(to: downtown) < 18 ? 3 : 2
         case .commerce:
-            let distance = point.distance(to: Self.downtown)
+            let distance = point.distance(to: downtown)
             let atJunction = point.neighbors.filter(isRoad).contains { access in
                 access.neighbors.contains { isRoad($0) && $0.neighbors.filter(isRoad).count >= 3 }
             }

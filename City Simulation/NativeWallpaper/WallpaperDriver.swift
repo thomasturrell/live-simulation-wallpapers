@@ -37,9 +37,9 @@ final class WallpaperDriver {
         let view = RemoteView(size: size, request: request)
         guard let context = view.makeContext(display: request.displayID) else { throw BridgeError.incompatible }
 
-        let checkpointKey = request.preview ? nil : request.displayKey
-        let key = checkpointKey ?? (request.preview ? "preview-\(id)" : "session-\(id)")
-        let playback = displays[key] ?? DisplayPlayback(checkpointKey: checkpointKey)
+        let displayUUID = request.preview ? nil : request.displayKey.flatMap(UUID.init(uuidString:))
+        let key = displayUUID?.uuidString ?? (request.preview ? "preview-\(id)" : "session-\(id)")
+        let playback = displays[key] ?? DisplayPlayback(displayUUID: displayUUID)
         if let previous = owners[id], previous !== playback { invalidate(id) }
         if !view.preview && view.isSaver && owners[id] == nil { saverHint = nil }
         displays[key] = playback
@@ -108,23 +108,21 @@ final class DisplayPlayback {
     var city: City { playback.city }
     var hasTimer: Bool { timer != nil }
 
-    init(checkpointKey: String?, storage: URL? = nil) {
+    init(displayUUID: UUID?, storage: URL? = nil) {
         var path: URL?
-        var seed = City.defaultSeed
-        if let checkpointKey,
+        if let displayUUID,
            let base = storage ?? FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first {
             let directory = base.appendingPathComponent("City Simulation/Wallpaper State", isDirectory: true)
             do {
                 try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-                path = directory.appendingPathComponent(checkpointKey).appendingPathExtension("plist")
+                path = directory.appendingPathComponent(displayUUID.uuidString).appendingPathExtension("plist")
             } catch {
                 wallpaperLog.error("Cannot create the checkpoint directory: \(error.localizedDescription)")
             }
-            for byte in checkpointKey.utf8 { seed = (seed ^ UInt64(byte)) &* 1_099_511_628_211 }
         }
         self.path = path
         let restored = path.flatMap { try? Data(contentsOf: $0, options: .mappedIfSafe) }.flatMap(City.init(checkpoint:))
-        playback = Playback(city: restored ?? City(seed: seed))
+        playback = Playback(city: restored ?? City(displayUUID: displayUUID))
         lastSavedTick = restored?.tick ?? 0
         lastWriteAttempt = lastSavedTick
     }
