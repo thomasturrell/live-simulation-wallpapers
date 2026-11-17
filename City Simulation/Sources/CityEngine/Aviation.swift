@@ -79,8 +79,16 @@ public struct Aircraft: Codable, Equatable {
             let point = a * (s * s * s) + b * (3 * s * s * t) + c * (3 * s * t * t) + d * (t * t * t)
             // Exact derivatives keep a straight taxiway's heading constant. Subtracting
             // nearby positions amplified floating-point noise and made half-pixel details flicker.
-            let first = ((b - a) * (s * s) + (c - b) * (2 * s * t) + (d - c) * (t * t)) * 3
-            let second = ((c - b * 2 + a) * s + (d - c * 2 + b) * t) * 6
+            let ab: SIMD2<Double> = b - a
+            let bc: SIMD2<Double> = c - b
+            let cd: SIMD2<Double> = d - c
+            let firstStart: SIMD2<Double> = ab * (s * s)
+            let firstMiddle: SIMD2<Double> = bc * (2 * s * t)
+            let firstEnd: SIMD2<Double> = cd * (t * t)
+            let first: SIMD2<Double> = (firstStart + firstMiddle + firstEnd) * 3.0
+            let secondStart: SIMD2<Double> = (bc - ab) * s
+            let secondEnd: SIMD2<Double> = (cd - bc) * t
+            let second: SIMD2<Double> = (secondStart + secondEnd) * 6.0
             var tangent = first
             if hypot(tangent.x, tangent.y) < 1e-10 {
                 // At a stop, keep the limiting direction of travel instead of an arbitrary heading.
