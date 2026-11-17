@@ -49,4 +49,5 @@ cp "$support/Protocol/LICENSE" "$extension/Contents/Resources/Aerial-LICENSE.txt
 sign_wallpaper "${CITY_SIGN_IDENTITY:--}"
 ditto --norsrc "$app" "$destination/$(basename "$app")"
 cp README.md ../LICENSE "$stage/"
+ditto assets "$stage/assets"
 ditto -c -k "$stage" "$destination/City Simulation Wallpaper.zip"

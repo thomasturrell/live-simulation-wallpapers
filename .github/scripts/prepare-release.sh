@@ -46,9 +46,10 @@ case "$1" in
             if [[ "$has_tag" == true ]]; then
                 target=(--verify-tag)
             fi
+            notes="$(printf 'See the [release download guide](%s/%s#release-downloads) for ZIP contents and macOS requirements.\n\nThe macOS bundles use ad-hoc signing.' \
+                "$GITHUB_SERVER_URL" "$GH_REPO")"
             draft_url="$(gh release create "$RELEASE_TAG" "${assets[@]}" \
-                --draft "${target[@]}" --generate-notes \
-                --notes "The macOS bundles use ad-hoc signing.")"
+                --draft "${target[@]}" --generate-notes --notes "$notes")"
         else
             if [[ "$has_tag" == false && "$(jq -r '.target_commitish' <<< "$draft")" != "$commit" ]]; then
                 # Remove old builds before retargeting so an interrupted upload
