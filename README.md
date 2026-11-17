@@ -29,8 +29,6 @@ Build with `cd "City Simulation" && ./NativeWallpaper/build.sh`. Move **City Sim
 | ZIP | Contents | macOS support |
 | --- | --- | --- |
 | `Game-of-Life-Native-Wallpaper.zip` | `Game of Life Wallpaper.app` with the embedded `LifeWallpaper.appex` for wallpaper and screen saver playback, plus `INSTALL.md`. | macOS 26 or later. |
-| `Game-of-Life-Desktop-App.zip` | `Game of Life.app` for a live wallpaper while the menu-bar app is running, a standalone `Game of Life.saver`, and `Setup.txt`. | macOS 13 or later. |
-| `Game-of-Life-Wallpaper-and-Screen-Saver.zip` | `Game of Life.heic` for Dynamic Desktop, `Game of Life – Light.png` and `Game of Life – Dark.png` for still wallpapers, a standalone `Game of Life.saver`, and `Wallpaper-Setup.txt`. | The screen saver requires macOS 13 or later. Dynamic mode depends on macOS support for custom HEIC schedules. |
 | `City-Simulation-Native-Wallpaper.zip` | `City Simulation Wallpaper.app` with the embedded `CityWallpaper.appex` for wallpaper and screen saver playback, plus `README.md` with installation instructions and an `assets/` directory for its image gallery. | macOS 26 or later. |
 
 Each ZIP includes `LICENSE`. The binaries use ad-hoc signing and support Apple silicon and Intel.
@@ -40,10 +38,10 @@ GitHub also provides source code ZIP and tar.gz archives for the release tag.
 ## Publishing a release
 
 1. On GitHub, open **Actions → Release → Run workflow**. Select the branch you want to release from and enter a version tag such as `v1.0.0`.
-2. Wait for the workflow to finish. It tests both wallpapers and attaches four ad-hoc signed macOS ZIPs to a draft release. If the tag exists, the workflow builds its commit. For a new tag, the draft targets the selected branch's commit at the time you ran the workflow.
+2. Wait for the workflow to finish. It tests both wallpapers and attaches two ad-hoc signed native wallpaper ZIPs to a draft release, one for each simulation. If the tag exists, the workflow builds its commit. For a new tag, the draft targets the selected branch's commit at the time you ran the workflow.
 3. Open the draft from the workflow summary or the **Releases** page. Review the notes and downloads, then click **Publish release**.
 
-Run the workflow again with the same tag to replace the four ZIPs on an existing draft.
+Run the workflow again with the same tag to replace the two native wallpaper ZIPs on an existing draft. The workflow also removes the earlier Game of Life desktop-app and wallpaper-and-screen-saver ZIPs from that draft.
 
 For a new tag, use the default branch if your target branch changes GitHub Actions workflow files. GitHub requires a token with Workflows write permission to create releases for those commits.
 

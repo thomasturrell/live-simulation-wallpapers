@@ -10,15 +10,15 @@ Download `Game-of-Life-Native-Wallpaper.zip` for `Game of Life Wallpaper.app`, i
 
 [Installation, compatibility and build notes](NativeWallpaper/INSTALL.md)
 
-## Dynamic Desktop fallback
+## Build a Dynamic Desktop fallback
 
-Use `Game-of-Life-Wallpaper-and-Screen-Saver.zip` for a setup that runs entirely through System Settings. It contains `Game of Life.heic`, `Game of Life – Light.png`, `Game of Life – Dark.png`, `Game of Life.saver`, `Wallpaper-Setup.txt` and `LICENSE`. Import `Game of Life.heic` under **Wallpaper → Your Photos → Add Photo → Choose File**, then select **Dynamic** if macOS offers it. The file contains eight 5120 × 3200 generations scheduled across local time, with separate light and dark stills. The live Conway screen saver is configured separately in System Settings. [Wallpaper setup](Packaging/Wallpaper-Setup.txt)
+Run `./package-macos.sh`, then `swift run -c release GameOfLife --export-wallpaper dist` to build `Game of Life.saver` and export `Game of Life.heic`, `Game of Life – Light.png` and `Game of Life – Dark.png` into `dist/`. Import `Game of Life.heic` under **Wallpaper → Your Photos → Add Photo → Choose File**, then select **Dynamic** if macOS offers it. The file contains eight 5120 × 3200 generations scheduled across local time, with separate light and dark stills. The live Conway screen saver is configured separately in System Settings. [Wallpaper setup](Packaging/Wallpaper-Setup.txt)
 
 Apple documents importing images and configuring its own Dynamic Wallpapers. The custom HEIC uses the time-of-day metadata described by the [wallpapper project](https://github.com/mczachurski/wallpapper). Its mode picker can vary by macOS version. The saver and wallpaper are hosted separately, so the desktop does not play the saver’s final seconds after unlocking. [Apple's Wallpaper guide](https://support.apple.com/guide/mac-help/choose-your-desktop-picture-mchlp3013/mac)
 
-## Optional desktop app
+## Build the optional desktop app
 
-Download `Game-of-Life-Desktop-App.zip`, which contains `Game of Life.app`, `Game of Life.saver`, `Setup.txt` and `LICENSE`, or run `./package-macos.sh` in this directory. Open `Game of Life.app` from Finder and use its grid-shaped menu-bar icon to reopen settings. Open `Game of Life.saver` to install the optional screen saver, then select it in System Settings. [Setup.txt](Setup.txt) has the current and earlier macOS menu paths.
+Run `./package-macos.sh` in this directory to build `Game of Life.app` and `Game of Life.saver` in `dist/`. Open `Game of Life.app` from Finder and use its grid-shaped menu-bar icon to reopen settings. Open `Game of Life.saver` to install the optional screen saver, then select it in System Settings. [Setup.txt](Setup.txt) has the current and earlier macOS menu paths.
 
 The binaries target macOS 13 or later and include Apple silicon and Intel slices. The local package is ad-hoc signed. For distribution, supply a Developer ID Application identity in `LIFE_SIGN_IDENTITY`, then notarise the bundles.
 

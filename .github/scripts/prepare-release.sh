@@ -34,12 +34,16 @@ case "$1" in
             exit 1
         fi
 
-        shopt -s nullglob
-        assets=("$RUNNER_TEMP/release-assets/"*.zip)
-        if [[ "${#assets[@]}" != 4 ]]; then
-            echo "::error::Expected four release ZIPs before preparing the draft."
-            exit 1
-        fi
+        assets=(
+            "$RUNNER_TEMP/release-assets/Game-of-Life-Native-Wallpaper.zip"
+            "$RUNNER_TEMP/release-assets/City-Simulation-Native-Wallpaper.zip"
+        )
+        for asset in "${assets[@]}"; do
+            if [[ ! -s "$asset" ]]; then
+                echo "::error::Missing native wallpaper release ZIP $asset."
+                exit 1
+            fi
+        done
 
         if [[ "$draft" == null ]]; then
             target=(--target "$commit")
@@ -63,6 +67,11 @@ case "$1" in
                 gh release edit "$RELEASE_TAG" --target "$commit"
             fi
             gh release upload "$RELEASE_TAG" "${assets[@]}" --clobber
+            for name in Game-of-Life-Desktop-App.zip Game-of-Life-Wallpaper-and-Screen-Saver.zip; do
+                if jq -e --arg name "$name" 'any(.assets[]; .name == $name)' <<< "$draft" >/dev/null; then
+                    gh release delete-asset "$RELEASE_TAG" "$name" --yes
+                fi
+            done
             draft_url="$(jq -r '.html_url' <<< "$draft")"
         fi
 

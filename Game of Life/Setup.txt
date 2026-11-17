@@ -4,7 +4,8 @@ Conway’s Game of Life for macOS
 Version 1.0.0 · Apple silicon and Intel · macOS 13 or later
 
 DESKTOP
-Unzip the download and open Game of Life.app. Its grid icon stays in
+Run ./package-macos.sh in the Game of Life source directory and open
+dist/Game of Life.app. Its grid icon stays in
 the menu bar after you close the settings window.
 
 • Set Desktop motion to Settle on Return. The desktop evolves briefly

@@ -13,7 +13,7 @@ Use the **Appearance** menu for Game of Life in Wallpaper settings. **Automatic*
 
 In the **Colour** menu, **Spectrum** blends through six hues as the simulation runs, **Random** picks a hue for each simulation cycle, and **Accent** follows the macOS accent colour. Choose a named colour for a fixed hue or **Original** for the default palette.
 
-This developer build is ad-hoc signed. The extension targets macOS 26 and later and contains Apple silicon and Intel slices. For distribution, use Developer ID signing and notarization. The wallpaper interface is undocumented and may change with macOS updates. If the choice is absent or renders incorrectly, select another wallpaper and use `Game-of-Life-Wallpaper-and-Screen-Saver.zip`. It includes `Game of Life.saver`, the HEIC wallpaper, light and dark PNG stills, `Wallpaper-Setup.txt` and `LICENSE`. Its HEIC offers a scheduled Dynamic mode on macOS versions that recognise custom schedules. The fallback cannot animate through unlock.
+This developer build is ad-hoc signed. The extension targets macOS 26 and later and contains Apple silicon and Intel slices. For distribution, use Developer ID signing and notarization. The wallpaper interface is undocumented and may change with macOS updates. If the choice is absent or renders incorrectly, select another wallpaper. To build a fallback from source, run `./package-macos.sh` from the Game of Life source directory for the standalone screen saver, then `swift run -c release GameOfLife --export-wallpaper dist` for the HEIC wallpaper and light and dark PNG stills. The HEIC offers a scheduled Dynamic mode on macOS versions that recognise custom schedules. The fallback cannot animate through unlock.
 
 ## Integration
 

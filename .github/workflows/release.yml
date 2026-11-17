@@ -56,22 +56,13 @@ jobs:
         run: |
           packages="$RUNNER_TEMP/game-of-life"
           assets="$RUNNER_TEMP/release-assets"
-          mkdir -p "$packages/fallback" "$assets"
+          mkdir -p "$assets"
 
-          ./package-macos.sh "$packages/desktop"
           ./NativeWallpaper/build.sh "$packages/native"
-          xcrun swift Packaging/verify-saver.swift "$packages/desktop/Game of Life.saver"
 
-          ditto "$packages/desktop/Game of Life.saver" "$packages/fallback/Game of Life.saver"
-          "$packages/desktop/Game of Life.app/Contents/MacOS/GameOfLife" --export-wallpaper "$packages/fallback"
-
-          cp Setup.txt ../LICENSE "$packages/desktop/"
           cp NativeWallpaper/INSTALL.md ../LICENSE "$packages/native/"
-          cp Packaging/Wallpaper-Setup.txt ../LICENSE "$packages/fallback/"
 
-          ditto -c -k "$packages/desktop" "$assets/Game-of-Life-Desktop-App.zip"
           ditto -c -k "$packages/native" "$assets/Game-of-Life-Native-Wallpaper.zip"
-          ditto -c -k "$packages/fallback" "$assets/Game-of-Life-Wallpaper-and-Screen-Saver.zip"
 
       - name: Build and archive City Simulation
         working-directory: City Simulation

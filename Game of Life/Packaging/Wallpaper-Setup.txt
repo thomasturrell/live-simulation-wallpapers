@@ -1,5 +1,9 @@
 GAME OF LIFE
-Dynamic Desktop and screen saver for macOS
+Dynamic Desktop and screen saver built from source for macOS
+
+Build with ./package-macos.sh, then run:
+swift run -c release GameOfLife --export-wallpaper dist
+The generated wallpaper files and Game of Life.saver are in dist/.
 
 WALLPAPER
 1. Move Game of Life.heic to a folder where you’ll keep it.
