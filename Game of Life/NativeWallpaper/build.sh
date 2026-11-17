@@ -37,7 +37,7 @@ for arch in "${archs[@]}"; do
     if [ "${LIFE_BUILD_ABI_PROBE:-0}" = 1 ] && [ "$arch" = "$(uname -m)" ]; then
         link_wallpaper NativeWallpaper/Verify.swift "${objects[@]}" -o "$scratch/verify-wallpaper"
     fi
-    compile_carrier
+    compile_carrier NativeWallpaper/BrandingCarrier.swift "${objects[@]}"
     wallpaper_binaries+=("$scratch/wallpaper-$arch")
     carrier_binaries+=("$scratch/carrier-$arch")
 done
@@ -46,5 +46,28 @@ lipo -create "${carrier_binaries[@]}" -output "$app/Contents/MacOS/InstallWallpa
 CLANG_MODULE_CACHE_PATH="$scratch/icon-modules" xcrun swift Packaging/MakeIcon.swift "$app/Contents/Resources/Life.icns"
 cp "$support/Protocol/LICENSE" "$extension/Contents/Resources/Aerial-LICENSE.txt"
 cp NativeWallpaper/thumbnail.png "$extension/Contents/Resources/life-thumbnail.png"
-sign_wallpaper "${LIFE_SIGN_IDENTITY:--}"
+identity="${LIFE_SIGN_IDENTITY:--}"
+extension_entitlements="$support/Sandbox.plist"
+carrier_entitlements=
+if [ "$identity" != - ]; then
+    # Team-prefixed macOS App Groups are authorized by the signing identity.
+    codesign --force --sign "$identity" --timestamp=none "$app/Contents/MacOS/InstallWallpaper"
+    team="$(codesign --display --verbose=4 "$app/Contents/MacOS/InstallWallpaper" 2>&1 |
+        awk -F= '$1 == "TeamIdentifier" { print $2 }')"
+    if [[ "$team" =~ ^[A-Z0-9]{10}$ ]]; then
+        group="$team.io.github.thomasturrell.live-simulation-wallpapers"
+        extension_entitlements="$stage/extension-entitlements.plist"
+        carrier_entitlements="$stage/carrier-entitlements.plist"
+        cp "$support/Sandbox.plist" "$extension_entitlements"
+        plutil -create xml1 "$carrier_entitlements"
+        for plist in "$extension_entitlements" "$carrier_entitlements"; do
+            /usr/libexec/PlistBuddy -c "Add :com.apple.security.application-groups array" \
+                -c "Add :com.apple.security.application-groups:0 string $group" "$plist"
+        done
+        for bundle in "$app" "$extension"; do
+            plutil -insert LifeBrandingAppGroup -string "$group" "$bundle/Contents/Info.plist"
+        done
+    fi
+fi
+sign_wallpaper "$identity" "$extension_entitlements" "$carrier_entitlements"
 ditto --norsrc "$app" "$destination/$(basename "$app")"

@@ -16,15 +16,21 @@ link_wallpaper() {
 }
 
 compile_carrier() {
-    CLANG_MODULE_CACHE_PATH="$scratch/compiler-$arch" xcrun swiftc -target "$triple" -O \
-        "$support/Carrier.swift" -o "$scratch/carrier-$arch"
+    local entry="${1:-$support/CarrierMain.swift}"
+    if [ "$#" -gt 0 ]; then shift; fi
+    CLANG_MODULE_CACHE_PATH="$scratch/compiler-$arch" xcrun swiftc -target "$triple" -O -parse-as-library \
+        -I "$bin/Modules" "$support/Carrier.swift" "$entry" "$@" -o "$scratch/carrier-$arch"
 }
 
 sign_wallpaper() {
     local identity="$1"
+    local extension_entitlements="${2:-$support/Sandbox.plist}"
+    local carrier_entitlements="${3:-}"
     local signing=(--force --sign "$identity")
     if [ "$identity" != - ]; then signing+=(--options runtime --timestamp); fi
-    codesign "${signing[@]}" --entitlements "$support/Sandbox.plist" "$extension"
-    codesign "${signing[@]}" "$app"
+    local carrier_signing=("${signing[@]}")
+    if [ -n "$carrier_entitlements" ]; then carrier_signing+=(--entitlements "$carrier_entitlements"); fi
+    codesign "${signing[@]}" --entitlements "$extension_entitlements" "$extension"
+    codesign "${carrier_signing[@]}" "$app"
     codesign --verify --strict --deep --all-architectures "$app"
 }
