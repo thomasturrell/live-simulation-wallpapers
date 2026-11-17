@@ -48,6 +48,22 @@ The probe exercises the real wallpaper settings and request types, remote Core A
 
 These WebP previews use the simulation’s pixel art. The renderer varies building details, tree shapes and vehicle colors, so the gallery shows representative styles.
 
+### Airports and aircraft
+
+These previews show the compact airport and its aircraft using the same renderer as the wallpaper. The flight cycle plays at 6× speed with a shortened stop at the terminal.
+
+![Passenger aircraft approaching, landing, taxiing to the terminal, pushing back and taking off from the compact airport](assets/airport-flight-cycle.webp)
+
+| Airport in daylight | Airport at night |
+| --- | --- |
+| ![Compact airport with runway 09/27, taxiways, apron, terminal, control tower, hangars and perimeter roads](assets/airport-day.webp) | ![Airport at night with illuminated runway edges, taxiway lights and terminal windows](assets/airport-night.webp) |
+
+| Passenger terminal | Air traffic control tower | Hangar |
+| --- | --- | --- |
+| ![Glazed passenger terminal with a short boarding pier and rooftop equipment](assets/airport-terminal.webp) | ![Control tower with a glazed cabin, antenna and raised observation deck](assets/control-tower.webp) | ![Airport hangar with a broad aircraft door](assets/hangar.webp) |
+| **Passenger aircraft** | **Aircraft in flight** | **Aircraft at night** |
+| ![Small passenger aircraft with cabin windows, engines, landing gear and a coloured tail](assets/passenger-aircraft.webp) | ![Passenger aircraft in flight with retracted landing gear](assets/aircraft-in-flight.webp) | ![Passenger aircraft at night with lit cabin windows and navigation lights](assets/aircraft-at-night.webp) |
+
 ### Buildings
 
 | House · level 1 | Terraced homes · level 2 | Apartments · level 3 |
@@ -97,6 +113,8 @@ These WebP previews use the simulation’s pixel art. The renderer varies buildi
 | ![Staked-out road construction site](assets/road-site.webp) | ![Road construction site with a strip of asphalt](assets/road-paving.webp) | |
 
 ### Preview and app images
+
+![Daytime city with a compact airport on the outskirts and an aircraft passing over the skyline](assets/city-day.webp)
 
 | Wallpaper picker thumbnail | Installer app icon | Night scene export |
 | --- | --- | --- |
