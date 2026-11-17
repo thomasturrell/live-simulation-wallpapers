@@ -1,0 +1,209 @@
+import CityEngine
+import Foundation
+
+extension Pixels {
+    mutating func airportGround(at p: Dot, plot: Plot, airport: Airport, palette c: Palette) {
+        let local = airport.local(plot)
+        let u = Double(local.u), v = Double(local.v)
+        tile(p, -8, -8, 16, 16, c.grass((local.u + local.v) % 6))
+        func point(_ a: Double, _ b: Double) -> Dot {
+            let x = Int(((a - u) * 16).rounded()), y = Int(((b - v) * 16).rounded())
+            return airport.alongY ? p.iso(y, x) : p.iso(x, y)
+        }
+        // Clip long paved surfaces to each lot, preserving the renderer's terrain cache.
+        func rectangle(_ a: Double, _ b: Double, _ endU: Double, _ endV: Double, _ ink: Ink) {
+            let left = max(a, u - 0.5), right = min(endU, u + 0.5)
+            let top = max(b, v - 0.5), bottom = min(endV, v + 0.5)
+            guard left < right, top < bottom else { return }
+            polygon([point(left, top), point(right, top), point(right, bottom), point(left, bottom)], ink)
+        }
+        rectangle(0.1, 4.15, 13.4, 5.85, c.curb)
+        rectangle(0.1, 4.35, 13.4, 5.65, c.roadEdge)
+        rectangle(0.9, 2.6, 12.8, 3.4, c.asphalt)
+        rectangle(0.8, 3, 1.6, 5, c.asphalt)
+        rectangle(11.3, 3, 12.8, 5, c.asphalt)
+        rectangle(3.7, 0.5, 8.3, 3.1, c.sidewalk)
+        rectangle(0.8, 0.5, 3.3, 3.1, c.sidewalk)
+        rectangle(10, 0.5, 12.3, 3.1, c.sidewalk)
+        rectangle(0.9, 2.96, 12.2, 3.04, c.paint)
+        rectangle(1.16, 3, 1.24, 4.4, c.paint)
+        rectangle(11.56, 3, 11.64, 5, c.paint)
+        rectangle(5.96, 1.2, 6.04, 3, c.paint)
+        rectangle(5.65, 1.65, 6.35, 1.72, c.paint)
+        // Runway edges, centre dashes, aiming points and threshold bars.
+        let white = c.color(0xD8D4BD, 0x92939A)
+        rectangle(0.65, 4.42, 13, 4.48, white)
+        rectangle(0.65, 5.52, 13, 5.58, white)
+        for n in 3...11 where n.isMultiple(of: 2) {
+            rectangle(Double(n) - 0.3, 4.97, Double(n) + 0.3, 5.06, white)
+        }
+        for end in [0.9, 12.3] {
+            for stripe in [4.58, 4.8, 5.12, 5.34] { rectangle(end, stripe, end + 0.55, stripe + 0.1, white) }
+        }
+        for end in [3.0, 10.6] {
+            rectangle(end, 4.6, end + 0.45, 4.76, white)
+            rectangle(end, 5.24, end + 0.45, 5.4, white)
+        }
+        if local.v == 5 && [2, 12].contains(local.u) {
+            let digits = local.u == 2 ? [0, 9] : [2, 7]
+            let glyphs = [[7, 5, 5, 5, 7], [2, 6, 2, 2, 7], [7, 1, 7, 4, 7],
+                          [7, 1, 7, 1, 7], [5, 5, 7, 1, 1], [7, 4, 7, 1, 7],
+                          [7, 4, 7, 5, 7], [7, 1, 1, 1, 1], [7, 5, 7, 5, 7], [7, 5, 7, 1, 7]]
+            for (i, digit) in digits.enumerated() {
+                for (row, bits) in glyphs[digit].enumerated() {
+                    for column in 0..<3 where bits & (1 << (2 - column)) != 0 {
+                        let dot = point(u - 0.14 + Double(row) / 16, v - 0.22 + Double(i * 4 + column) / 16)
+                        span(dot.x, dot.x, dot.y, white)
+                    }
+                }
+            }
+        }
+        if local.u == 1 && local.v == 4 {
+            for offset in [-0.14, 0.14] { rectangle(0.85, 4.1 + offset, 1.55, 4.16 + offset, c.paint) }
+        }
+        // Low perimeter posts, interrupted at the passenger entrance.
+        if local.v == 0 && ![5, 6, 7].contains(local.u) {
+            let a = point(u - 0.5, -0.4), b = point(u + 0.5, -0.4)
+            line(a.offset(0, -1), b.offset(0, -1), c.curb)
+            line(a, a.offset(0, -3), c.outline)
+        }
+    }
+
+    mutating func airportBuilding(at p: Dot, plot: Plot, airport: Airport, palette c: Palette) {
+        func dot(_ u: Int, _ v: Int, _ z: Int = 0) -> Dot {
+            airport.alongY ? p.iso(v, u, z) : p.iso(u, v, z)
+        }
+        func prism(_ u: Int, _ v: Int, _ w: Int, _ d: Int, _ base: Int, _ top: Int, _ roof: Ink) {
+            let a = dot(u, v, top), b = dot(u + w, v, top)
+            let e = dot(u + w, v + d, top), f = dot(u, v + d, top)
+            polygon([f, e, dot(u + w, v + d, base), dot(u, v + d, base)], c.color(0xC0B8A1))
+            polygon([b, e, dot(u + w, v + d, base), dot(u + w, v, base)], c.color(0x878C86))
+            polygon([a, b, e, f], roof)
+            line(f, e, c.curb)
+            line(b, e, c.outline)
+        }
+        let glass = c.color(0x527F85, 0x637D87)
+        let local = airport.local(plot)
+        // Draw lights after every terrain tile, so both edges survive the ground pass.
+        if c.night > 0.3 && local.u.isMultiple(of: 2) {
+            if local.v == 5 {
+                for edge in [-12, 12] {
+                    let light = dot(0, edge)
+                    span(light.x, light.x, light.y, c.color(0xD5C395, 0xF2D7A1))
+                }
+            } else if local.v == 3 {
+                for edge in [-6, 6] {
+                    let light = dot(0, edge)
+                    span(light.x, light.x, light.y, c.color(0x7E95AA, 0x7AA0C4))
+                }
+            }
+        }
+        if plot == airport.terminal {
+            prism(-22, -6, 44, 13, 0, 9, c.color(0x79918C))
+            // A continuous glazed concourse, roof plant and a short boarding pier.
+            polygon([dot(-20, 7, 7), dot(20, 7, 7), dot(20, 7, 3), dot(-20, 7, 3)], glass)
+            for u in stride(from: -19, through: 20, by: 4) { line(dot(u, 7, 7), dot(u, 7, 3), c.curb) }
+            if c.night > 0.4 {
+                for u in [-17, -5, 7, 19] { line(dot(u, 7, 5), dot(u + 1, 7, 5), c.gold) }
+            }
+            prism(-4, 7, 8, 10, 2, 5, c.color(0xA6ABA0))
+            prism(-14, -3, 8, 5, 9, 11, c.color(0x8C9991))
+            line(dot(-21, -6, 10), dot(21, -6, 10), c.shore)
+            for u in [-12, 0, 12] {
+                line(dot(u - 2, -7, 4), dot(u + 2, -7, 4), c.night > 0.4 ? c.gold : glass)
+            }
+        } else if plot == airport.tower {
+            prism(-3, -3, 6, 6, 0, 19, c.curb)
+            prism(-6, -6, 12, 12, 19, 25, c.color(0x73918D))
+            polygon([dot(-5, 6, 24), dot(5, 6, 24), dot(5, 6, 21), dot(-5, 6, 21)], glass)
+            polygon([dot(6, -5, 24), dot(6, 5, 24), dot(6, 5, 21), dot(6, -5, 21)], glass)
+            line(dot(0, 0, 25), dot(0, 0, 32), c.outline)
+            line(dot(-4, 0, 30), dot(4, 0, 30), c.curb)
+        } else if airport.hangars.contains(plot) {
+            prism(-11, -6, 22, 14, 0, 9, c.color(0x9B9E91))
+            let ridgeA = dot(-11, 1, 13), ridgeB = dot(11, 1, 13)
+            polygon([dot(-11, -6, 9), dot(11, -6, 9), ridgeB, ridgeA], c.color(0x8A9791))
+            polygon([ridgeA, ridgeB, dot(11, 8, 9), dot(-11, 8, 9)], c.color(0xADB0A0))
+            line(ridgeA, ridgeB, c.shore)
+            polygon([dot(-8, 8, 7), dot(8, 8, 7), dot(8, 8), dot(-8, 8)], c.roadEdge)
+            for u in [-7, -3, 1, 5] { line(dot(u, 8, 6), dot(u, 8, 1), c.sidewalk) }
+        }
+    }
+
+    mutating func aircraft(at p: Dot, pose: Aircraft.Pose, livery: Int, shadow: Bool, blink: Bool, palette c: Palette) {
+        guard shadow else {
+            aircraftShape(at: p, pose: pose, livery: livery, shadow: false, blink: blink, palette: c)
+            return
+        }
+        let opacity = 0.3 * max(0, 1 - pose.altitude / 60)
+        guard opacity > 0, p.x + 20 >= 0, p.x - 20 < width, p.y + 12 >= 0, p.y - 12 < height else { return }
+        // Rasterise a single silhouette, then shade each covered ground pixel once.
+        // Sampling one ground colour made the entire shadow flash over runway markings;
+        // blending individual overlapping wings and fuselage would darken their overlaps twice.
+        var mask = Pixels(width: 41, height: 25, background: Ink(0))
+        mask.aircraftShape(at: Dot(20, 12), pose: pose, livery: livery, shadow: true, blink: false, palette: c)
+        for y in 0..<mask.height {
+            let targetY = p.y + y - 12
+            guard (0..<height).contains(targetY) else { continue }
+            for x in 0..<mask.width where mask.storage[y * mask.width + x] != Ink(0).pixel {
+                let targetX = p.x + x - 20
+                guard (0..<width).contains(targetX) else { continue }
+                let index = targetY * width + targetX
+                guard !overlay || depth >= depths[index] else { continue }
+                let pixel = storage[index]
+                var shaded = pixel & 0xFF00_0000
+                for shift in [0, 8, 16] {
+                    shaded |= UInt32(Double((pixel >> shift) & 255) * (1 - opacity)) << shift
+                }
+                storage[index] = shaded
+            }
+        }
+    }
+
+    private mutating func aircraftShape(at p: Dot, pose: Aircraft.Pose, livery: Int, shadow: Bool, blink: Bool, palette c: Palette) {
+        let dx = pose.dx, dy = pose.dy
+        func dot(_ along: Double, _ across: Double, _ z: Double = 0) -> Dot {
+            let u = dx * along - dy * across, v = dy * along + dx * across
+            let height = shadow ? 0 : z + across * pose.bank
+            return p.offset(Int((u - v).rounded()), Int(((u + v) * 0.5 - height).rounded()))
+        }
+        let shadowInk = Ink(0xFFFFFF)
+        let white = shadow ? shadowInk : c.color(0xE0DDC9, 0x9DA8B3)
+        let shade = shadow ? shadowInk : c.color(0x9DAEAC, 0x596C7E)
+        let accent = shadow ? shadowInk : c.color([0x477C83, 0xAD6253, 0xB49755, 0x677A9A][livery])
+        let outline = shadow ? shadowInk : c.outline
+        // Swept wings and tailplanes, with underwing engine nacelles.
+        polygon([dot(2, 1), dot(-4, 11), dot(-6, 11), dot(-3, 1)], shade)
+        polygon([dot(2, -1), dot(-4, -11), dot(-6, -11), dot(-3, -1)], white)
+        for side in [-1.0, 1.0] {
+            line(dot(-1, side * 5, -1), dot(-4, side * 5, -1), outline)
+            line(dot(-1, side * 5), dot(-4, side * 5), shade)
+            polygon([dot(-6, side), dot(-9, side * 5), dot(-11, side * 5), dot(-9, side)], accent)
+        }
+        if !shadow && pose.gear {
+            for side in [-1.8, 1.8] { line(dot(-3, side, -1), dot(-2, side, -1), outline) }
+            line(dot(7, 0, -1), dot(8, 0, -1), outline)
+        }
+        polygon([dot(11, 0, 1), dot(8, -1.5, 1), dot(-8, -1.5, 1), dot(-11, 0, 1),
+                 dot(-8, 1.5, 1), dot(8, 1.5, 1)], shade)
+        polygon([dot(11, 0, 2), dot(7, -1.5, 2), dot(-8, -1, 2), dot(-10, 0, 2),
+                 dot(-7, 1, 2), dot(8, 1, 2)], white)
+        polygon([dot(-9, 0, 2), dot(-10, 0, 7), dot(-7, 0, 7), dot(-5, 0, 2)], accent)
+        if shadow { return }
+        let glass = c.color(0x3E6475, 0x31495F)
+        line(dot(7, -1, 2), dot(8, 1, 2), glass)
+        for u in stride(from: -5.0, through: 5.0, by: 2) {
+            let window = dot(u, 1.4, 1)
+            span(window.x, window.x, window.y, glass)
+        }
+        if c.night > 0.35 {
+            let red = dot(-5, -11), green = dot(-5, 11)
+            span(red.x, red.x, red.y, c.color(0xB15E4E, 0xE18069))
+            span(green.x, green.x, green.y, c.color(0x71A286, 0x9DD3AB))
+            if blink {
+                let beacon = dot(0, 0, 3)
+                span(beacon.x, beacon.x, beacon.y, c.gold)
+            }
+        }
+    }
+}

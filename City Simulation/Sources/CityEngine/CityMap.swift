@@ -14,7 +14,7 @@ public struct Plot: Codable, Hashable, Sendable {
 }
 
 public enum Ground: UInt8, Codable, Sendable {
-    case grass, water, road, bridge, park, promenade
+    case grass, water, road, bridge, park, promenade, airport
     public var carriesTraffic: Bool { self == .road || self == .bridge }
 }
 
@@ -54,6 +54,7 @@ public struct CityMap: Codable, Equatable {
     let downtown: Plot
     private let river: CityRiver
     private(set) var lots: [Lot]
+    public internal(set) var airport: Airport?
 
     init(random: inout CityRandom, generateLayout: Bool) {
         let layout = generateLayout ? CityLayout(random: &random) : nil
@@ -64,9 +65,11 @@ public struct CityMap: Codable, Equatable {
             lot.detail = random.pick(120)
             return lot
         }
+        planAirport(random: &random, optional: generateLayout)
         let frontage = Self.plots.filter {
             (6...50).contains($0.x) && (7...49).contains($0.y) &&
-                self[$0].ground == .grass && roadAccess(at: $0) != nil
+                self[$0].ground == .grass && roadAccess(at: $0) != nil &&
+                airport?.isApproach($0) != true && $0 != airport?.terminal
         }
         let civic: [Plot]
         if generateLayout {
@@ -122,7 +125,17 @@ public struct CityMap: Codable, Equatable {
     }
 
     var isValid: Bool {
-        lots.count == Self.side * Self.side && contains(downtown) && river.isValid
+        guard lots.count == Self.side * Self.side, contains(downtown), river.isValid else { return false }
+        if let airport {
+            guard airport.isValid, airport.perimeter.allSatisfy(isRoad),
+                  self[airport.terminal].building == Building(level: 1, style: Airport.terminalStyle),
+                  self[airport.terminal].ground == .grass,
+                  self[airport.terminal].zone == .civic else { return false }
+            return Self.plots.allSatisfy {
+                (self[$0].ground == .airport) == (airport.contains($0) && $0 != airport.terminal)
+            }
+        }
+        return !lots.contains { $0.ground == .airport || $0.building?.style == Airport.terminalStyle }
     }
 
     public func landscape(at point: Plot) -> Lot {

@@ -6,6 +6,10 @@ func parkWalks(at plot: Plot) -> (across: Bool, down: Bool) {
 
 extension Pixels {
     mutating func ground(_ lot: Lot, at p: Dot, plot: Plot, map: CityMap, palette c: Palette) {
+        if let airport = map.airport, airport.contains(plot) {
+            airportGround(at: p, plot: plot, airport: airport, palette: c)
+            return
+        }
         let n = lot.detail
         if lot.ground == .water {
             tile(p, -8, -8, 16, 16, c.water)
