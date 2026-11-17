@@ -11,7 +11,7 @@ public struct City: Codable, Equatable {
     public static let ticksPerSecond = 30
     public static let dayLength = 8 * 60 * ticksPerSecond
     public static let defaultSeed: UInt64 = 0x7661_6C65_7269_6467
-    private static let checkpointVersion = 3
+    private static let checkpointVersion = 4
 
     public internal(set) var map: CityMap
     public internal(set) var vehicles: [Vehicle] = []
@@ -133,8 +133,11 @@ public struct City: Codable, Equatable {
     public init?(checkpoint: Data) {
         guard checkpoint.count <= 2_000_000,
               let saved = try? PropertyListDecoder().decode(Checkpoint.self, from: checkpoint),
-              (2...Self.checkpointVersion).contains(saved.version), saved.city.isValid else { return nil }
-        self = saved.city
+              (2...Self.checkpointVersion).contains(saved.version) else { return nil }
+        var city = saved.city
+        if saved.version == 3 { city.map.shrinkLegacyAirport() }
+        guard city.isValid else { return nil }
+        self = city
     }
 
     private enum CodingKeys: String, CodingKey {

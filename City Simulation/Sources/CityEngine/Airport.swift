@@ -1,15 +1,24 @@
 import Foundation
 
-/// Coordinates are in lots: u follows the runway, v runs from the terminal to the airfield.
+/// The 14 × 7 design is fitted into a compact 12 × 6 lot site.
+/// u follows the runway; v runs from the terminal to the airfield.
 public struct Airport: Codable, Equatable, Sendable {
-    public static let length = 14
-    public static let width = 7
+    public static let length = 12
+    public static let width = 6
+    public static let scale = 6.0 / 7.0
     public static let terminalStyle = 121
     public let origin: Plot
     public let alongY: Bool
 
     public func position(_ u: Double, _ v: Double) -> SIMD2<Double> {
-        SIMD2(Double(origin.x) + (alongY ? v : u), Double(origin.y) + (alongY ? u : v))
+        let x = (u + 0.5) * Self.scale - 0.5
+        let y = (v + 0.5) * Self.scale - 0.5
+        return SIMD2(Double(origin.x) + (alongY ? y : x), Double(origin.y) + (alongY ? x : y))
+    }
+
+    public func designPlot(_ u: Int, _ v: Int) -> Plot {
+        let point = position(Double(u), Double(v))
+        return Plot(Int(point.x.rounded()), Int(point.y.rounded()))
     }
 
     public func plot(_ u: Int, _ v: Int) -> Plot {
@@ -32,7 +41,9 @@ public struct Airport: Codable, Equatable, Sendable {
 
     public func isApproach(_ point: Plot) -> Bool {
         let p = local(point)
-        return (4...6).contains(p.v) && ((-12..<0).contains(p.u) || (14...26).contains(p.u))
+        let u = (Double(p.u) + 0.5) / Self.scale - 0.5
+        let runway = 5.5 * Self.scale - 0.5
+        return abs(Double(p.v) - runway) <= 1 && ((u >= -12 && u < 0) || (u >= 14 && u <= 26))
     }
 
     var plots: [Plot] {
@@ -57,14 +68,14 @@ extension CityMap {
     /// Reserve land before buildings are populated. A perimeter road reconnects every street
     /// reaching the site, rather than leaving severed roads or cars crossing the runway.
     mutating func planAirport(random: inout CityRandom, optional: Bool) {
-        if optional && random.pick(5) == 0 { return }
+        if optional && random.pick(4) != 0 { return }
         var best: (airport: Airport, score: Int)?
         for alongY in [false, true] {
             for y in stride(from: 5, through: 43, by: 2) {
                 for x in stride(from: 5, through: 43, by: 2) {
                     let candidate = Airport(origin: Plot(x, y), alongY: alongY)
                     guard candidate.isValid else { continue }
-                    let middle = candidate.plot(6, 3)
+                    let middle = candidate.plot(Airport.length / 2, Airport.width / 2)
                     guard middle.distance(to: downtown) >= 20 else { continue }
                     let footprint = candidate.plots + candidate.perimeter
                     guard footprint.allSatisfy({
@@ -99,5 +110,17 @@ extension CityMap {
         terminal.ground = .grass
         terminal.building = Building(level: 1, style: Airport.terminalStyle)
         self[selected.terminal] = terminal
+    }
+
+    /// Version 3 checkpoints reserved 14 × 7 lots. Release the unused strip while
+    /// retaining the established access streets, terminal address and passenger trips.
+    mutating func shrinkLegacyAirport() {
+        guard lots.count == Self.side * Self.side, let airport, airport.isValid else { return }
+        for point in Self.plots where self[point].ground == .airport && !airport.contains(point) {
+            var lot = self[point]
+            lot.ground = .grass
+            lot.zone = .homes
+            self[point] = lot
+        }
     }
 }

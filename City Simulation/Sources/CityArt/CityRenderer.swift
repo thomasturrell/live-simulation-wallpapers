@@ -134,8 +134,9 @@ public final class CityRenderer {
             }
         }
         if let airport = city.map.airport, palette.night > 0.3, city.tick % 60 < 6 {
-            pixels.depth = depth(Double(airport.tower.x + airport.tower.y)) + 1
-            let beacon = viewport.project(airport.tower).offset(0, -32)
+            let tower = airport.position(9, 0)
+            pixels.depth = depth(tower.x + tower.y) + 1
+            let beacon = viewport.project(tower.x, tower.y, altitude: 32 * Airport.scale)
             pixels.span(beacon.x, beacon.x, beacon.y, palette.color(0xB96D58, 0xDF8B72))
         }
         for (plane, pose) in aircraft.sorted(by: { $0.1.x + $0.1.y + $0.1.altitude / 8 < $1.1.x + $1.1.y + $1.1.altitude / 8 }) {
@@ -175,6 +176,11 @@ public final class CityRenderer {
         for (plot, p, lot) in plots {
             pixels.depth = depth(Double(plot.x + plot.y))
             if let airport = city.map.airport, airport.contains(plot) {
+                if plot == airport.terminal || plot == airport.tower || airport.hangars.contains(plot) {
+                    let local = airport.local(plot)
+                    let position = airport.position(Double(local.u), Double(local.v))
+                    pixels.depth = depth(position.x + position.y)
+                }
                 pixels.airportBuilding(at: p, plot: plot, airport: airport, palette: c)
             } else if city.construction?.plot == plot {
                 pixels.site(at: p, stage: city.constructionStage, road: city.construction?.replacement == nil, palette: c)

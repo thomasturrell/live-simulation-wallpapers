@@ -3,6 +3,19 @@ import CityArt
 import Foundation
 import Testing
 
+@Test func compactAirportUsesAboutThreeQuartersOfTheOriginalLand() {
+    let airport = Airport(origin: Plot(10, 10), alongY: false)
+    let fraction = Double(airport.plots.count) / Double(14 * 7)
+    #expect((0.72...0.78).contains(fraction))
+    #expect(airport.position(-0.5, -0.5) == SIMD2(9.5, 9.5))
+    #expect(airport.position(13.5, 6.5) == SIMD2(21.5, 15.5))
+}
+
+@Test func aboutOneQuarterOfGeneratedCitiesHaveAirports() {
+    let count = (0..<256).filter { City(seed: UInt64($0)).map.airport != nil }.count
+    #expect((51...77).contains(count), "\(count) of 256 generated cities have airports")
+}
+
 @Test(arguments: [City.defaultSeed] + Array(0..<24).map(UInt64.init))
 func airportsHaveProtectedLandAndConnectedAccess(seed: UInt64) throws {
     let city = City(seed: seed)
@@ -80,6 +93,7 @@ func flightsCompleteAContinuousCycleWithParkingAndQuietPeriods(alongY: Bool) thr
             if flight.elapsed > 0 { speeds[flight.phase, default: []].append(distance) }
             if [.taxiIn, .parked, .pushback, .taxiOut, .holdingShort, .lineUp].contains(flight.phase) {
                 #expect(pose.altitude == 0)
+                #expect(airport.contains(Plot(Int(pose.x.rounded()), Int(pose.y.rounded()))))
             }
         }
         if flight.phase == .parked { parkedTicks += 1 }
@@ -164,8 +178,7 @@ func flightsCompleteAContinuousCycleWithParkingAndQuietPeriods(alongY: Bool) thr
 }
 
 @Test func legacyCitiesRestoreWithoutRegeneratingTheirMap() throws {
-    var city = City(seed: 0)
-    #expect(city.map.airport == nil)
+    var city = try #require((0..<12).map { City(seed: UInt64($0)) }.first { $0.map.airport == nil })
     for _ in 0..<390 { city.step() }
     var plist = try #require(PropertyListSerialization.propertyList(from: city.checkpoint(), format: nil) as? [String: Any])
     var oldCity = try #require(plist["city"] as? [String: Any])
@@ -182,6 +195,53 @@ func flightsCompleteAContinuousCycleWithParkingAndQuietPeriods(alongY: Bool) thr
     #expect(restored.construction == city.construction)
     #expect(restored.tick == city.tick)
     #expect(restored.aviation.aircraft.isEmpty)
+    #expect(City(checkpoint: try restored.checkpoint()) == restored)
+}
+
+@Test func originalAirportCheckpointsShrinkWithoutResettingTheCityOrTrips() throws {
+    var city = City()
+    for _ in 0..<90 { city.step() }
+    city.vehicles = []
+    for point in CityMap.plots where city.map[point].ground == .airport || city.map[point].building?.style == Airport.terminalStyle {
+        var lot = city.map[point]
+        lot.ground = .grass
+        lot.zone = .homes
+        lot.building = nil
+        city.map[point] = lot
+    }
+    let airport = Airport(origin: Plot(7, 33), alongY: false)
+    city.map.airport = airport
+    let oldPlots = (0..<14).flatMap { u in (0..<7).map { airport.plot(u, $0) } }
+    let oldPerimeter = (-1...14).flatMap { u in
+        (-1...7).filter { u == -1 || u == 14 || $0 == -1 || $0 == 7 }.map { airport.plot(u, $0) }
+    }
+    for point in oldPlots + oldPerimeter {
+        var lot = city.map[point]
+        lot.ground = oldPlots.contains(point) ? .airport : .road
+        lot.zone = .civic
+        lot.building = nil
+        city.map[point] = lot
+    }
+    city.map[airport.terminal].ground = .grass
+    city.map[airport.terminal].building = Building(level: 1, style: Airport.terminalStyle)
+    city.dispatchAirportTraffic(toAirport: true)
+    #expect(!city.vehicles.isEmpty)
+    var plist = try #require(PropertyListSerialization.propertyList(from: city.checkpoint(), format: nil) as? [String: Any])
+    plist["version"] = 3
+    let data = try PropertyListSerialization.data(fromPropertyList: plist, format: .binary, options: 0)
+    var restored = try #require(City(checkpoint: data))
+    #expect(restored.tick == city.tick)
+    #expect(restored.vehicles == city.vehicles)
+    #expect(restored.aviation == city.aviation)
+    #expect(restored.map.airport == airport)
+    #expect(oldPerimeter.allSatisfy(restored.map.isRoad))
+    for point in CityMap.plots where !oldPlots.contains(point) { #expect(restored.map[point] == city.map[point]) }
+    for point in oldPlots where !airport.contains(point) {
+        #expect(restored.map[point].ground == .grass)
+        #expect(restored.map[point].zone == .homes)
+    }
+    #expect(CityMap.plots.filter { restored.map[$0].ground == .airport }.count == Airport.length * Airport.width - 1)
+    for _ in 0..<120 { restored.step() }
     #expect(City(checkpoint: try restored.checkpoint()) == restored)
 }
 

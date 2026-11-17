@@ -54,7 +54,14 @@ public struct Aircraft: Codable, Equatable {
         let swapped = overflight ? alongY : airport?.alongY == true
         let reference = overflight ? SIMD2(Double(CityMap.center.x), Double(CityMap.center.y)) :
             SIMD2(Double(airport?.origin.x ?? 0), Double(airport?.origin.y ?? 0))
-        let point = reference + (swapped ? SIMD2(sample.point.y, sample.point.x) : sample.point)
+        let point: SIMD2<Double>
+        if overflight {
+            point = reference + (swapped ? SIMD2(sample.point.y, sample.point.x) : sample.point)
+        } else if let airport {
+            point = airport.position(sample.point.x, sample.point.y)
+        } else {
+            point = reference + sample.point
+        }
         let heading = swapped ? SIMD2(direction.y, direction.x) : direction
         let bank = sample.altitude > 10 ? max(-0.22, min(0.22, sample.bend * 0.00008)) : 0
         return Pose(x: point.x, y: point.y, dx: heading.x, dy: heading.y, altitude: sample.altitude,

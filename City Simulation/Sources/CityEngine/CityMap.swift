@@ -127,7 +127,7 @@ public struct CityMap: Codable, Equatable {
     var isValid: Bool {
         guard lots.count == Self.side * Self.side, contains(downtown), river.isValid else { return false }
         if let airport {
-            guard airport.isValid, airport.perimeter.allSatisfy(isRoad),
+            guard airport.isValid, roadAccess(at: airport.terminal) != nil,
                   self[airport.terminal].building == Building(level: 1, style: Airport.terminalStyle),
                   self[airport.terminal].ground == .grass,
                   self[airport.terminal].zone == .civic else { return false }

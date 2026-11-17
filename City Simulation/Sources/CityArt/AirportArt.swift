@@ -1,19 +1,28 @@
 import CityEngine
 import Foundation
 
+private func airportDot(_ p: Dot, _ plot: Plot, _ airport: Airport, _ u: Double, _ v: Double, _ z: Double = 0) -> Dot {
+    let position = airport.position(u, v)
+    let x = (position.x - Double(plot.x)) * 16
+    let y = (position.y - Double(plot.y)) * 16
+    return p.offset(Int((x - y).rounded()), Int(((x + y) * 0.5 - z * Airport.scale).rounded()))
+}
+
 extension Pixels {
     mutating func airportGround(at p: Dot, plot: Plot, airport: Airport, palette c: Palette) {
         let local = airport.local(plot)
-        let u = Double(local.u), v = Double(local.v)
+        let leftEdge = Double(local.u) / Airport.scale - 0.5
+        let rightEdge = Double(local.u + 1) / Airport.scale - 0.5
+        let topEdge = Double(local.v) / Airport.scale - 0.5
+        let bottomEdge = Double(local.v + 1) / Airport.scale - 0.5
         tile(p, -8, -8, 16, 16, c.grass((local.u + local.v) % 6))
         func point(_ a: Double, _ b: Double) -> Dot {
-            let x = Int(((a - u) * 16).rounded()), y = Int(((b - v) * 16).rounded())
-            return airport.alongY ? p.iso(y, x) : p.iso(x, y)
+            airportDot(p, plot, airport, a, b)
         }
         // Clip long paved surfaces to each lot, preserving the renderer's terrain cache.
         func rectangle(_ a: Double, _ b: Double, _ endU: Double, _ endV: Double, _ ink: Ink) {
-            let left = max(a, u - 0.5), right = min(endU, u + 0.5)
-            let top = max(b, v - 0.5), bottom = min(endV, v + 0.5)
+            let left = max(a, leftEdge), right = min(endU, rightEdge)
+            let top = max(b, topEdge), bottom = min(endV, bottomEdge)
             guard left < right, top < bottom else { return }
             polygon([point(left, top), point(right, top), point(right, bottom), point(left, bottom)], ink)
         }
@@ -44,34 +53,34 @@ extension Pixels {
             rectangle(end, 4.6, end + 0.45, 4.76, white)
             rectangle(end, 5.24, end + 0.45, 5.4, white)
         }
-        if local.v == 5 && [2, 12].contains(local.u) {
-            let digits = local.u == 2 ? [0, 9] : [2, 7]
+        for end in [2, 12] where plot == airport.designPlot(end, 5) {
+            let digits = end == 2 ? [0, 9] : [2, 7]
             let glyphs = [[7, 5, 5, 5, 7], [2, 6, 2, 2, 7], [7, 1, 7, 4, 7],
                           [7, 1, 7, 1, 7], [5, 5, 7, 1, 1], [7, 4, 7, 1, 7],
                           [7, 4, 7, 5, 7], [7, 1, 1, 1, 1], [7, 5, 7, 5, 7], [7, 5, 7, 1, 7]]
             for (i, digit) in digits.enumerated() {
                 for (row, bits) in glyphs[digit].enumerated() {
                     for column in 0..<3 where bits & (1 << (2 - column)) != 0 {
-                        let dot = point(u - 0.14 + Double(row) / 16, v - 0.22 + Double(i * 4 + column) / 16)
+                        let dot = point(Double(end) - 0.14 + Double(row) / 16, 5 - 0.22 + Double(i * 4 + column) / 16)
                         span(dot.x, dot.x, dot.y, white)
                     }
                 }
             }
         }
-        if local.u == 1 && local.v == 4 {
-            for offset in [-0.14, 0.14] { rectangle(0.85, 4.1 + offset, 1.55, 4.16 + offset, c.paint) }
-        }
+        for offset in [-0.14, 0.14] { rectangle(0.85, 4.1 + offset, 1.55, 4.16 + offset, c.paint) }
         // Low perimeter posts, interrupted at the passenger entrance.
-        if local.v == 0 && ![5, 6, 7].contains(local.u) {
-            let a = point(u - 0.5, -0.4), b = point(u + 0.5, -0.4)
+        if local.v == 0 && !(5...7).contains(where: { airport.designPlot($0, 0) == plot }) {
+            let a = point(leftEdge, -0.4), b = point(rightEdge, -0.4)
             line(a.offset(0, -1), b.offset(0, -1), c.curb)
             line(a, a.offset(0, -3), c.outline)
         }
     }
 
     mutating func airportBuilding(at p: Dot, plot: Plot, airport: Airport, palette c: Palette) {
+        let local = airport.local(plot)
         func dot(_ u: Int, _ v: Int, _ z: Int = 0) -> Dot {
-            airport.alongY ? p.iso(v, u, z) : p.iso(u, v, z)
+            airportDot(p, plot, airport, Double(local.u) + Double(u) / 16,
+                       Double(local.v) + Double(v) / 16, Double(z))
         }
         func prism(_ u: Int, _ v: Int, _ w: Int, _ d: Int, _ base: Int, _ top: Int, _ roof: Ink) {
             let a = dot(u, v, top), b = dot(u + w, v, top)
@@ -83,18 +92,16 @@ extension Pixels {
             line(b, e, c.outline)
         }
         let glass = c.color(0x527F85, 0x637D87)
-        let local = airport.local(plot)
         // Draw lights after every terrain tile, so both edges survive the ground pass.
-        if c.night > 0.3 && local.u.isMultiple(of: 2) {
-            if local.v == 5 {
-                for edge in [-12, 12] {
-                    let light = dot(0, edge)
-                    span(light.x, light.x, light.y, c.color(0xD5C395, 0xF2D7A1))
-                }
-            } else if local.v == 3 {
-                for edge in [-6, 6] {
-                    let light = dot(0, edge)
-                    span(light.x, light.x, light.y, c.color(0x7E95AA, 0x7AA0C4))
+        if c.night > 0.3 {
+            for u in stride(from: 0, through: 12, by: 2) {
+                for v in [3, 5] where plot == airport.designPlot(u, v) {
+                    let margin = v == 5 ? 0.75 : 0.375
+                    let ink = v == 5 ? c.color(0xD5C395, 0xF2D7A1) : c.color(0x7E95AA, 0x7AA0C4)
+                    for edge in [-margin, margin] {
+                        let light = airportDot(p, plot, airport, Double(u), Double(v) + edge)
+                        span(light.x, light.x, light.y, ink)
+                    }
                 }
             }
         }
@@ -163,8 +170,9 @@ extension Pixels {
     private mutating func aircraftShape(at p: Dot, pose: Aircraft.Pose, livery: Int, shadow: Bool, blink: Bool, palette c: Palette) {
         let dx = pose.dx, dy = pose.dy
         func dot(_ along: Double, _ across: Double, _ z: Double = 0) -> Dot {
-            let u = dx * along - dy * across, v = dy * along + dx * across
-            let height = shadow ? 0 : z + across * pose.bank
+            let u = (dx * along - dy * across) * Airport.scale
+            let v = (dy * along + dx * across) * Airport.scale
+            let height = shadow ? 0 : (z + across * pose.bank) * Airport.scale
             return p.offset(Int((u - v).rounded()), Int(((u + v) * 0.5 - height).rounded()))
         }
         let shadowInk = Ink(0xFFFFFF)
