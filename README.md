@@ -26,14 +26,13 @@ Build with `cd "City Simulation" && ./NativeWallpaper/build.sh`. Move **City Sim
 
 ## Publishing a release
 
-From the commit you want to release, which must contain the release workflow, create and push a tag in `vMAJOR.MINOR.PATCH` format.
+1. On GitHub, open **Actions → Release → Run workflow**. Select the branch you want to release from and enter a version tag such as `v1.0.0`.
+2. Wait for the workflow to finish. It tests both wallpapers and attaches four ad-hoc signed macOS ZIPs to a draft release. If the tag exists, the workflow builds its commit. For a new tag, the draft targets the selected branch's commit at the time you ran the workflow.
+3. Open the draft from the workflow summary or the **Releases** page. Review the notes and downloads, then click **Publish release**.
 
-```sh
-git tag -a v1.0.0 -m "Release v1.0.0"
-git push origin v1.0.0
-```
+Run the workflow again with the same tag to replace the four ZIPs on an existing draft.
 
-GitHub Actions tests both wallpapers at the tagged commit and publishes a release with generated notes and four macOS ZIPs. Game of Life includes a native wallpaper, a menu-bar app with a screen saver, and a Dynamic Desktop wallpaper with a screen saver. City Simulation includes a native wallpaper and screen saver for macOS 26 or later. The bundles use ad-hoc signing.
+For a new tag, use the default branch if your target branch changes GitHub Actions workflow files. GitHub requires a token with Workflows write permission to create releases for those commits.
 
 ## Planned wallpapers
 

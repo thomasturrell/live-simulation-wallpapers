@@ -1,28 +1,49 @@
 name: Release
 
 on:
-  push:
-    tags:
-      - 'v[0-9]+.[0-9]+.[0-9]+'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag (for example, v1.0.0)'
+        required: true
+        type: string
 
 concurrency:
-  group: release-${{ github.ref }}
+  group: release-${{ inputs.tag }}
 
 jobs:
   release:
-    name: Package and publish wallpapers
-    if: github.event.created
+    name: Prepare wallpaper release draft
     runs-on: macos-26
     timeout-minutes: 30
     permissions:
       contents: write
+    env:
+      GH_REPO: ${{ github.repository }}
+      RELEASE_TAG: ${{ inputs.tag }}
     defaults:
       run:
         shell: bash
     steps:
-      - name: Check out the tagged commit
+      - name: Check out the selected commit
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          persist-credentials: false
+
+      - name: Resolve the release commit
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Keep the workflow's script available when checking out an older tag.
+          cp .github/scripts/prepare-release.sh "$RUNNER_TEMP/prepare-release.sh"
+          bash "$RUNNER_TEMP/prepare-release.sh" resolve
+
+      - name: Check out the release commit
+        if: steps.release.outputs.commit != github.sha
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ steps.release.outputs.commit }}
           persist-credentials: false
 
       - name: Test Game of Life and City Simulation
@@ -59,20 +80,8 @@ jobs:
           ./NativeWallpaper/build.sh "$packages"
           mv "$packages/City Simulation Wallpaper.zip" "$RUNNER_TEMP/release-assets/City-Simulation-Native-Wallpaper.zip"
 
-      - name: Publish the GitHub release
+      - name: Upload the downloads to the release draft
         env:
           GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
-        run: |
-          if is_draft="$(gh release view "$GITHUB_REF_NAME" --json isDraft --jq .isDraft)"; then
-            if [[ "$is_draft" == false ]]; then
-              echo "Release $GITHUB_REF_NAME is already published."
-              exit 0
-            fi
-          else
-            gh release create "$GITHUB_REF_NAME" --verify-tag --draft --generate-notes \
-              --notes "The macOS bundles use ad-hoc signing."
-          fi
-
-          gh release upload "$GITHUB_REF_NAME" "$RUNNER_TEMP/release-assets/"*.zip --clobber
-          gh release edit "$GITHUB_REF_NAME" --tag "$GITHUB_REF_NAME" --verify-tag --draft=false
+          RELEASE_COMMIT: ${{ steps.release.outputs.commit }}
+        run: bash "$RUNNER_TEMP/prepare-release.sh" upload
