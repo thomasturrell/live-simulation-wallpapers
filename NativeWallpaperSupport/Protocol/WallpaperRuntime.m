@@ -45,7 +45,7 @@ BOOL LifeLoadWallpaperABI(void) {
                         coder, encodeSurface, IOSurfaceCreateXPCObject(surface), @"surface");
                     return;
                 } @catch (NSException *exception) {
-                    NSLog(@"Game of Life: snapshot encoding: %@", exception.reason);
+                    NSLog(@"Wallpaper extension: snapshot encoding: %@", exception.reason);
                 }
             }
             original(object, encode, coder);
@@ -70,7 +70,7 @@ id LifeMakeWallpaperContext(CALayer *layer, CGFloat scale, NSNumber *display) {
         }
         return context;
     } @catch (NSException *exception) {
-        NSLog(@"Game of Life: remote layer: %@", exception.reason);
+        NSLog(@"Wallpaper extension: remote layer: %@", exception.reason);
         return nil;
     }
 }

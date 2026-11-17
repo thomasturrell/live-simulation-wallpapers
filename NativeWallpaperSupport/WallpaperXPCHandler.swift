@@ -1,13 +1,31 @@
 import Foundation
 
 final class WallpaperXPCHandler: NSObject, WallpaperExtensionXPCProtocol {
+    private let connectionID = UUID()
+    @MainActor private static var acquisitions: [UUID: UUID] = [:]
+
+    func disconnect() {
+        DispatchQueue.main.async {
+            let released = Self.acquisitions.filter { $0.value == self.connectionID }
+            for id in released.keys {
+                Self.acquisitions.removeValue(forKey: id)
+                WallpaperDriver.shared.invalidate(id)
+            }
+        }
+    }
+
     func acquire(withId id: Any?, request: Any?, reply: @escaping @Sendable (Any?, Error?) -> Void) {
         let presentation = Presentation(request)
         let identifier = Presentation.identifier(id)
         DispatchQueue.main.async {
             guard let identifier else { return reply(nil, BridgeError.incompatible) }
-            do { reply(try WallpaperDriver.shared.acquire(identifier, presentation), nil) }
-            catch { reply(nil, error) }
+            do {
+                let context = try WallpaperDriver.shared.acquire(identifier, presentation)
+                Self.acquisitions[identifier] = self.connectionID
+                reply(context, nil)
+            } catch {
+                reply(nil, error)
+            }
         }
     }
 
@@ -24,7 +42,10 @@ final class WallpaperXPCHandler: NSObject, WallpaperExtensionXPCProtocol {
     func invalidate(withId id: Any?, reply: @escaping @Sendable (Error?) -> Void) {
         let identifier = Presentation.identifier(id)
         DispatchQueue.main.async {
-            if let identifier { WallpaperDriver.shared.invalidate(identifier) }
+            if let identifier {
+                Self.acquisitions.removeValue(forKey: identifier)
+                WallpaperDriver.shared.invalidate(identifier)
+            }
             reply(nil)
         }
     }
