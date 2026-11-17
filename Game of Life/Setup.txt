@@ -1,10 +1,11 @@
 GAME OF LIFE
 Conway’s Game of Life for macOS
 
-Version 1.1 · Apple silicon and Intel · macOS 13 or later
+Version 1.0.0 · Apple silicon and Intel · macOS 13 or later
 
 DESKTOP
-Unzip the download and open Game of Life.app. Its grid icon stays in
+Run ./package-macos.sh in the Game of Life source directory and open
+dist/Game of Life.app. Its grid icon stays in
 the menu bar after you close the settings window.
 
 • Set Desktop motion to Settle on Return. The desktop evolves briefly
@@ -18,8 +19,8 @@ the menu bar after you close the settings window.
 
 LOCK SCREEN
 Open Game of Life.saver in Finder to install it for your account.
-Replace the previous copy if you installed version 1.0. On
-macOS 26 and later, go to System Settings → Wallpaper → Screen Saver,
+Replace the previous copy if you installed a development build.
+On macOS 26 and later, go to System Settings → Wallpaper → Screen Saver,
 choose Custom, then look under Other for Game of Life. On earlier
 versions, open the Screen Saver pane directly. Use Options to customise
 the screen saver and set its idle delay in System Settings.

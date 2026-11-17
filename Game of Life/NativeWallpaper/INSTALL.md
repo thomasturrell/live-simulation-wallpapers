@@ -1,6 +1,8 @@
-# Game of Life Wallpaper 2.0.3
+# Game of Life Wallpaper 1.0.0
 
 ## Install
+
+Unzip `Game-of-Life-Native-Wallpaper.zip`. It contains `Game of Life Wallpaper.app` with the embedded `LifeWallpaper.appex`, these installation notes and `LICENSE`.
 
 1. Quit the earlier Game of Life menu-bar app if it is running.
 2. Move **Game of Life Wallpaper.app** to Applications and open it once. The app registers its embedded extension with PlugInKit. Click **Done** to exit it. Keep it in Applications so macOS can load its extension.
@@ -11,7 +13,7 @@ Use the **Appearance** menu for Game of Life in Wallpaper settings. **Automatic*
 
 In the **Colour** menu, **Spectrum** blends through six hues as the simulation runs, **Random** picks a hue for each simulation cycle, and **Accent** follows the macOS accent colour. Choose a named colour for a fixed hue or **Original** for the default palette.
 
-This developer build is ad-hoc signed. The extension targets macOS 26 and later and contains Apple silicon and Intel slices. For distribution, use Developer ID signing and notarization. The wallpaper interface is undocumented and may change with macOS updates. If the choice is absent or renders incorrectly, select another wallpaper and use the separate **Wallpaper and Screen Saver** fallback ZIP. It includes the public `.saver` and still images. Its HEIC offers a scheduled Dynamic mode on macOS versions that recognise custom schedules. The fallback cannot animate through unlock.
+This developer build is ad-hoc signed. The extension targets macOS 26 and later and contains Apple silicon and Intel slices. For distribution, use Developer ID signing and notarization. The wallpaper interface is undocumented and may change with macOS updates. If the choice is absent or renders incorrectly, select another wallpaper. To build a fallback from source, run `./package-macos.sh` from the Game of Life source directory for the standalone screen saver, then `swift run -c release GameOfLife --export-wallpaper dist` for the HEIC wallpaper and light and dark PNG stills. The HEIC offers a scheduled Dynamic mode on macOS versions that recognise custom schedules. The fallback cannot animate through unlock.
 
 ## Integration
 

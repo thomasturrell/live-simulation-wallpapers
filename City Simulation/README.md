@@ -4,10 +4,12 @@ Watch an established isometric city grow. Each display starts with its own river
 
 ## Install on macOS
 
-1. Build the wallpaper with the command below, or unzip a packaged build.
+1. Download and unzip `City-Simulation-Native-Wallpaper.zip` from [GitHub Releases](https://github.com/thomasturrell/live-simulation-wallpapers/releases), or build the wallpaper with the command below.
 2. Move **City Simulation Wallpaper.app** into Applications and open it once. The app registers its wallpaper extension with PlugInKit. Click **Done** to quit the installer and leave the bundle in Applications.
 3. Reopen System Settings. In **Wallpaper**, select **City Simulation** as the wallpaper. In **Wallpaper → Screen Saver → Custom**, select **City Simulation** as the screen saver. Repeat for each display or Space where you want it.
 4. Start the screen saver or lock the Mac. The city animates on active saver surfaces. On return to the desktop, the extension brings the same scene to a stop over four seconds when WallpaperAgent keeps the live surface visible.
+
+The ZIP contains `City Simulation Wallpaper.app` with the embedded `CityWallpaper.appex`, this `README.md`, `LICENSE` and the `assets/` images used in the gallery below.
 
 The extension targets macOS 26 or later. The build script produces an ad-hoc signed universal app and ZIP by default. Set `CITY_SIGN_IDENTITY` to a Developer ID Application identity when building for distribution, then notarise the signed app. The carrier exits after registration. macOS hosts the animation and supplies the desktop image.
 

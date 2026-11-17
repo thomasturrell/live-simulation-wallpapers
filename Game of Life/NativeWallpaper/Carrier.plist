@@ -6,8 +6,8 @@
 <key>CFBundleDisplayName</key><string>Game of Life Wallpaper</string>
 <key>CFBundleExecutable</key><string>InstallWallpaper</string>
 <key>CFBundlePackageType</key><string>APPL</string>
-<key>CFBundleVersion</key><string>4</string>
-<key>CFBundleShortVersionString</key><string>2.0.3</string>
+<key>CFBundleVersion</key><string>1</string>
+<key>CFBundleShortVersionString</key><string>1.0.0</string>
 <key>CFBundleIconFile</key><string>Life</string>
 <key>LSMinimumSystemVersion</key><string>26.0</string>
 </dict></plist>

@@ -1,0 +1,78 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag (for example, v1.0.0)'
+        required: true
+        type: string
+
+concurrency:
+  group: release-${{ inputs.tag }}
+
+jobs:
+  release:
+    name: Prepare wallpaper release draft
+    runs-on: macos-26
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    env:
+      GH_REPO: ${{ github.repository }}
+      RELEASE_TAG: ${{ inputs.tag }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Check out the selected commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Resolve the release commit
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Keep the workflow's script available when checking out an older tag.
+          cp .github/scripts/prepare-release.sh "$RUNNER_TEMP/prepare-release.sh"
+          bash "$RUNNER_TEMP/prepare-release.sh" resolve
+
+      - name: Check out the release commit
+        if: steps.release.outputs.commit != github.sha
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ steps.release.outputs.commit }}
+          persist-credentials: false
+
+      - name: Test Game of Life and City Simulation
+        run: |
+          "Game of Life/Packaging/test.sh"
+          "City Simulation/Packaging/test.sh"
+
+      - name: Build and archive Game of Life
+        working-directory: Game of Life
+        run: |
+          packages="$RUNNER_TEMP/game-of-life"
+          assets="$RUNNER_TEMP/release-assets"
+          mkdir -p "$assets"
+
+          ./NativeWallpaper/build.sh "$packages/native"
+
+          cp NativeWallpaper/INSTALL.md ../LICENSE "$packages/native/"
+
+          ditto -c -k "$packages/native" "$assets/Game-of-Life-Native-Wallpaper.zip"
+
+      - name: Build and archive City Simulation
+        working-directory: City Simulation
+        run: |
+          packages="$RUNNER_TEMP/city-simulation"
+          ./NativeWallpaper/build.sh "$packages"
+          mv "$packages/City Simulation Wallpaper.zip" "$RUNNER_TEMP/release-assets/City-Simulation-Native-Wallpaper.zip"
+
+      - name: Upload the downloads to the release draft
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_COMMIT: ${{ steps.release.outputs.commit }}
+        run: bash "$RUNNER_TEMP/prepare-release.sh" upload
