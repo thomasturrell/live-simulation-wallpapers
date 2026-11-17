@@ -6,28 +6,23 @@ A native macOS wallpaper app and idle screen saver based on Conway’s Game of L
 
 **Game of Life Wallpaper 1.0.0** embeds an ExtensionKit wallpaper and screen saver for macOS 26 or later. It persists the Conway world and colour phase per display, animates during saver playback, then settles the desktop and stops its timers. The carrier app can close after installation.
 
-Download `Game-of-Life-Native-Wallpaper.zip` for `Game of Life Wallpaper.app`, its embedded `LifeWallpaper.appex`, `INSTALL.md` and `LICENSE`.
+[Download from GitHub Releases](https://github.com/thomasturrell/live-simulation-wallpapers/releases), then follow the [installation, compatibility and native build notes](NativeWallpaper/INSTALL.md).
 
-[Installation, compatibility and build notes](NativeWallpaper/INSTALL.md)
+## Alternatives for macOS 13 or later
 
-## Build a Dynamic Desktop fallback
+The optional menu-bar desktop app, standalone screen saver and scheduled HEIC wallpaper can be built from source:
 
-Run `./package-macos.sh`, then `swift run -c release GameOfLife --export-wallpaper dist` to build `Game of Life.saver` and export `Game of Life.heic`, `Game of Life – Light.png` and `Game of Life – Dark.png` into `dist/`. Import `Game of Life.heic` under **Wallpaper → Your Photos → Add Photo → Choose File**, then select **Dynamic** if macOS offers it. The file contains eight 5120 × 3200 generations scheduled across local time, with separate light and dark stills. The live Conway screen saver is configured separately in System Settings. [Wallpaper setup](Packaging/Wallpaper-Setup.txt)
+- [Desktop app and screen saver setup](Setup.txt) covers building, installation, motion controls and Lock Screen behaviour.
+- [Dynamic Desktop setup](Packaging/Wallpaper-Setup.txt) covers exporting and importing the scheduled HEIC wallpaper and its light and dark PNG alternatives.
 
-Apple documents importing images and configuring its own Dynamic Wallpapers. The custom HEIC uses the time-of-day metadata described by the [wallpapper project](https://github.com/mczachurski/wallpapper). Its mode picker can vary by macOS version. The saver and wallpaper are hosted separately, so the desktop does not play the saver’s final seconds after unlocking. [Apple's Wallpaper guide](https://support.apple.com/guide/mac-help/choose-your-desktop-picture-mchlp3013/mac)
+The custom HEIC uses the time-of-day metadata described by the [wallpapper project](https://github.com/mczachurski/wallpapper). Its mode picker can vary by macOS version. See [Apple's Wallpaper guide](https://support.apple.com/guide/mac-help/choose-your-desktop-picture-mchlp3013/mac) for importing images and configuring Apple's Dynamic Wallpapers.
 
-## Build the optional desktop app
-
-Run `./package-macos.sh` in this directory to build `Game of Life.app` and `Game of Life.saver` in `dist/`. Open `Game of Life.app` from Finder and use its grid-shaped menu-bar icon to reopen settings. Open `Game of Life.saver` to install the optional screen saver, then select it in System Settings. [Setup.txt](Setup.txt) has the current and earlier macOS menu paths.
-
-The binaries target macOS 13 or later and include Apple silicon and Intel slices. The local package is ad-hoc signed. For distribution, supply a Developer ID Application identity in `LIFE_SIGN_IDENTITY`, then notarise the bundles.
+The local package includes Apple silicon and Intel slices and is ad-hoc signed. For distribution, supply a Developer ID Application identity in `LIFE_SIGN_IDENTITY`, then notarise the bundles.
 
 ### Desktop and screen saver
 
-- **Settle on Return** runs a few increasingly spaced generations when the desktop comes back into view, then stops the timer. **Continuous** is available in the same Desktop motion menu. Both use a mouse-transparent window beneath Finder icons on each display while the app is open. Spaces and desktop modes can affect when AppKit reports the window as visible.
 - **Set Still Wallpaper** saves a Retina-size PNG for each connected display and applies it with `NSWorkspace`. The PNGs live in the app’s Application Support folder so macOS can continue to load them after the app quits. An applied still keeps its captured colours. Set it again after changing appearance if you want a new still.
-- **Lock Screen motion** comes from the selected screen saver. Apple’s Lock Screen command can start it on supported macOS versions, and a Start Screen Saver hot corner starts it directly. Use Screen Saver Options to match the desktop settings if macOS isolates the host preferences.
-- **Transition** uses public AppKit visibility and wake events. The screen saver also signals the desktop app when its view ends via the public distributed notification centre, with visibility still governing desktop playback. The two surfaces run independent worlds, so the desktop settles its own generation rather than taking over Apple’s native Lock Screen playback.
+- **Transition** uses public AppKit visibility and wake events. The screen saver also signals the desktop app when its view ends via the public distributed notification centre, with visibility still governing desktop playback. The desktop settles its own generation on return. Its live window is mouse-transparent and sits beneath Finder icons on each display.
 
 [Apple’s desktop image API](https://developer.apple.com/documentation/appkit/nsworkspace/setdesktopimageurl(_:for:options:)) · [Apple’s Screen Saver framework](https://developer.apple.com/documentation/ScreenSaver) · [Using a screen saver on macOS](https://support.apple.com/en-euro/guide/mac-help/mchl4b68853d/27/mac/27)
 

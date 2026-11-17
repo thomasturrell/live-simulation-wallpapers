@@ -13,7 +13,7 @@ Use the **Appearance** menu for Game of Life in Wallpaper settings. **Automatic*
 
 In the **Colour** menu, **Spectrum** blends through six hues as the simulation runs, **Random** picks a hue for each simulation cycle, and **Accent** follows the macOS accent colour. Choose a named colour for a fixed hue or **Original** for the default palette.
 
-This developer build is ad-hoc signed. The extension targets macOS 26 and later and contains Apple silicon and Intel slices. For distribution, use Developer ID signing and notarization. The wallpaper interface is undocumented and may change with macOS updates. If the choice is absent or renders incorrectly, select another wallpaper. To build a fallback from source, run `./package-macos.sh` from the Game of Life source directory for the standalone screen saver, then `swift run -c release GameOfLife --export-wallpaper dist` for the HEIC wallpaper and light and dark PNG stills. The HEIC offers a scheduled Dynamic mode on macOS versions that recognise custom schedules. The fallback cannot animate through unlock.
+This developer build is ad-hoc signed. The extension targets macOS 26 and later and contains Apple silicon and Intel slices. For distribution, use Developer ID signing and notarization. The wallpaper interface is undocumented and may change with macOS updates. If the choice is absent or renders incorrectly, select another wallpaper. The [source documentation](https://github.com/thomasturrell/live-simulation-wallpapers/tree/main/Game%20of%20Life#alternatives-for-macos-13-or-later) covers the standalone screen saver and scheduled HEIC fallback, which cannot animate through unlock.
 
 ## Integration
 
@@ -27,7 +27,7 @@ This developer build is ad-hoc signed. The extension targets macOS 26 and later 
 
 ## Build and verify
 
-Run `NativeWallpaper/build.sh` from the source directory using a macOS 26 or newer SDK. Set `LIFE_SIGN_IDENTITY` for distribution. The supported `.saver` can still be built with `./package-macos.sh`.
+Run `NativeWallpaper/build.sh` from the source directory using a macOS 26 or newer SDK. Set `LIFE_SIGN_IDENTITY` for distribution.
 
 Run `./Packaging/test.sh` for simulation tests. To build the local ABI probe, set `LIFE_BUILD_ABI_PROBE=1` when packaging. Run the resulting `verify-wallpaper` from the build directory with the path to `NativeWallpaper/thumbnail.png` and an empty writable directory for probe checkpoints. It exercises real platform classes, remote contexts and IOSurfaces, plus the rendering and playback lifecycle. This is separate from selecting the extension and doing a full lock/unlock test in System Settings.
 
