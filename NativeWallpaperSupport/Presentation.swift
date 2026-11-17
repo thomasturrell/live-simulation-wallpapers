@@ -7,7 +7,7 @@ struct Presentation {
     var displayID: UInt32?
     var mode: String?
     var activity: String?
-    var dark: Bool?
+    var systemDark: Bool?
     var optionIDs: [String: String] = [:]
     var preview = false
     var hasPlacement = false
@@ -28,9 +28,9 @@ struct Presentation {
         }
         mode = enumCase("presentationMode")
         activity = enumCase("activityState")
-        if let appearance = enumCase("systemAppearance") {
-            if appearance.contains("dark") { dark = true }
-            if appearance.contains("light") { dark = false }
+        if let systemAppearance = enumCase("systemAppearance") {
+            if systemAppearance.contains("dark") { systemDark = true }
+            if systemAppearance.contains("light") { systemDark = false }
         }
         hasPlacement = description.contains("\"placement\":")
         preview = data.children.first { $0.label == "isPreview" }?.value as? Bool ?? false
