@@ -48,4 +48,5 @@ swift run "${base_options[@]}" --scratch-path "$scratch/preview" CityPreview --i
 cp "$support/Protocol/LICENSE" "$extension/Contents/Resources/Aerial-LICENSE.txt"
 sign_wallpaper "${CITY_SIGN_IDENTITY:--}"
 ditto --norsrc "$app" "$destination/$(basename "$app")"
-ditto -c -k --keepParent "$app" "$destination/City Simulation Wallpaper.zip"
+cp README.md ../LICENSE "$stage/"
+ditto -c -k "$stage" "$destination/City Simulation Wallpaper.zip"

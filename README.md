@@ -22,7 +22,7 @@ A living isometric pixel-art city with neighbourhoods, a downtown skyline, parks
 
 Build with `cd "City Simulation" && ./NativeWallpaper/build.sh`. Move **City Simulation Wallpaper.app** into Applications and open it once to register it. Then select **City Simulation** under both Wallpaper and Screen Saver in System Settings.
 
-[City Simulation installation, preview and compatibility notes](City%20Simulation/README.md)
+[Download City Simulation from GitHub Releases](https://github.com/thomasturrell/live-simulation-wallpapers/releases) · [City Simulation installation, preview and compatibility notes](City%20Simulation/README.md)
 
 ## Publishing a release
 
@@ -33,7 +33,7 @@ git tag -a v1.0.0 -m "Release v1.0.0"
 git push origin v1.0.0
 ```
 
-GitHub Actions tests the tagged commit and publishes a release with generated notes and three macOS ZIPs. The downloads include the native wallpaper, the menu-bar app with its screen saver, and the Dynamic Desktop wallpaper with its screen saver. The bundles use ad-hoc signing.
+GitHub Actions tests both wallpapers at the tagged commit and publishes a release with generated notes and four macOS ZIPs. Game of Life includes a native wallpaper, a menu-bar app with a screen saver, and a Dynamic Desktop wallpaper with a screen saver. City Simulation includes a native wallpaper and screen saver for macOS 26 or later. The bundles use ad-hoc signing.
 
 ## Planned wallpapers
 

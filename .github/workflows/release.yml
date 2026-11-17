@@ -10,7 +10,7 @@ concurrency:
 
 jobs:
   release:
-    name: Package and publish Game of Life
+    name: Package and publish wallpapers
     if: github.event.created
     runs-on: macos-26
     timeout-minutes: 30
@@ -19,17 +19,19 @@ jobs:
     defaults:
       run:
         shell: bash
-        working-directory: Game of Life
     steps:
       - name: Check out the tagged commit
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
-      - name: Run the Game of Life tests
-        run: ./Packaging/test.sh
+      - name: Test Game of Life and City Simulation
+        run: |
+          "Game of Life/Packaging/test.sh"
+          "City Simulation/Packaging/test.sh"
 
-      - name: Build and archive the macOS downloads
+      - name: Build and archive Game of Life
+        working-directory: Game of Life
         run: |
           packages="$RUNNER_TEMP/game-of-life"
           assets="$RUNNER_TEMP/release-assets"
@@ -49,6 +51,13 @@ jobs:
           ditto -c -k "$packages/desktop" "$assets/Game-of-Life-Desktop-App.zip"
           ditto -c -k "$packages/native" "$assets/Game-of-Life-Native-Wallpaper.zip"
           ditto -c -k "$packages/fallback" "$assets/Game-of-Life-Wallpaper-and-Screen-Saver.zip"
+
+      - name: Build and archive City Simulation
+        working-directory: City Simulation
+        run: |
+          packages="$RUNNER_TEMP/city-simulation"
+          ./NativeWallpaper/build.sh "$packages"
+          mv "$packages/City Simulation Wallpaper.zip" "$RUNNER_TEMP/release-assets/City-Simulation-Native-Wallpaper.zip"
 
       - name: Publish the GitHub release
         env:
