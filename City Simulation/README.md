@@ -1,6 +1,6 @@
 # City Simulation
 
-Watch an established isometric city grow. Cars commute between homes, shops, offices and factories, follow marked roads across three bridges, and queue at larger junctions. Buildings go up in stages and lights come on across the city at dusk. All of the pixel art is drawn by the renderer and covered by the repository’s MIT licence.
+Watch an established isometric city grow. Each display starts with its own river, bridges and street grids, generated from its display UUID. Cars commute between homes, shops, offices and factories, and queue at larger junctions. Buildings go up in stages and lights come on across the city at dusk. All of the pixel art is drawn by the renderer and covered by the repository’s MIT licence.
 
 ## Install on macOS
 
@@ -11,7 +11,7 @@ Watch an established isometric city grow. Cars commute between homes, shops, off
 
 The extension targets macOS 26 or later. The build script produces an ad-hoc signed universal app and ZIP by default. Set `CITY_SIGN_IDENTITY` to a Developer ID Application identity when building for distribution, then notarise the signed app. The carrier exits after registration. macOS hosts the animation and supplies the desktop image.
 
-WallpaperAgent’s wallpaper extension interface is undocumented and may change with OS updates. Registration alone does not prove the extension will appear in both pickers. WallpaperAgent controls when it switches from a live layer to a cached image, so part or all of the slowdown may be hidden. If macOS withdraws the surface, City Simulation saves its current state and stops playback immediately. Per-display restore requires macOS to supply a display ID that maps to a Core Graphics display UUID. Requests without that identifier use session-only state.
+WallpaperAgent’s wallpaper extension interface is undocumented and may change with OS updates. Registration alone does not prove the extension will appear in both pickers. WallpaperAgent controls when it switches from a live layer to a cached image, so part or all of the slowdown may be hidden. If macOS withdraws the surface, City Simulation saves its current state and stops playback immediately. Per-display generation and restore require macOS to supply a display ID that maps to a Core Graphics display UUID. Previews and requests without that identifier use the default city and session-only state.
 
 ## Build and preview
 

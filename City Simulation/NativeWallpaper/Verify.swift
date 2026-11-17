@@ -58,10 +58,13 @@ enum VerifyWallpaper {
             _ = try WallpaperDriver.shared.snapshot(previewID)
             WallpaperDriver.shared.invalidate(previewID)
         }
-        let first = DisplayPlayback(checkpointKey: "landscape", storage: storage)
-        let second = DisplayPlayback(checkpointKey: "portrait", storage: storage)
+        let landscapeUUID = UUID(uuidString: "70F239C2-D6FC-4B58-BB3F-02FAA45FE309")!
+        let portraitUUID = UUID(uuidString: "70F239C2-D6FC-4B58-BB3F-02FAA45FE302")!
+        let first = DisplayPlayback(displayUUID: landscapeUUID, storage: storage)
+        let second = DisplayPlayback(displayUUID: portraitUUID, storage: storage)
         let previous = first.city.tick
-        precondition(first.city.map != second.city.map)
+        precondition(CityMap.plots.contains { first.city.map[$0].ground != second.city.map[$0].ground })
+        precondition(DisplayPlayback(displayUUID: nil, storage: storage).city == City())
         first.views[UUID()] = left
         second.views[UUID()] = right
         first.refresh(hint: nil)
@@ -85,7 +88,7 @@ enum VerifyWallpaper {
         try await Task.sleep(for: .seconds(0.4))
         precondition(first.city == settled)
         guard left.snapshot(settled) != nil, right.snapshot(paused) != nil else { throw BridgeError.noSurface }
-        let restored = DisplayPlayback(checkpointKey: "landscape", storage: storage)
+        let restored = DisplayPlayback(displayUUID: landscapeUUID, storage: storage)
         precondition(restored.city == settled)
         restored.views[UUID()] = left
         restored.refresh(hint: true)

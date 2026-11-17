@@ -104,8 +104,11 @@ import Testing
     var restored = try #require(City(checkpoint: data))
     #expect(restored == city)
     #expect(City(checkpoint: Data(data.prefix(20))) == nil)
-    let invalid = try PropertyListSerialization.data(fromPropertyList: ["version": 2], format: .binary, options: 0)
-    #expect(City(checkpoint: invalid) == nil)
+    let plist = try PropertyListSerialization.propertyList(from: data, options: [], format: nil)
+    var previousVersion = try #require(plist as? [String: Any])
+    previousVersion["version"] = 1
+    let obsolete = try PropertyListSerialization.data(fromPropertyList: previousVersion, format: .binary, options: 0)
+    #expect(City(checkpoint: obsolete) == nil)
     for _ in 0..<920 {
         city.step()
         restored.step()

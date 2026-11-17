@@ -20,8 +20,7 @@ extension Pixels {
             road(at: p, plot: plot, map: map, palette: c, bridge: lot.ground == .bridge)
         } else if lot.ground == .promenade {
             tile(p, -8, -8, 16, 16, c.grass(n))
-            let eastBank = map[Plot(plot.x - 1, plot.y)].ground == .water ||
-                CityMap.landscape(at: Plot(plot.x - 1, plot.y)).ground == .water
+            let eastBank = map.landscape(at: Plot(plot.x - 1, plot.y)).ground == .water
             let edge = eastBank ? -8 : 7
             line(p.iso(edge, -8, -2), p.iso(edge, 8, -2), c.waterDark)
             line(p.iso(edge, -8), p.iso(edge, 8), c.shore)

@@ -11,6 +11,7 @@ public struct City: Codable, Equatable {
     public static let ticksPerSecond = 30
     public static let dayLength = 8 * 60 * ticksPerSecond
     public static let defaultSeed: UInt64 = 0x7661_6C65_7269_6467
+    private static let checkpointVersion = 2
 
     public internal(set) var map: CityMap
     public internal(set) var vehicles: [Vehicle] = []
@@ -23,9 +24,16 @@ public struct City: Codable, Equatable {
 
     public init(seed: UInt64 = Self.defaultSeed) {
         var generator = CityRandom(state: seed)
-        map = CityMap(random: &generator)
+        map = CityMap(random: &generator, generateLayout: seed != Self.defaultSeed)
         random = generator
         seedTraffic()
+    }
+
+    public init(displayUUID: UUID?) {
+        let seed = displayUUID?.uuidString.utf8.reduce(Self.defaultSeed) {
+            ($0 ^ UInt64($1)) &* 1_099_511_628_211
+        }
+        self.init(seed: seed ?? Self.defaultSeed)
     }
 
     public var dayFraction: Double {
@@ -97,7 +105,7 @@ public struct City: Codable, Equatable {
                   map.roadAccess(at: point) != nil,
                   (5...51).contains(point.x), (6...50).contains(point.y),
                   (lot.building?.level ?? 0) < map.capacity(at: point) else { continue }
-            let proximity = max(0, 23 - point.distance(to: CityMap.downtown))
+            let proximity = max(0, 23 - point.distance(to: map.downtown))
             let score = (lot.zone == demand ? 14 : 0) + (lot.building == nil ? 14 : 0)
                 + proximity + random.pick(45)
             if best == nil || score > best!.1 { best = (point, score) }
@@ -112,13 +120,13 @@ public struct City: Codable, Equatable {
     public func checkpoint() throws -> Data {
         let encoder = PropertyListEncoder()
         encoder.outputFormat = .binary
-        return try encoder.encode(Checkpoint(version: 1, city: self))
+        return try encoder.encode(Checkpoint(version: Self.checkpointVersion, city: self))
     }
 
     public init?(checkpoint: Data) {
         guard checkpoint.count <= 2_000_000,
               let saved = try? PropertyListDecoder().decode(Checkpoint.self, from: checkpoint),
-              saved.version == 1, saved.city.isValid else { return nil }
+              saved.version == Self.checkpointVersion, saved.city.isValid else { return nil }
         self = saved.city
     }
 
@@ -128,7 +136,7 @@ public struct City: Codable, Equatable {
     }
 
     private var isValid: Bool {
-        guard map.lots.count == CityMap.side * CityMap.side, (0..<Int.max / 2).contains(tick),
+        guard map.isValid, (0..<Int.max / 2).contains(tick),
               (0...tick).contains(revision), nextProject >= tick,
               vehicles.count <= 60 else { return false }
         for point in CityMap.plots {
