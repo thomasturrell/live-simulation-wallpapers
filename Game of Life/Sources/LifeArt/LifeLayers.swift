@@ -8,13 +8,23 @@ package final class LifeLayers {
     private let steady = (0..<5).map { _ in CAShapeLayer() }
     private let births = (0..<5).map { _ in CAShapeLayer() }
     private let deaths = (0..<5).map { _ in CAShapeLayer() }
+    private let logo = LifeBrandingLayer()
+    private var palette: LifePalette?
     private var allShapes: [CAShapeLayer] { steady + births + deaths }
+    package var brandingArtwork: LifeBrandingArtwork {
+        get { logo.artwork }
+        set {
+            logo.artwork = newValue
+            if let palette { logo.update(viewport: root.bounds.size, palette: palette) }
+        }
+    }
 
     package init() {
         root.masksToBounds = true
         for layer in [backdrop] + allShapes { root.addSublayer(layer) }
         backdrop.startPoint = CGPoint(x: 0.5, y: 1)
         backdrop.endPoint = CGPoint(x: 0.5, y: 0)
+        root.addSublayer(logo.layer)
     }
 
     package var contentsScale: CGFloat = 1 {
@@ -28,12 +38,14 @@ package final class LifeLayers {
     }
 
     package func setPalette(_ palette: LifePalette) {
+        self.palette = palette
         CATransaction.begin()
         CATransaction.setDisableActions(true)
         backdrop.colors = palette.background
         for group in [steady, births, deaths] {
             for (shape, color) in zip(group, palette.cells) { shape.fillColor = color }
         }
+        logo.update(viewport: root.bounds.size, palette: palette)
         CATransaction.commit()
     }
 
@@ -43,7 +55,10 @@ package final class LifeLayers {
         CATransaction.begin()
         CATransaction.setDisableActions(true)
         let bounds = CGRect(origin: .zero, size: scene.viewport)
-        root.bounds = bounds
+        if root.bounds != bounds {
+            root.bounds = bounds
+            if let palette { logo.update(viewport: bounds.size, palette: palette) }
+        }
         backdrop.frame = bounds
         for shape in allShapes where shape.frame != bounds { shape.frame = bounds }
         for i in 0..<steady.count {

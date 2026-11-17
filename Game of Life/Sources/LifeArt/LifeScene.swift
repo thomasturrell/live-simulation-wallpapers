@@ -154,7 +154,8 @@ public struct LifeScene {
                     generation: world.generation, seed: settings.seed)
     }
 
-    package func image(scale: CGFloat, darkness: Double, colour: LifeColour? = nil) -> CGImage? {
+    package func image(scale: CGFloat, darkness: Double, colour: LifeColour? = nil,
+                       branding: LifeBrandingArtwork = LifeBrandingArtwork()) -> CGImage? {
         let width = Int((layout.viewport.width * scale).rounded())
         let height = Int((layout.viewport.height * scale).rounded())
         guard width > 0, height > 0, let colorSpace = CGColorSpace(name: CGColorSpace.sRGB),
@@ -174,6 +175,7 @@ public struct LifeScene {
             context.addPath(path)
             context.fillPath()
         }
+        branding.draw(in: context, viewport: layout.viewport, palette: palette)
         return context.makeImage()
     }
 }

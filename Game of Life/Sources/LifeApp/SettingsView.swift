@@ -9,13 +9,24 @@ final class SettingsModel: ObservableObject {
     @Published var desktopMotion: DesktopMotion {
         didSet { if desktopMotion != oldValue { onDesktopChange?(desktopMotion) } }
     }
+    @Published private(set) var branding: LifeBranding
+    private let brandingStore = LifeBrandingStore.local()
 
     var onSettingsChange: ((LifeSettings) -> Void)?
     var onDesktopChange: ((DesktopMotion) -> Void)?
+    var onBrandingChange: ((LifeBranding) -> Void)?
 
     init(settings: LifeSettings, desktopMotion: DesktopMotion) {
         self.settings = settings
         self.desktopMotion = desktopMotion
+        branding = brandingStore?.load() ?? LifeBranding()
+    }
+
+    func setBranding(_ branding: LifeBranding) throws {
+        guard let brandingStore else { throw CocoaError(.fileNoSuchFile) }
+        try brandingStore.save(branding)
+        self.branding = branding
+        onBrandingChange?(branding)
     }
 }
 
@@ -41,7 +52,7 @@ struct SettingsView: View {
                 }
                 .help(model.settings.paused ? "Resume animation" : "Pause on the current generation")
             }
-            Preview(settings: model.settings)
+            Preview(settings: model.settings, branding: model.branding)
                 .frame(height: 258)
                 .clipShape(RoundedRectangle(cornerRadius: 10))
                 .overlay {
@@ -53,6 +64,8 @@ struct SettingsView: View {
             LifeSettingsControls(settings: $model.settings)
                 .padding(.vertical, 1)
 
+            Divider()
+            LifeBrandingControls(branding: model.branding, onChange: model.setBranding)
             Divider()
 
             HStack {
@@ -82,13 +95,15 @@ struct SettingsView: View {
 
 private struct Preview: NSViewRepresentable {
     var settings: LifeSettings
+    var branding: LifeBranding
 
     func makeNSView(context: Context) -> LifeView {
         LifeView(frame: CGRect(x: 0, y: 0, width: 676, height: 258),
-                 settings: settings, previewScale: 0.7)
+                 settings: settings, branding: branding, previewScale: 0.7)
     }
 
     func updateNSView(_ view: LifeView, context: Context) {
         view.settings = settings
+        view.branding = branding
     }
 }
