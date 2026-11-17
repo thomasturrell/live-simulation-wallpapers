@@ -1,0 +1,30 @@
+import Foundation
+
+struct Palette {
+    let night: Double
+
+    func color(_ day: UInt32, _ dark: UInt32? = nil) -> Ink {
+        Ink(day).mix(Ink(dark ?? 0x202944), night * (dark == nil ? 0.70 : 1))
+    }
+
+    func grass(_ style: Int) -> Ink {
+        color([0x82975D, 0x8A9D62, 0x879B60, 0x8F9F66, 0x82945F, 0x899864][style % 6], 0x34494A)
+    }
+
+    var asphalt: Ink { color(0x555963, 0x262C41) }
+    var roadEdge: Ink { color(0x40474F, 0x1D2536) }
+    var paint: Ink { color(0xC6B58A, 0x756B58) }
+    var curb: Ink { color(0xB7AA94, 0x535468) }
+    var sidewalk: Ink { color(0x9A9487, 0x414659) }
+    var water: Ink { color(0x427982, 0x21394F) }
+    var waterDark: Ink { color(0x376D78, 0x192F45) }
+    var waterLight: Ink { color(0x609294, 0x2F4558) }
+    var shore: Ink { color(0xCAC2A0, 0x666574) }
+    var shadow: Ink { color(0x65784D, 0x26353C) }
+    var paths: Ink { color(0xBCAB7E, 0x525161) }
+    var foliage: Ink { color(0x496F50, 0x263A43) }
+    var leafShade: Ink { color(0x355247, 0x202E3B) }
+    var clay: Ink { color(0xA45E4C, 0x513848) }
+    var gold: Ink { color(0xF3D287, 0xFFD88C) }
+    var outline: Ink { color(0x434B50, 0x202536) }
+}

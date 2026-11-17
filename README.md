@@ -12,9 +12,20 @@ The first wallpaper is based on [Conway’s Game of Life](https://en.wikipedia.o
 
 [Game of Life setup and build instructions](Game%20of%20Life/README.md)
 
+## City Simulation
+
+A living isometric pixel-art city with neighbourhoods, a downtown skyline, parks and an industrial waterfront. Traffic follows the road network, new construction gradually changes the city, and streetlights come on after dark. The native macOS 26+ extension animates during saver playback and keeps a separate city checkpoint for each identified display.
+
+![Illustrated macOS Lock Screen for Wright with moving traffic and rippling water in an isometric pixel-art city](assets/city-lock-screen.webp)
+
+*Illustrative preview of City Simulation on the macOS Lock Screen.*
+
+Build with `cd "City Simulation" && ./NativeWallpaper/build.sh`. Move **City Simulation Wallpaper.app** into Applications and open it once to register it. Then select **City Simulation** under both Wallpaper and Screen Saver in System Settings.
+
+[City Simulation installation, preview and compatibility notes](City%20Simulation/README.md)
+
 ## Planned wallpapers
 
-- **City Simulation** — watch a city grow and traffic move through its streets.
 - **Systems Design** — watch requests flow between services, queues, and databases in a live system diagram.
 
 ## Planned customisation

@@ -25,10 +25,12 @@ jobs:
           test -s LICENSE
           git diff --check HEAD^1 HEAD
 
-      - name: Run the Game of Life tests when the package is present
+      - name: Test Game of Life and City Simulation
         run: |
-          if [[ -f Life/Package.swift ]]; then
-            Life/Packaging/test.sh
-          else
-            echo 'The Game of Life package is absent from this revision.'
-          fi
+          "Game of Life/Packaging/test.sh"
+          "City Simulation/Packaging/test.sh"
+
+      - name: Build and verify both native wallpaper bundles
+        run: |
+          LIFE_NATIVE_ARCHS="$(uname -m)" "Game of Life/NativeWallpaper/build.sh"
+          CITY_NATIVE_ARCHS="$(uname -m)" "City Simulation/NativeWallpaper/build.sh"

@@ -108,7 +108,10 @@ struct WallpaperExtensionConfig: AppExtensionConfiguration {
         connection.exportedObject = handler
 
         connection.interruptionHandler = { debugLog("XPC interrupted") }
-        connection.invalidationHandler = { debugLog("XPC invalidated") }
+        connection.invalidationHandler = {
+            debugLog("XPC invalidated")
+            handler.disconnect()
+        }
 
         DispatchQueue.main.async { [weak connection] in
             WallpaperDriver.shared.invalidateSnapshots = { [weak connection] in

@@ -1,6 +1,5 @@
 import AppKit
 import CoreGraphics
-import LifeArt
 
 struct Presentation {
     var size: CGSize?
@@ -9,8 +8,7 @@ struct Presentation {
     var mode: String?
     var activity: String?
     var systemDark: Bool?
-    var appearance: LifeAppearance?
-    var colour: LifeColour?
+    var optionIDs: [String: String] = [:]
     var preview = false
     var hasPlacement = false
 
@@ -19,14 +17,9 @@ struct Presentation {
         let data = Mirror(reflecting: value)
         // WallpaperAgent supplies option values in the creation descriptor.
         if let options = data.descendant("descriptor", "optionValues", "some", "values") as? [String: Any] {
-            func pickerID(_ key: String) -> String? {
-                guard let option = options[key] else { return nil }
-                return Mirror(reflecting: option).descendant("picker", "id") as? String
+            optionIDs = options.compactMapValues {
+                Mirror(reflecting: $0).descendant("picker", "id") as? String
             }
-            if let id = pickerID(lifeAppearanceOptionID) {
-                appearance = LifeAppearance.allCases.first { $0.wallpaperID == id }
-            }
-            colour = pickerID(lifeColourOptionID).flatMap(LifeColour.init)
         }
         let description = String(describing: value)
         func enumCase(_ label: String) -> String? {
