@@ -39,6 +39,64 @@ state_dir="$(mktemp -d)"
 
 The probe exercises the real wallpaper settings and request types, remote Core Animation contexts, IOSurface snapshots, and the adapter’s playback, suspension, settling and persistence. Use `verify-wallpaper --local` with the same paths to exercise the settings, snapshots and lifecycle without allocating remote contexts. The probe runs outside WallpaperAgent. Before distributing, verify installed picker discovery, saver playback and lock/unlock from System Settings, display hot-plug and mirroring, Spaces, sleep and wake, and the idle energy profile on your target macOS versions.
 
+## Generated assets
+
+These WebP previews use the simulation’s pixel art. The renderer varies building details, tree shapes and vehicle colors, so the gallery shows representative styles.
+
+### Buildings
+
+| House · level 1 | Terraced homes · level 2 | Apartments · level 3 |
+| --- | --- | --- |
+| ![House with a red gabled roof and chimney](assets/house.webp) | ![Two-storey terraced homes](assets/terraced-homes.webp) | ![Apartment block with balconies](assets/apartments.webp) |
+| **Shop · level 1** | **Commercial block · level 2** | **Office building · level 3** |
+| ![Low shop with a striped awning](assets/shop.webp) | ![Commercial block with upper-floor windows and an awning](assets/commercial-block.webp) | ![Mid-rise office building](assets/office-building.webp) |
+| **Office tower · level 4** | **Commercial high-rise · level 5** | **Riverside tower · level 5** |
+| ![Office tower with a rooftop mast](assets/office-tower.webp) | ![Commercial high-rise with a stepped crown](assets/commercial-high-rise.webp) | ![Riverside landmark with a copper-colored spire](assets/riverside-tower.webp) |
+| **Factory** | **Factory with chimney** | |
+| ![Factory with twin pitched roofs and loading doors](assets/factory.webp) | ![Factory chimney emitting smoke](assets/factory-with-chimney.webp) | |
+| **Civic clock tower** | **Civic hall** | **Civic pavilion** |
+| ![Civic building with a peaked clock tower](assets/civic-clock-tower.webp) | ![Civic hall with a short clock tower](assets/civic-hall.webp) | ![Low civic pavilion with columns](assets/civic-pavilion.webp) |
+
+### Terrain and parks
+
+| Grass | River with water glints | River edge |
+| --- | --- | --- |
+| ![Grassy lot](assets/grass.webp) | ![River tile with a water glint](assets/river.webp) | ![River tile with darker water along the bank](assets/river-edge.webp) |
+| **West-bank promenade** | **East-bank promenade** | **Park lawn** |
+| ![Riverside path along the west bank](assets/west-bank-promenade.webp) | ![Riverside path along the east bank](assets/east-bank-promenade.webp) | ![Park lawn with two trees](assets/park-lawn.webp) |
+| **Park path** | **Park bench** | **Park fountain** |
+| ![Footpath crossing a grassy park tile](assets/park-path.webp) | ![Bench beside a park path](assets/park-bench.webp) | ![Fountain at the crossing of two park paths](assets/park-fountain.webp) |
+
+### Streets
+
+| Straight street | Street corner | Dead end |
+| --- | --- | --- |
+| ![Straight road with lane markings](assets/straight-street.webp) | ![Road turning through a corner](assets/street-corner.webp) | ![Street ending at a curb](assets/dead-end.webp) |
+| **T-junction** | **Crossroads** | **Bridge** |
+| ![Road tile with three connections](assets/t-junction.webp) | ![Four-way road junction with crossing markings](assets/crossroads.webp) | ![Road bridge with railings over water](assets/bridge.webp) |
+
+### Street furniture, trees and traffic
+
+| Tree | Streetlamp | Lit streetlamp |
+| --- | --- | --- |
+| ![Tree and its shadow on grass](assets/tree.webp) | ![Streetlamp beside a road in daylight](assets/streetlamp.webp) | ![Glowing streetlamp beside a road at night](assets/lit-streetlamp.webp) |
+| **Car** | **Truck** | **Car at night** |
+| ![Small orange car on a road](assets/car.webp) | ![Long yellow truck on a road](assets/truck.webp) | ![Car with headlights and a red tail light](assets/car-at-night.webp) |
+
+### Construction
+
+| Building foundation | Building frame | Building shell |
+| --- | --- | --- |
+| ![Crane above the foundation of a building site](assets/building-foundation.webp) | ![Crane beside the rising frame of a building](assets/building-frame.webp) | ![Crane beside the taller building shell](assets/building-shell.webp) |
+| **Marked road site** | **Road paving** | |
+| ![Staked-out road construction site](assets/road-site.webp) | ![Road construction site with a strip of asphalt](assets/road-paving.webp) | |
+
+### Preview and app images
+
+| Wallpaper picker thumbnail | Installer app icon | Night scene export |
+| --- | --- | --- |
+| <img src="assets/wallpaper-thumbnail.webp" alt="Daytime city used in the wallpaper picker" width="192"> | <img src="assets/app-icon.webp" alt="Rounded-square City Simulation app icon" width="108"> | <img src="assets/city-at-night.webp" alt="City at night with lit windows and streetlights" width="192"> |
+
 ## Implementation
 
 - **CityEngine** owns a seedable 56 × 56 city and advances it at 30 fixed ticks per second. It routes trips on a connected road graph, balances development between housing and jobs, and enforces frontage and density limits. New road segments open frontage for future projects. Parks and riverbanks stay protected.
