@@ -11,8 +11,6 @@ Use the **Appearance** menu for Game of Life in Wallpaper settings. **Automatic*
 
 In the **Colour** menu, **Spectrum** blends through six hues as the simulation runs, **Random** picks a hue for each simulation cycle, and **Accent** follows the macOS accent colour. Choose a named colour for a fixed hue or **Original** for the default palette.
 
-In a Developer ID signed build, reopen **Game of Life Wallpaper.app** to add or remove an optional logo. Choose a self-contained SVG with outlined lettering or a transparent PNG. An optional alternate is selected automatically for contrast against the current palette. The carrier and extension share the imported copies in their macOS App Group container, under `Library/Application Support/Game of Life/Branding`. Ad-hoc builds can use the menu-bar app to try branding locally.
-
 This developer build is ad-hoc signed. The extension targets macOS 26 and later and contains Apple silicon and Intel slices. For distribution, use Developer ID signing and notarization. The wallpaper interface is undocumented and may change with macOS updates. If the choice is absent or renders incorrectly, select another wallpaper and use the separate **Wallpaper and Screen Saver** fallback ZIP. It includes the public `.saver` and still images. Its HEIC offers a scheduled Dynamic mode on macOS versions that recognise custom schedules. The fallback cannot animate through unlock.
 
 ## Integration

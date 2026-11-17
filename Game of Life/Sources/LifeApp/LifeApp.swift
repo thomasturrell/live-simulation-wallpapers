@@ -37,7 +37,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private let preferences = LifeSettings.moduleDefaults()
     private lazy var model = SettingsModel(settings: LifeSettings(defaults: preferences),
                                            desktopMotion: DesktopMotion(defaults: .standard))
-    private lazy var desktop = DesktopController(settings: model.settings, branding: model.branding)
+    private lazy var desktop = DesktopController(settings: model.settings)
     private var statusItem: NSStatusItem?
     private var pauseItem: NSMenuItem?
     private var settingsWindow: NSWindow?
@@ -53,7 +53,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             UserDefaults.standard.set(motion.rawValue, forKey: "desktopMotion")
             self?.desktop.setMotion(motion)
         }
-        model.onBrandingChange = { [weak self] branding in self?.desktop.branding = branding }
         createMenu()
         desktop.setMotion(model.desktopMotion)
         let notifications = DistributedNotificationCenter.default()
@@ -105,7 +104,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     @objc private func openSettings() {
         if settingsWindow == nil {
-            let window = NSWindow(contentRect: CGRect(x: 0, y: 0, width: 728, height: 700),
+            let window = NSWindow(contentRect: CGRect(x: 0, y: 0, width: 728, height: 650),
                                   styleMask: [.titled, .closable, .miniaturizable],
                                   backing: .buffered, defer: false)
             window.title = "Game of Life"

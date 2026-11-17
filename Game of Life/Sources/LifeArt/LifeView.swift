@@ -35,12 +35,6 @@ public final class LifeView: NSView {
         didSet { updateClock() }
     }
 
-    public var branding: LifeBranding {
-        didSet {
-            if oldValue != branding { art.brandingArtwork = LifeBrandingArtwork(branding) }
-        }
-    }
-
     private let previewScale: CGFloat
     private let tracksWindowOcclusion: Bool
     private let art = LifeLayers()
@@ -51,16 +45,14 @@ public final class LifeView: NSView {
     private var displaysAwake = true
     private var sessionActive = true
 
-    public init(frame: CGRect, settings: LifeSettings, branding: LifeBranding = LifeBranding(), previewScale: CGFloat = 1,
+    public init(frame: CGRect, settings: LifeSettings, previewScale: CGFloat = 1,
                 tracksWindowOcclusion: Bool = true) {
         self.settings = settings
-        self.branding = branding
         self.previewScale = previewScale
         self.tracksWindowOcclusion = tracksWindowOcclusion
         super.init(frame: frame)
         wantsLayer = true
         layer = art.root
-        art.brandingArtwork = LifeBrandingArtwork(branding)
         NotificationCenter.default.addObserver(self, selector: #selector(systemColorsChanged(_:)),
                                                name: NSColor.systemColorsDidChangeNotification, object: nil)
 
@@ -235,7 +227,6 @@ public final class LifeView: NSView {
     }
 
     public func snapshot(scale: CGFloat) -> CGImage? {
-        scene?.image(scale: scale, darkness: settings.appearance.isDark(in: effectiveAppearance) ? 1 : 0,
-                     branding: art.brandingArtwork)
+        scene?.image(scale: scale, dark: settings.appearance.isDark(in: effectiveAppearance))
     }
 }
