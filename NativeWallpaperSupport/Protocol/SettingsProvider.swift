@@ -16,7 +16,8 @@ struct WallpaperChoice {
 
 func buildSettingsViewModelsXPC(thumbnail: URL? = nil) -> AnyObject? {
     let bundleID = Bundle.main.bundleIdentifier ?? wallpaperChoice.bundleID
-    let groupID = GroupID(id: "\(wallpaperChoice.id)-group")
+    // Both extensions contribute their own choice to the same Settings section.
+    let groupID = GroupID(id: "io.github.thomasturrell.live-simulation-wallpapers")
 
     guard let thumbnailURL = thumbnail ?? bundledThumbnailURL() else {
         debugLog("  [Settings] Failed to generate thumbnail")
@@ -58,7 +59,7 @@ func buildSettingsViewModelsXPC(thumbnail: URL? = nil) -> AnyObject? {
     let group = SettingsGroup(
         id: groupID,
         items: [item],
-        localizedName: wallpaperChoice.name,
+        localizedName: "Simulation Wallpapers",
         disposability: .none,
         sortOrder: -50,
         sortID: GroupSortID(id: "com.apple.wallpaper.aerials"),
