@@ -51,9 +51,15 @@ final class DesktopController {
             for surface in surfaces.values { surface.view.settings = settings }
         }
     }
+    var branding: LifeBranding {
+        didSet {
+            for surface in surfaces.values { surface.view.branding = branding }
+        }
+    }
 
-    init(settings: LifeSettings) {
+    init(settings: LifeSettings, branding: LifeBranding) {
         self.settings = settings
+        self.branding = branding
     }
 
     func setMotion(_ motion: DesktopMotion) {
@@ -100,7 +106,7 @@ final class DesktopController {
             window.animationBehavior = .none
             window.isReleasedWhenClosed = false
             let view = LifeView(frame: CGRect(origin: .zero, size: screen.frame.size),
-                                settings: settings)
+                                settings: settings, branding: branding)
             view.playback = playback
             window.contentView = view
             window.orderBack(nil)
@@ -115,6 +121,7 @@ final class DesktopController {
                                                   in: .userDomainMask, appropriateFor: nil, create: true)
             .appendingPathComponent("Game of Life/Wallpapers", isDirectory: true)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let brandingArtwork = LifeBrandingArtwork(branding)
         // Create every image before changing any desktop.
         let files = try screens.map { screen in
             let scale = screen.backingScaleFactor
@@ -123,7 +130,9 @@ final class DesktopController {
                 image = surface.view.snapshot(scale: scale)
             } else {
                 let scene = LifeScene(viewport: screen.frame.size, settings: settings)
-                image = scene.image(scale: scale, dark: settings.appearance.isDark(in: NSApp.effectiveAppearance))
+                image = scene.image(scale: scale,
+                                    darkness: settings.appearance.isDark(in: NSApp.effectiveAppearance) ? 1 : 0,
+                                    branding: brandingArtwork)
             }
             guard let image else { throw WallpaperError.imageFailed }
             let url = folder.appendingPathComponent("Life-\(UUID().uuidString).png")
