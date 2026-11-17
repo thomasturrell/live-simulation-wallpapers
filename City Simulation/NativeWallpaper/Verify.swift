@@ -81,9 +81,9 @@ enum VerifyWallpaper {
         let paused = second.city
         let beforeUnlock = first.city.tick
         first.refresh(hint: false)
-        try await Task.sleep(for: .seconds(3.4))
+        try await Task.sleep(for: .seconds(Playback.settleDuration + 0.7))
         let settled = first.city
-        precondition(settled.tick > beforeUnlock && settled.tick - beforeUnlock <= 29)
+        precondition(settled.tick > beforeUnlock && settled.tick - beforeUnlock <= 41)
         precondition(!first.hasTimer && !second.hasTimer && second.city == paused)
         try await Task.sleep(for: .seconds(0.4))
         precondition(first.city == settled)

@@ -4,7 +4,7 @@ import Foundation
 public struct Playback {
     public enum Mode: Equatable { case suspended, playing, settling, still }
 
-    public static let settleDuration = 2.7
+    public static let settleDuration = 4.0
     public private(set) var mode: Mode = .suspended
     public private(set) var city: City
     private var remainder: Double = 0

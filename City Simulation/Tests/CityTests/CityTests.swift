@@ -146,8 +146,10 @@ import Testing
     #expect(playback.mode == .settling)
     playback.advance(elapsed: 0.25)
     let early = playback.city.tick - moving
-    for _ in 0..<10 { playback.advance(elapsed: 0.25) }
-    #expect(playback.city.tick - moving == 27)
+    for _ in 0..<14 { playback.advance(elapsed: 0.25) }
+    #expect(playback.needsTimer && playback.mode == .settling)
+    playback.advance(elapsed: 0.25)
+    #expect(playback.city.tick - moving == 40)
     #expect(early > 4)
     #expect(!playback.needsTimer && playback.mode == .still)
     let parked = playback.city
