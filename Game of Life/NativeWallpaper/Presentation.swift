@@ -8,7 +8,8 @@ struct Presentation {
     var displayID: UInt32?
     var mode: String?
     var activity: String?
-    var dark: Bool?
+    var systemDark: Bool?
+    var appearance: LifeAppearance?
     var colour: LifeColour?
     var preview = false
     var hasPlacement = false
@@ -17,10 +18,15 @@ struct Presentation {
         guard let request, let value = Mirror(reflecting: request).children.first?.value else { return }
         let data = Mirror(reflecting: value)
         // WallpaperAgent supplies option values in the creation descriptor.
-        if let options = data.descendant("descriptor", "optionValues", "some", "values") as? [String: Any],
-           let option = options[lifeColourOptionID],
-           let id = Mirror(reflecting: option).descendant("picker", "id") as? String {
-            colour = LifeColour(rawValue: id)
+        if let options = data.descendant("descriptor", "optionValues", "some", "values") as? [String: Any] {
+            func pickerID(_ key: String) -> String? {
+                guard let option = options[key] else { return nil }
+                return Mirror(reflecting: option).descendant("picker", "id") as? String
+            }
+            if let id = pickerID(lifeAppearanceOptionID) {
+                appearance = LifeAppearance.allCases.first { $0.wallpaperID == id }
+            }
+            colour = pickerID(lifeColourOptionID).flatMap(LifeColour.init)
         }
         let description = String(describing: value)
         func enumCase(_ label: String) -> String? {
@@ -29,9 +35,9 @@ struct Presentation {
         }
         mode = enumCase("presentationMode")
         activity = enumCase("activityState")
-        if let appearance = enumCase("systemAppearance") {
-            if appearance.contains("dark") { dark = true }
-            if appearance.contains("light") { dark = false }
+        if let systemAppearance = enumCase("systemAppearance") {
+            if systemAppearance.contains("dark") { systemDark = true }
+            if systemAppearance.contains("light") { systemDark = false }
         }
         hasPlacement = description.contains("\"placement\":")
         preview = data.children.first { $0.label == "isPreview" }?.value as? Bool ?? false
