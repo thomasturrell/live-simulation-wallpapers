@@ -72,9 +72,11 @@ final class WallpaperDriver {
     func update(_ id: UUID, _ request: Presentation) {
         guard let playback = owners[id], let surface = playback.views[id] else { return }
         let oldMode = surface.presentationMode
+        let wasDark = surface.isDark
         if surface.apply(request) {
             surface.draw(playback.scene, phase: playback.phase, animate: false, duration: 0)
         }
+        if !surface.preview && wasDark != surface.isDark { invalidateSnapshots?() }
         if !surface.preview, oldMode != surface.presentationMode, request.mode != nil {
             saverHint = nil
             refreshAll()
@@ -292,12 +294,15 @@ final class RemoteView {
     private var context: AnyObject?
     private var size: CGSize
     private var scale: CGFloat
-    private var dark: Bool
+    private var systemDark: Bool
+    private var appearance: LifeAppearance
     let colour: LifeColour
     private var hasPlacement: Bool
     private(set) var presentationMode: String
     private(set) var suspended: Bool
     let preview: Bool
+
+    var isDark: Bool { appearance.isDark(systemDark: systemDark) }
 
     var isSaver: Bool {
         presentationMode == "locked" || (presentationMode == "idle" && !hasPlacement)
@@ -306,7 +311,8 @@ final class RemoteView {
     init(size: CGSize, request: Presentation) {
         self.size = size
         scale = request.scale ?? 1
-        dark = request.dark ?? true
+        systemDark = request.systemDark ?? true
+        appearance = request.appearance ?? .system
         colour = request.colour ?? .original
         hasPlacement = request.hasPlacement
         presentationMode = request.mode ?? "default"
@@ -327,19 +333,20 @@ final class RemoteView {
     }
 
     func apply(_ request: Presentation) -> Bool {
-        let previousGeometry = (size, scale, dark, suspended)
+        let previousState = (size, scale, isDark, suspended)
         if let mode = request.mode { presentationMode = mode }
         if let activity = request.activity { suspended = activity == "suspended" }
-        if let dark = request.dark { self.dark = dark }
+        if let systemDark = request.systemDark { self.systemDark = systemDark }
+        if let appearance = request.appearance { self.appearance = appearance }
         if let size = request.size { self.size = size }
         if let scale = request.scale { self.scale = scale }
-        return previousGeometry != (size, scale, dark, suspended)
+        return previousState != (size, scale, isDark, suspended)
     }
 
     private func darkness(phase: UInt16) -> Double {
-        guard colour == .original else { return dark ? 1 : 0 }
+        guard colour == .original else { return isDark ? 1 : 0 }
         let pulse = (1 - cos(2 * .pi * Double(phase) / Double(DisplayPlayback.cycle))) / 2
-        return dark ? 1 - 0.055 * pulse : 0.045 * pulse
+        return isDark ? 1 - 0.055 * pulse : 0.045 * pulse
     }
 
     func updatePalette(_ scene: LifeScene, phase: UInt16) {

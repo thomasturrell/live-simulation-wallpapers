@@ -10,12 +10,14 @@ enum VerifyWallpaper {
         let thumbnail = URL(fileURLWithPath: CommandLine.arguments[1])
         let state = URL(fileURLWithPath: CommandLine.arguments[2], isDirectory: true)
         guard LifeLoadWallpaperABI() else { throw BridgeError.incompatible }
-        try verifyColourPicker(thumbnail: thumbnail)
-        let green = try creationRequest(colourID: LifeColour.green.id)
-        precondition(green.colour == .green && green.size == CGSize(width: 400, height: 240))
+        try verifyPickers(thumbnail: thumbnail)
+        try verifyAppearance()
+        let green = try creationRequest(colourID: LifeColour.green.id, appearanceID: "light")
+        precondition(green.colour == .green && green.appearance == .light)
+        precondition(green.size == CGSize(width: 400, height: 240))
         let legacy = try creationRequest(colourID: nil)
         precondition(legacy.colour == nil)
-        print("The real WallpaperTypes model and creation requests decoded the Colour picker and selection.")
+        print("The real WallpaperTypes model and creation requests decoded both pickers and their selections.")
 
         var locked = green
         locked.mode = "locked"
@@ -102,29 +104,72 @@ enum VerifyWallpaper {
         print("SVG branding follows the physical corner across display sizes and renders in native snapshots.")
     }
 
-    private static func verifyColourPicker(thumbnail: URL) throws {
+    private static func verifyPickers(thumbnail: URL) throws {
         guard let settings = buildSettingsViewModelsXPC(thumbnail: thumbnail) else {
             throw BridgeError.incompatible
         }
         let mirror = Mirror(reflecting: settings)
+        let expected = [
+            (id: lifeAppearanceOptionID, label: "Appearance", defaultID: "automatic",
+             ids: ["automatic", "light", "dark"], names: ["Automatic", "Light", "Dark"]),
+            (id: lifeColourOptionID, label: "Colour", defaultID: LifeColour.original.id,
+             ids: LifeColour.allCases.map(\.id), names: LifeColour.allCases.map(\.title))
+        ]
         for surface in ["desktop", "screenSaver"] {
             guard let group = (mirror.descendant("box", "rawValue", surface, "some", "groups") as? [Any])?.first,
                   let item = (Mirror(reflecting: group).descendant("items") as? [Any])?.first,
-                  let option = (Mirror(reflecting: item).descendant("choice", "options") as? [Any])?.first else {
+                  let options = Mirror(reflecting: item).descendant("choice", "options") as? [Any],
+                  options.count == expected.count else {
                 throw BridgeError.incompatible
             }
-            let picker = Mirror(reflecting: option)
-            guard picker.descendant("picker", "localizedLabel") as? String == "Colour",
-                  picker.descendant("picker", "defaultValueID") as? String == LifeColour.original.id,
-                  let items = picker.descendant("picker", "items") as? [Any],
-                  items.compactMap({ Mirror(reflecting: $0).descendant("item", "id") as? String })
-                    == LifeColour.allCases.map(\.id) else {
-                throw BridgeError.incompatible
+            for (option, expected) in zip(options, expected) {
+                let picker = Mirror(reflecting: option)
+                guard picker.descendant("picker", "id") as? String == expected.id,
+                      picker.descendant("picker", "localizedLabel") as? String == expected.label,
+                      picker.descendant("picker", "defaultValueID") as? String == expected.defaultID,
+                      let items = picker.descendant("picker", "items") as? [Any],
+                      items.compactMap({ Mirror(reflecting: $0).descendant("item", "id") as? String }) == expected.ids,
+                      items.compactMap({ Mirror(reflecting: $0).descendant("item", "localizedName") as? String })
+                        == expected.names else {
+                    throw BridgeError.incompatible
+                }
             }
         }
     }
 
-    private static func creationRequest(colourID: String?, preview: Bool = false,
+    private static func verifyAppearance() throws {
+        let size = CGSize(width: 400, height: 240)
+        let scene = LifeScene(viewport: size, settings: LifeSettings())
+        let lightSystem = try creationRequest(systemDark: false)
+        let darkSystem = try creationRequest()
+        precondition(lightSystem.systemDark == false && darkSystem.systemDark == true)
+
+        for (option, mode, darkInLight, darkInDark) in [
+            ("light", LifeAppearance.light, false, false),
+            ("dark", .dark, true, true),
+            ("automatic", .system, false, true),
+            (nil, nil, false, true),
+            ("unknown", nil, false, true)
+        ] {
+            let request = try creationRequest(appearanceID: option)
+            precondition(request.appearance == mode)
+            let view = RemoteView(size: size, request: request)
+            precondition(view.isDark == darkInDark)
+            precondition(view.apply(lightSystem) == (darkInDark != darkInLight))
+            precondition(view.isDark == darkInLight)
+            view.draw(scene, phase: 0, animate: false, duration: 0)
+            guard let backdrop = view.root.sublayers?.first?.sublayers?.first as? CAGradientLayer,
+                  let colors = backdrop.colors as? [CGColor],
+                  let red = colors.first?.components?.first else { throw BridgeError.noSurface }
+            precondition(darkInLight ? red < 0.2 : red > 0.8)
+            _ = view.apply(darkSystem)
+            precondition(view.isDark == darkInDark)
+        }
+        print("Automatic follows system appearance and fixed modes retain their chosen palette.")
+    }
+
+    private static func creationRequest(colourID: String? = nil, appearanceID: String? = nil, systemDark: Bool = true,
+                                        preview: Bool = false,
                                         size: CGSize = CGSize(width: 400, height: 240)) throws -> Presentation {
         guard let cls = NSClassFromString("WallpaperCreationRequestXPC") as? any NSSecureCoding.Type,
               let space = CGColorSpace(name: CGColorSpace.sRGB)?.copyPropertyList() else {
@@ -134,10 +179,14 @@ enum VerifyWallpaper {
         var request: [String: Any] = [
             "configuration": Data(), "isPreview": preview, "debugBackgrounds": false,
             "destination": ["size": [size.width, size.height], "scaleFactor": 1, "colorSpace": colorSpace],
-            "presentationMode": ["idle": [:]], "activityState": ["active": [:]], "systemAppearance": ["dark": [:]]
+            "presentationMode": ["idle": [:]], "activityState": ["active": [:]],
+            "systemAppearance": [systemDark ? "dark" : "light": [:]]
         ]
-        if let colourID {
-            request["optionValues"] = ["values": [lifeColourOptionID: ["picker": ["_0": ["id": colourID]]]]]
+        let options = [lifeColourOptionID: colourID, lifeAppearanceOptionID: appearanceID]
+            .compactMapValues { $0 }
+            .mapValues { ["picker": ["_0": ["id": $0]]] }
+        if !options.isEmpty {
+            request["optionValues"] = ["values": options]
         }
         let archive = NSKeyedArchiver(requiringSecureCoding: true)
         archive.encode([], forKey: "files")

@@ -1,4 +1,4 @@
-# Game of Life Wallpaper 2.0.2
+# Game of Life Wallpaper 2.0.3
 
 ## Install
 
@@ -7,7 +7,9 @@
 3. Reopen System Settings and choose **Game of Life** as the desktop wallpaper. Under **Wallpaper → Screen Saver → Custom**, choose **Game of Life** there too. If you have more than one display or Space, select it on each one or use **Show on all Spaces**.
 4. Start the screen saver or lock the Mac. After unlock, allow a few seconds for the generation changes to slow and the desktop to settle.
 
-Use the **Colour** menu for Game of Life in Wallpaper settings. **Spectrum** blends through six hues as the simulation runs, **Random** picks a hue for each simulation cycle, and **Accent** follows the macOS accent colour. Choose a named colour for a fixed hue or **Original** for the default palette.
+Use the **Appearance** menu for Game of Life in Wallpaper settings. **Automatic** follows the Mac’s light or dark appearance. **Light** and **Dark** keep the chosen appearance as macOS switches modes.
+
+In the **Colour** menu, **Spectrum** blends through six hues as the simulation runs, **Random** picks a hue for each simulation cycle, and **Accent** follows the macOS accent colour. Choose a named colour for a fixed hue or **Original** for the default palette.
 
 In a Developer ID signed build, reopen **Game of Life Wallpaper.app** to add or remove an optional logo. Choose a self-contained SVG with outlined lettering or a transparent PNG. An optional alternate is selected automatically for contrast against the current palette. The carrier and extension share the imported copies in their macOS App Group container, under `Library/Application Support/Game of Life/Branding`. Ad-hoc builds can use the menu-bar app to try branding locally.
 

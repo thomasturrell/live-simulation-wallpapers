@@ -99,7 +99,10 @@ struct WallpaperExtensionConfig: AppExtensionConfiguration {
         }
 
         connection.exportedInterface = exported
-        connection.remoteObjectInterface = NSXPCInterface(with: (any WallpaperExtensionProxyXPCProtocol).self)
+        let remote = NSXPCInterface(with: (any WallpaperExtensionProxyXPCProtocol).self)
+        remote.setClasses(classes, for: #selector(WallpaperExtensionProxyXPCProtocol.updateSettingsViewModels(_:reply:)),
+                          argumentIndex: 0, ofReply: false)
+        connection.remoteObjectInterface = remote
 
         let handler = WallpaperXPCHandler()
         connection.exportedObject = handler
@@ -116,6 +119,18 @@ struct WallpaperExtensionConfig: AppExtensionConfiguration {
             }
         }
         connection.resume()
+
+        // WallpaperAgent can reuse a cached settings model after an upgrade.
+        if let models = buildSettingsViewModelsXPC() {
+            let host = connection.remoteObjectProxyWithErrorHandler { error in
+                wallpaperLog.error("Could not publish wallpaper settings: \(error.localizedDescription)")
+            } as? WallpaperExtensionProxyXPCProtocol
+            host?.updateSettingsViewModels(models) { error in
+                if let error {
+                    wallpaperLog.error("Wallpaper settings update failed: \(error.localizedDescription)")
+                }
+            }
+        }
 
         debugLog("XPC accepted")
         return true

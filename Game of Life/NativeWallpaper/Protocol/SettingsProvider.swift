@@ -8,7 +8,12 @@ import LifeArt
 
 private let lifeChoiceID = "game-of-life"
 private let lifeDisplayName = "Game of Life"
+let lifeAppearanceOptionID = "appearanceMode"
 let lifeColourOptionID = "colorScheme"
+
+extension LifeAppearance {
+    var wallpaperID: String { self == .system ? "automatic" : rawValue.lowercased() }
+}
 
 func buildSettingsViewModelsXPC(thumbnail: URL? = nil) -> AnyObject? {
     let bundleID = Bundle.main.bundleIdentifier ?? "io.github.thomasturrell.live-simulation-wallpapers.life.wallpaper.Extension"
@@ -37,14 +42,25 @@ func buildSettingsViewModelsXPC(thumbnail: URL? = nil) -> AnyObject? {
         localizedDescription: "Conway’s Game of Life",
         thumbnail: .image(url: thumbnailURL),
         isDownloaded: true,
-        options: [.picker(MenuPickerOption(
-            id: lifeColourOptionID,
-            localizedLabel: "Colour",
-            defaultValueID: LifeColour.original.id,
-            items: LifeColour.allCases.map {
-                .item(MenuPickerItem(id: $0.id, localizedName: $0.title, isDownloaded: true))
-            }
-        ))],
+        options: [
+            .picker(MenuPickerOption(
+                id: lifeAppearanceOptionID,
+                localizedLabel: "Appearance",
+                defaultValueID: LifeAppearance.system.wallpaperID,
+                items: LifeAppearance.allCases.map {
+                    .item(MenuPickerItem(id: $0.wallpaperID, localizedName: $0 == .system ? "Automatic" : $0.rawValue,
+                                         isDownloaded: true))
+                }
+            )),
+            .picker(MenuPickerOption(
+                id: lifeColourOptionID,
+                localizedLabel: "Colour",
+                defaultValueID: LifeColour.original.id,
+                items: LifeColour.allCases.map {
+                    .item(MenuPickerItem(id: $0.id, localizedName: $0.title, isDownloaded: true))
+                }
+            ))
+        ],
     )
 
     let item = SettingsItem(
