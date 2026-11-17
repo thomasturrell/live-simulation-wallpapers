@@ -52,9 +52,14 @@ enum VerifyWallpaper {
         try await Task.sleep(for: .seconds(1.3))
         precondition(first.phase > 0 && second.phase > 0)
         let before = first.phase
+        var didSettle = false
+        first.onSettled = { didSettle = true }
         first.refresh(hint: false)
         second.refresh(hint: false)
-        try await Task.sleep(for: .seconds(3.8))
+        try await Task.sleep(for: .seconds(DisplayPlayback.settleDuration - 0.5))
+        precondition(!didSettle)
+        try await Task.sleep(for: .seconds(1.0))
+        precondition(didSettle)
         let frozen = first.phase
         precondition(frozen == before + 3)
         try await Task.sleep(for: .seconds(1.2))

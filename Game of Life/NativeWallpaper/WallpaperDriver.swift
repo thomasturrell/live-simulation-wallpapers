@@ -148,7 +148,11 @@ final class DisplayPlayback {
     }
 
     static let cycle: UInt16 = 240
-    static let settlingDelays = [0.42, 0.82, 1.42]
+    static let settleDuration = 4.0
+    // Stretch the existing generation delays and fades by the same factor.
+    private static let settlingTimeScale = settleDuration / (0.42 + 0.82 + 1.42 + 0.65)
+    static let settlingDelays = [0.42, 0.82, 1.42].map { $0 * settlingTimeScale }
+    private static let settlingFadeDuration = 0.65 * settlingTimeScale
 
     var views: [UUID: RemoteView] = [:]
     var onSettled: (() -> Void)?
@@ -243,11 +247,11 @@ final class DisplayPlayback {
     private func settle() {
         if let delay = remaining.popFirst() {
             schedule(after: delay) { playback in
-                playback.advance(elapsed: 0, duration: min(0.65, delay * 0.7))
+                playback.advance(elapsed: 0, duration: min(Self.settlingFadeDuration, delay * 0.7))
                 playback.settle()
             }
         } else {
-            schedule(after: 0.65) { $0.onSettled?() }
+            schedule(after: Self.settlingFadeDuration) { $0.onSettled?() }
         }
     }
 
