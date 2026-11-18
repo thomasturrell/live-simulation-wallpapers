@@ -38,10 +38,6 @@ In Simulation World, showers darken the roads and leave puddles. Snow settles on
 
 *The same miniature world takes on a quieter glow after dark.*
 
-![An animated passenger flight approaching the airport, landing, visiting the terminal and taking off again](assets/airport-flight-cycle.webp)
-
-*A flight from arrival to departure, shown here at a faster pace.*
-
 ## Install on macOS
 
 1. Download **City-Simulation-Native-Wallpaper.zip** from [GitHub Releases](https://github.com/thomasturrell/live-simulation-wallpapers/releases) and unzip it.
