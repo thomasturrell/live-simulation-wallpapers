@@ -171,6 +171,10 @@ public struct CityMap: Codable, Equatable {
     }
 
     public func route(from start: Plot, to end: Plot) -> [Plot]? {
+        route(from: start, to: end, origin: nil, destination: nil)
+    }
+
+    func route(from start: Plot, to end: Plot, origin: Plot?, destination: Plot?) -> [Plot]? {
         guard isRoad(start), isRoad(end) else { return nil }
         func index(_ plot: Plot) -> Int { plot.x + plot.y * Self.side }
         var previous = [Plot?](repeating: nil, count: lots.count)
@@ -185,6 +189,13 @@ public struct CityMap: Codable, Equatable {
                 return path.reversed()
             }
             for neighbor in point.neighbors where isRoad(neighbor) && previous[index(neighbor)] == nil {
+                // Driveways join the lane on their own side of the road. Choose
+                // an approach that avoids cutting across opposing traffic.
+                let dx = neighbor.x - point.x, dy = neighbor.y - point.y
+                if point == start, let origin,
+                   (origin.x - start.x) * -dy + (origin.y - start.y) * dx < 0 { continue }
+                if neighbor == end, let destination,
+                   (destination.x - end.x) * -dy + (destination.y - end.y) * dx < 0 { continue }
                 previous[index(neighbor)] = point
                 queue.append(neighbor)
             }

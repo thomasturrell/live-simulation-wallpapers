@@ -1,5 +1,5 @@
 @testable import CityArt
-import CityEngine
+@testable import CityEngine
 import Foundation
 import Testing
 
@@ -70,7 +70,8 @@ func generatedCitiesSupportCrossRiverTrafficAndConstruction(uuid: UUID) throws {
     #expect(city.revision > 0)
     #expect(city.vehicles.contains { !initialIDs.contains($0.id) })
     for vehicle in city.vehicles {
-        #expect(city.map.route(from: vehicle.route[0], to: vehicle.route.last!) == vehicle.route)
+        #expect(city.map.route(from: vehicle.route[0], to: vehicle.route.last!,
+                               origin: vehicle.origin, destination: vehicle.destination) == vehicle.route)
         #expect(city.map[vehicle.origin].building != nil)
         #expect(city.map[vehicle.destination].building != nil)
     }
