@@ -38,4 +38,8 @@ Leave pull requests you open for a human to review and merge, even after all req
 
 When opening a pull request, apply the appropriate labels: `bug` for bug fixes, `documentation` for documentation changes, and `enhancement` for new features or improvements. Apply multiple labels when relevant.
 
-Use plain descriptive pull request titles and commit messages. Do not prefix them with types or labels such as `docs:`, `fix:`, `feat:`, or `[documentation]`.
+Use plain descriptive pull request titles in the imperative, suitable for squash commit subjects. Keep commit messages plain and descriptive too. Do not prefix titles or commit messages with types or labels such as `docs:`, `fix:`, `feat:`, or `[documentation]`.
+
+Write PR descriptions as detailed commit messages for squash merging: explain why the change was made and what changed. Keep descriptions accurate as changes evolve, and omit information GitHub already provides, such as labels and automated checks.
+
+Whenever creating or updating a PR, post a separate comment headed `## Manual testing instructions` with concise, actionable steps focused on behaviour not covered by GitHub Actions. Explicitly state when no manual testing is necessary. Before posting revised instructions, minimise all previous comments with that heading using GitHub's `OUTDATED` reason so only the latest instructions remain visible; do not delete previous comments.
