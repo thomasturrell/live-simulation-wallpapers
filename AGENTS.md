@@ -37,3 +37,5 @@ git diff --check
 Leave pull requests you open for a human to review and merge, even after all required checks pass.
 
 When opening a pull request, apply the appropriate labels: `bug` for bug fixes, `documentation` for documentation changes, and `enhancement` for new features or improvements. Apply multiple labels when relevant.
+
+Use plain descriptive pull request titles and commit messages. Do not prefix them with types or labels such as `docs:`, `fix:`, `feat:`, or `[documentation]`.
