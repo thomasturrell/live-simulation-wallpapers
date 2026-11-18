@@ -38,6 +38,8 @@ In Simulation World, showers darken the roads and leave puddles. Snow settles on
 
 *The same miniature world takes on a quieter glow after dark.*
 
+[Explore the full gallery](GALLERY.md) for more city views, seasons, aircraft and the little details around town.
+
 ## Install on macOS
 
 1. Download **City-Simulation-Native-Wallpaper.zip** from [GitHub Releases](https://github.com/thomasturrell/live-simulation-wallpapers/releases) and unzip it.
