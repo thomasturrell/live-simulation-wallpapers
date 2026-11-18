@@ -87,9 +87,3 @@ A small regional airport and the aircraft that visit it. The flight cycle plays 
 | ![Crane above the foundation of a building site](assets/building-foundation.webp) | ![Crane beside the rising frame of a building](assets/building-frame.webp) | ![Crane beside the taller building shell](assets/building-shell.webp) |
 | **Marked road site** | **Road paving** | |
 | ![Staked-out road construction site](assets/road-site.webp) | ![Road construction site with a strip of asphalt](assets/road-paving.webp) | |
-
-## App images
-
-| Wallpaper picker thumbnail | Installer app icon |
-| --- | --- |
-| <img src="assets/wallpaper-thumbnail.webp" alt="Daytime city used in the wallpaper picker" width="192"> | <img src="assets/app-icon.webp" alt="Rounded-square City Simulation app icon" width="108"> |
