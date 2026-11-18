@@ -112,15 +112,4 @@ extension CityMap {
         self[selected.terminal] = terminal
     }
 
-    /// Version 3 checkpoints reserved 14 × 7 lots. Release the unused strip while
-    /// retaining the established access streets, terminal address and passenger trips.
-    mutating func shrinkLegacyAirport() {
-        guard lots.count == Self.side * Self.side, let airport, airport.isValid else { return }
-        for point in Self.plots where self[point].ground == .airport && !airport.contains(point) {
-            var lot = self[point]
-            lot.ground = .grass
-            lot.zone = .homes
-            self[point] = lot
-        }
-    }
 }

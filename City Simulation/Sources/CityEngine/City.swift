@@ -11,7 +11,7 @@ public struct City: Codable, Equatable {
     public static let ticksPerSecond = 30
     public static let dayLength = 8 * 60 * ticksPerSecond
     public static let defaultSeed: UInt64 = 0x7661_6C65_7269_6467
-    private static let checkpointVersion = 4
+    private static let checkpointVersion = 5
 
     public internal(set) var map: CityMap
     public internal(set) var vehicles: [Vehicle] = []
@@ -19,6 +19,7 @@ public struct City: Codable, Equatable {
     public private(set) var construction: Construction?
     public private(set) var tick = 0
     public private(set) var revision = 0
+    public private(set) var environmentSeed: UInt64
     var nextVehicle: UInt64 = 0
     private var nextProject = 270
     var random: CityRandom
@@ -27,6 +28,7 @@ public struct City: Codable, Equatable {
         var generator = CityRandom(state: seed)
         map = CityMap(random: &generator, generateLayout: seed != Self.defaultSeed)
         random = generator
+        environmentSeed = seed ^ 0x656E_7669_726F_6E6D
         aviation = Aviation(seed: seed)
         seedTraffic()
     }
@@ -133,29 +135,8 @@ public struct City: Codable, Equatable {
     public init?(checkpoint: Data) {
         guard checkpoint.count <= 2_000_000,
               let saved = try? PropertyListDecoder().decode(Checkpoint.self, from: checkpoint),
-              (2...Self.checkpointVersion).contains(saved.version) else { return nil }
-        var city = saved.city
-        if saved.version == 3 { city.map.shrinkLegacyAirport() }
-        guard city.isValid else { return nil }
-        self = city
-    }
-
-    private enum CodingKeys: String, CodingKey {
-        case map, vehicles, aviation, construction, tick, revision, nextVehicle, nextProject, random
-    }
-
-    public init(from decoder: Decoder) throws {
-        let values = try decoder.container(keyedBy: CodingKeys.self)
-        map = try values.decode(CityMap.self, forKey: .map)
-        vehicles = try values.decode([Vehicle].self, forKey: .vehicles)
-        construction = try values.decodeIfPresent(Construction.self, forKey: .construction)
-        tick = try values.decode(Int.self, forKey: .tick)
-        revision = try values.decode(Int.self, forKey: .revision)
-        nextVehicle = try values.decode(UInt64.self, forKey: .nextVehicle)
-        nextProject = try values.decode(Int.self, forKey: .nextProject)
-        random = try values.decode(CityRandom.self, forKey: .random)
-        // Existing checkpoints keep their city and journeys; overflights start on the saved clock.
-        aviation = try values.decodeIfPresent(Aviation.self, forKey: .aviation) ?? Aviation(seed: random.state, tick: max(0, min(tick, Int.max / 2)))
+              saved.version == Self.checkpointVersion, saved.city.isValid else { return nil }
+        self = saved.city
     }
 
     private struct Checkpoint: Codable {

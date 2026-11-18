@@ -67,7 +67,7 @@ public final class CityRenderer {
     private struct BackgroundKey: Equatable {
         let viewport: CityViewport
         let map: CityMap
-        let night: Int
+        let environment: EnvironmentFrame
         let site: Construction?
         let stage: Int
     }
@@ -85,11 +85,29 @@ public final class CityRenderer {
 
     public init() {}
 
-    public func image(for city: City, viewport: CityViewport) -> CGImage {
-        let night = Int((city.darkness * 24).rounded())
-        let key = BackgroundKey(viewport: viewport, map: city.map, night: night,
+    /// Enlarged, shared artwork reference: twelve monthly rows, with evergreen,
+    /// deciduous and blossom trees, lawn and garden details in each row.
+    public static func vegetationPreview() -> CGImage {
+        var pixels = Pixels(width: 192, height: 12 * 32, background: Ink(0x282E3A))
+        let city = City()
+        for month in 0..<12 {
+            var preview = EnvironmentPreview()
+            preview.month = Double(month + 1); preview.darkness = 0; preview.weather = .clear
+            let frame = Environment.frame(city: city, mode: .realWorldNorthern, preview: preview)
+            let palette = Palette(night: 0, environment: frame)
+            pixels.box(Dot(0, month * 32), 192, 31, palette.grass(month))
+            for (index, style) in [5, 16, 22, 38, 73, 119].enumerated() {
+                pixels.tree(at: Dot(16 + index * 32, month * 32 + 24), style: style, palette: palette)
+            }
+        }
+        return pixels.image()
+    }
+
+    public func image(for city: City, viewport: CityViewport, environment: EnvironmentFrame? = nil) -> CGImage {
+        let environment = (environment ?? Environment.frame(city: city)).quantized
+        let key = BackgroundKey(viewport: viewport, map: city.map, environment: environment,
                                 site: city.construction, stage: city.constructionStage)
-        let palette = Palette(night: Double(night) / 24)
+        let palette = Palette(night: environment.darkness, environment: environment)
         if lastKey != key {
             background = makeBackground(city, viewport, palette)
             lastKey = key
@@ -146,6 +164,7 @@ public final class CityRenderer {
             pixels.aircraft(at: dot, pose: pose, livery: plane.livery, shadow: false,
                             blink: (city.tick + Int(plane.id % 30)) % 45 < 4, palette: palette)
         }
+        pixels.weatherEffects(tick: city.tick, palette: palette)
         let image = pixels.image()
         lastTick = city.tick
         lastImage = image
