@@ -1,193 +1,59 @@
 # City Simulation
 
-Watch an established isometric city grow. Each display starts with its own river, bridges and street grids, generated from its display UUID. Cars commute between homes, shops, offices and factories, and queue at larger junctions. Buildings go up in stages and lights come on across the city at dusk. All of the pixel art is drawn by the renderer and covered by the repository’s MIT licence.
+A little city with a life of its own. Neighbourhoods grow, cars cross the river and aircraft pass over the skyline. City Simulation brings an evolving miniature world to your Mac, with something new to spot each time you visit.
 
-Generated cities have a 25% chance of a small regional airport on the outskirts when suitable land is available. Its compact 12 × 6 lot site includes a marked runway, taxiways, apron, passenger terminal, control tower, hangars and connected access roads. The site and low approach corridors stay clear of new development; rivers, parks and promenades are preserved. The fixed default preview city includes an airport.
+![A miniature city in daylight, with riverside towers, leafy neighbourhoods, bridges and an airport on the outskirts](assets/city-day.webp)
 
-Occasional passenger aircraft approach, descend, land, slow down and taxi to the terminal. After a 45–95 second stop they push back, taxi out, hold short, line up and accelerate into a climbing departure. The single stand and runway serve one flight at a time, with quiet intervals of 45–109 seconds between visits and longer intervals at night. Passenger trips add a few cars to the terminal roads. Independent overflights occasionally cross cities with or without an airport. Aircraft share the city's simulation clock, lighting and depth rendering, including small shadows, cabin windows, engines, landing gear and navigation lights.
+**[Download for macOS](https://github.com/thomasturrell/live-simulation-wallpapers/releases)** · Requires macOS 26 or later.
+
+The city comes to life while your screen saver runs, then becomes a still cityscape on your desktop, ready to carry on next time.
+
+## A living city
+
+Start with a bustling city and watch its neighbourhoods develop. Cranes overlook construction sites as buildings rise from foundations to finished homes and offices. New streets make room for growth, while parks and riverside paths keep their place beside the changing skyline.
+
+Cars travel between homes, shops, offices and factories, crossing bridges and queuing at busy junctions. Look closer for fountains, glinting water and chimney smoke.
+
+Some cities have a small regional airport on the outskirts. Watch passenger aircraft descend, land and taxi to the terminal before heading out for take-off. Even without an airport, you may spot a plane passing overhead.
+
+## Day, night, seasons and weather
+
+Spring blossom gives way to green summer parks, autumn colours and bare winter branches. After dark, windows glow, streetlights shine and headlights trace the roads.
+
+Choose an **Environment** in System Settings → Wallpaper or Screen Saver:
+
+| Environment | What you’ll see |
+| --- | --- |
+| **Simulation World** (default) | The city follows its own day and night, with changing seasons, clear skies, clouds, rain and occasional snow. |
+| **Real World · Northern Hemisphere** | Seasonal colours follow the real calendar for the Northern Hemisphere. |
+| **Real World · Southern Hemisphere** | Seasonal colours follow the real calendar for the Southern Hemisphere, with summer and winter reversed. |
+
+Both Real World modes stay dry, with daytime or night-time lighting that follows your Mac’s Light/Dark appearance.
+
+In Simulation World, showers darken the roads and leave puddles. Snow settles on trees and rooftops before gradually thawing, and breezes carry little leaves and seeds across the scene.
+
+## Gallery
+
+![The city after dark, with glowing windows, streetlights and traffic beside the river](assets/city-at-night.webp)
+
+*The same miniature world takes on a quieter glow after dark.*
+
+![An animated passenger flight approaching the airport, landing, visiting the terminal and taking off again](assets/airport-flight-cycle.webp)
+
+*A flight from arrival to departure, shown here at a faster pace.*
 
 ## Install on macOS
 
-1. Download and unzip `City-Simulation-Native-Wallpaper.zip` from [GitHub Releases](https://github.com/thomasturrell/live-simulation-wallpapers/releases), or build the wallpaper with the command below.
-2. Move **City Simulation Wallpaper.app** into Applications and open it once. The app registers its wallpaper extension with PlugInKit. Click **Done** to quit the installer and leave the bundle in Applications.
-3. Reopen System Settings. In **Wallpaper**, select **City Simulation** as the wallpaper. In **Wallpaper → Screen Saver → Custom**, select **City Simulation** as the screen saver. Repeat for each display or Space where you want it.
-4. Start the screen saver or lock the Mac. The city animates on active saver surfaces. On return to the desktop, the extension brings the same scene to a stop over four seconds when WallpaperAgent keeps the live surface visible.
+1. Download **City-Simulation-Native-Wallpaper.zip** from [GitHub Releases](https://github.com/thomasturrell/live-simulation-wallpapers/releases) and unzip it.
+2. Move **City Simulation Wallpaper.app** into **Applications**, open it once and click **Done**. Keep the app in Applications.
+3. Reopen **System Settings → Wallpaper** and choose **City Simulation**. Then select it under **Wallpaper → Screen Saver → Custom** too.
 
-The ZIP contains `City Simulation Wallpaper.app` with the embedded `CityWallpaper.appex`, this `README.md`, `LICENSE` and the `assets/` images used in the gallery below.
+Repeat for any other displays or Spaces where you want the city. Start your screen saver or lock your Mac to watch it come to life. If it does not appear in Settings straight away, quit and reopen System Settings.
 
-The extension targets macOS 26 or later. The build script produces an ad-hoc signed universal app and ZIP by default. Set `CITY_SIGN_IDENTITY` to a Developer ID Application identity when building for distribution, then notarise the signed app. The carrier exits after registration. macOS hosts the animation and supplies the desktop image.
+## Compatibility
 
-Keep a single installed copy of the app and open that copy to register it. After replacing a build, quit/reopen System Settings so its cached menu refreshes. macOS can retain an already-running extension; restarting the wallpaper host loads the replacement binary. City checkpoints are stored separately in the extension's Application Support directory.
+Requires **macOS 26 or later**. The download supports both Apple silicon and Intel Macs.
 
-WallpaperAgent’s wallpaper extension interface is undocumented and may change with OS updates. Registration alone does not prove the extension will appear in both pickers. WallpaperAgent controls when it switches from a live layer to a cached image, so part or all of the slowdown may be hidden. If macOS withdraws the surface, City Simulation saves its current state and stops playback immediately. Per-display generation and restore require macOS to supply a display ID that maps to a Core Graphics display UUID. Previews and requests without that identifier use the default city and session-only state.
+<a id="build-and-preview"></a>
 
-## Build and preview
-
-Use a Swift 6 toolchain with the macOS 26 SDK or newer. From this directory:
-
-```sh
-./NativeWallpaper/build.sh
-./Packaging/test.sh
-swift run -c release CityPreview
-swift run -c release CityPreview --png /tmp/city-5k.png 5120 2880
-swift run -c release CityPreview --png /tmp/city-at-night.png 1280 720 270
-swift run -c release CityPreview --png /tmp/city-airport.png 1280 720 100
-```
-
-The first command produces the app and ZIP in `dist/`. Pass an output directory as the first argument to write them elsewhere, or set `CITY_NATIVE_ARCHS` to limit the architecture slices. The resizable preview window animates immediately without installing the extension. PNG export takes an optional width, height and time in simulated seconds. At the default seed, the first construction site opens after nine seconds and completes after fifteen.
-
-For a probe of the native interfaces, build and run the probe from a graphical macOS login session:
-
-```sh
-CITY_BUILD_ABI_PROBE=1 ./NativeWallpaper/build.sh
-state_dir="$(mktemp -d)"
-.build/native-wallpaper/verify-wallpaper \
-  "dist/City Simulation Wallpaper.app/Contents/Extensions/CityWallpaper.appex/Contents/Resources/city-thumbnail.png" \
-  "$state_dir"
-```
-
-The probe exercises the real wallpaper settings and request types, remote Core Animation contexts, IOSurface snapshots, and the adapter’s playback, suspension, settling and persistence. Use `verify-wallpaper --local` with the same paths to exercise the settings, snapshots and lifecycle without allocating remote contexts. The probe runs outside WallpaperAgent. Before distributing, verify installed picker discovery, saver playback and lock/unlock from System Settings, display hot-plug and mirroring, Spaces, sleep and wake, and the idle energy profile on your target macOS versions.
-
-## Generated assets
-
-### Environment
-
-The **Environment** menu in System Settings → Wallpaper (or Screen Saver) has three choices:
-
-- **Simulation World** (default) uses the city's own eight-minute day/night cycle. Spring, summer, autumn and winter each last two days: eight days and **64 minutes of active city playback** make a year. The saved city clock drives the calendar and weather. Suspension, restart and the existing four-second settle-to-still behaviour preserve the same timeline as traffic and construction; inactive time is never caught up.
-- **Real World · Northern Hemisphere** follows macOS Light/Dark appearance for lighting, independently of actual sunrise/sunset. Seasonal appearance follows the Mac's local Gregorian calendar, smoothly interpolating twelve first-of-month reference stages with actual month lengths and leap years. Rendering after time away immediately uses the current date.
-- **Real World · Southern Hemisphere** uses the same system appearance and calendar, with the seasonal artwork shifted by six months.
-
-Real World modes use **neutral, dry conditions** in every season. They do not generate fictional weather, make network requests, request location permission or require credentials. Apple WeatherKit integration is deferred. There are no provider, location, geography or development preview controls in Wallpaper settings.
-
-Both calendars share the same pixel artwork: deciduous trunks and branches with growing/withdrawing leaf clusters, varied autumn colours and selected blossom trees; evergreen spruces retain layered needles. Lawns, flowers, park gardens and fallen leaves transition with the seasons. Stable per-tree phase and shape variation prevent synchronized foliage changes. Winter alone does not paint snow on the city.
-
-#### Simulated weather
-
-The percentage table in [SimulatedWeather.swift](Sources/CityEngine/SimulatedWeather.swift) controls new weather spells and is intentionally kept out of Wallpaper settings:
-
-| Season | Clear | Cloudy | Rain | Snow |
-| --- | ---: | ---: | ---: | ---: |
-| Spring | 40% | 30% | 30% | 0% |
-| Summer | 60% | 25% | 15% | 0% |
-| Autumn | 25% | 30% | 40% | 5% |
-| Winter | 20% | 25% | 20% | 35% |
-
-Every row totals 100%. Each spell samples the current fictional season's probabilities. Summer cannot select snow, autumn is rainier than summer, and winter can still be clear, cloudy or rainy. Wind uses a separate deterministic random stream and can accompany any of the four conditions.
-
-Spells last 2½ minutes of city time, with 24-second smooth transitions followed by stable conditions. Repeated selections can naturally produce longer spells. Snow cover thaws over the following spell after the flakes stop. Weather is computed from the checkpointed city tick and an independent seed, so it resumes exactly across freezes and restarts without using the traffic/development random stream. No separate weather cache, timer or background process is needed.
-
-Existing weather art remains shared: rain darkens roads and vegetation, adds puddles/ripples and restrained slanted rain; snow adds drifting flakes and temporary cover on lawns, trees and building/airport roofs. Cloud shadows and wind-blown leaves/seeds stay subtle. None of these effects edits terrain, buildings, construction or routes.
-
-#### CityPreview
-
-The standalone development preview has the same Environment choices plus a fractional-month slider, previous/next stage controls, live/day/night lighting, clear/cloudy/rain/snow overrides, independent wind inspection and pause. It uses disposable city state and never changes the installed wallpaper's settings or checkpoints.
-
-```sh
-swift run -c release CityPreview
-swift run -c release CityPreview --environment northern --month 10.5 --light day --weather rain --wind 0.7
-swift run -c release CityPreview --png /tmp/winter-snow.png 1280 720 \
-  --environment simulation --month 4 --light night --weather snow --wind 0.3
-swift run -c release CityPreview --environment southern --month 1 --light day
-swift run -c release CityPreview --gallery /tmp/city-environment-gallery
-```
-
-`--month` is one-based and fractional: the real calendars use 1=January through 12=December (13 wraps to January); Simulation World uses 1=spring, 2=summer, 3=autumn, 4=winter (5 wraps to spring). `--wind` accepts 0...1 and is independent of the weather override. Export and gallery commands use the production renderer without changing the system clock or writing saved cities. The gallery contains monthly, fictional-year, hemisphere, weather/wind and vegetation sheets.
-
-![All twelve Northern Hemisphere monthly reference stages](assets/environment/real-world-months.png)
-
-![The fictional four-month year, including intermediate transitions and day/night](assets/environment/simulation-year.png)
-
-![Northern and Southern Hemisphere seasonal appearances](assets/environment/hemispheres.png)
-
-![Clear, cloudy, rain and snow with independent wind variations](assets/environment/weather-variations.png)
-
-<img src="assets/environment/seasonal-vegetation.png" alt="January through December rows of evergreen, deciduous and blossom tree artwork" width="384">
-
-#### Environmental verification
-
-`./Packaging/test.sh` covers the three Environment options; real and fictional calendars; leap years and local time zones; month/year continuity; Northern/Southern seasonal reversal; appearance-driven lighting and neutral, dry Real World weather; exact seasonal percentage distributions and zero-probability outcomes; spell duration, smooth transitions, independent wind and snow thaw; checkpoint replay, suspension, settling and restart; preview overrides, seasonal tree silhouettes, weather rendering/cache invalidation and small-canvas clipping. It also runs the existing traffic, development, construction, aviation and layout tests. Tests use no network services.
-
-Build with `CITY_BUILD_ABI_PROBE=1 ./NativeWallpaper/build.sh`, then run the probe described above. It checks one Environment picker with exactly three items against the real native XPC types, default and updated values, system-appearance lighting, dry Real World snapshots, zero idle playback timers, suspension and checkpoint resume. It also sends a download-status request through Apple's native XPC interface to catch reply-type mismatches that disconnect WallpaperAgent during environment changes. Repeated unchanged host/appearance updates and Settings preview surfaces must not cause snapshot refresh loops. Installed WallpaperAgent behaviour still needs the manual macOS checks listed above because its private host interface can change independently of the renderer.
-
-These WebP previews use the simulation’s pixel art. The renderer varies building details, tree shapes and vehicle colors, so the gallery shows representative styles.
-
-### Airports and aircraft
-
-These previews show the compact airport and its aircraft using the same renderer as the wallpaper. The flight cycle plays at 6× speed with a shortened stop at the terminal.
-
-![Passenger aircraft approaching, landing, taxiing to the terminal, pushing back and taking off from the compact airport](assets/airport-flight-cycle.webp)
-
-| Airport in daylight | Airport at night |
-| --- | --- |
-| ![Compact airport with runway 09/27, taxiways, apron, terminal, control tower, hangars and perimeter roads](assets/airport-day.webp) | ![Airport at night with illuminated runway edges, taxiway lights and terminal windows](assets/airport-night.webp) |
-
-| Passenger terminal | Air traffic control tower | Hangar |
-| --- | --- | --- |
-| ![Glazed passenger terminal with a short boarding pier and rooftop equipment](assets/airport-terminal.webp) | ![Control tower with a glazed cabin, antenna and raised observation deck](assets/control-tower.webp) | ![Airport hangar with a broad aircraft door](assets/hangar.webp) |
-| **Passenger aircraft** | **Aircraft in flight** | **Aircraft at night** |
-| ![Small passenger aircraft with cabin windows, engines, landing gear and a coloured tail](assets/passenger-aircraft.webp) | ![Passenger aircraft in flight with retracted landing gear](assets/aircraft-in-flight.webp) | ![Passenger aircraft at night with lit cabin windows and navigation lights](assets/aircraft-at-night.webp) |
-
-### Buildings
-
-| House · level 1 | Terraced homes · level 2 | Apartments · level 3 |
-| --- | --- | --- |
-| ![House with a red gabled roof and chimney](assets/house.webp) | ![Two-storey terraced homes](assets/terraced-homes.webp) | ![Apartment block with balconies](assets/apartments.webp) |
-| **Shop · level 1** | **Commercial block · level 2** | **Office building · level 3** |
-| ![Low shop with a striped awning](assets/shop.webp) | ![Commercial block with upper-floor windows and an awning](assets/commercial-block.webp) | ![Mid-rise office building](assets/office-building.webp) |
-| **Office tower · level 4** | **Commercial high-rise · level 5** | **Riverside tower · level 5** |
-| ![Office tower with a rooftop mast](assets/office-tower.webp) | ![Commercial high-rise with a stepped crown](assets/commercial-high-rise.webp) | ![Riverside landmark with a copper-colored spire](assets/riverside-tower.webp) |
-| **Factory** | **Factory with chimney** | |
-| ![Factory with twin pitched roofs and loading doors](assets/factory.webp) | ![Factory chimney emitting smoke](assets/factory-with-chimney.webp) | |
-| **Civic clock tower** | **Civic hall** | **Civic pavilion** |
-| ![Civic building with a peaked clock tower](assets/civic-clock-tower.webp) | ![Civic hall with a short clock tower](assets/civic-hall.webp) | ![Low civic pavilion with columns](assets/civic-pavilion.webp) |
-
-### Terrain and parks
-
-| Grass | River with water glints | River edge |
-| --- | --- | --- |
-| ![Grassy lot](assets/grass.webp) | ![River tile with a water glint](assets/river.webp) | ![River tile with darker water along the bank](assets/river-edge.webp) |
-| **West-bank promenade** | **East-bank promenade** | **Park lawn** |
-| ![Riverside path along the west bank](assets/west-bank-promenade.webp) | ![Riverside path along the east bank](assets/east-bank-promenade.webp) | ![Park lawn with two trees](assets/park-lawn.webp) |
-| **Park path** | **Park bench** | **Park fountain** |
-| ![Footpath crossing a grassy park tile](assets/park-path.webp) | ![Bench beside a park path](assets/park-bench.webp) | ![Fountain at the crossing of two park paths](assets/park-fountain.webp) |
-
-### Streets
-
-| Straight street | Street corner | Dead end |
-| --- | --- | --- |
-| ![Straight road with lane markings](assets/straight-street.webp) | ![Road turning through a corner](assets/street-corner.webp) | ![Street ending at a curb](assets/dead-end.webp) |
-| **T-junction** | **Crossroads** | **Bridge** |
-| ![Road tile with three connections](assets/t-junction.webp) | ![Four-way road junction with crossing markings](assets/crossroads.webp) | ![Road bridge with railings over water](assets/bridge.webp) |
-
-### Street furniture, trees and traffic
-
-| Tree | Streetlamp | Lit streetlamp |
-| --- | --- | --- |
-| ![Tree and its shadow on grass](assets/tree.webp) | ![Streetlamp beside a road in daylight](assets/streetlamp.webp) | ![Glowing streetlamp beside a road at night](assets/lit-streetlamp.webp) |
-| **Car** | **Truck** | **Car at night** |
-| ![Small orange car on a road](assets/car.webp) | ![Long yellow truck on a road](assets/truck.webp) | ![Car with headlights and a red tail light](assets/car-at-night.webp) |
-
-### Construction
-
-| Building foundation | Building frame | Building shell |
-| --- | --- | --- |
-| ![Crane above the foundation of a building site](assets/building-foundation.webp) | ![Crane beside the rising frame of a building](assets/building-frame.webp) | ![Crane beside the taller building shell](assets/building-shell.webp) |
-| **Marked road site** | **Road paving** | |
-| ![Staked-out road construction site](assets/road-site.webp) | ![Road construction site with a strip of asphalt](assets/road-paving.webp) | |
-
-### Preview and app images
-
-![Daytime city with a compact airport on the outskirts and an aircraft passing over the skyline](assets/city-day.webp)
-
-| Wallpaper picker thumbnail | Installer app icon | Night scene export |
-| --- | --- | --- |
-| <img src="assets/wallpaper-thumbnail.webp" alt="Daytime city used in the wallpaper picker" width="192"> | <img src="assets/app-icon.webp" alt="Rounded-square City Simulation app icon" width="108"> | <img src="assets/city-at-night.webp" alt="City at night with lit windows and streetlights" width="192"> |
-
-## Implementation
-
-- **CityEngine** owns a seedable 56 × 56 city and advances it at 30 fixed ticks per second. It routes trips on a connected road graph, balances development between housing and jobs, and enforces frontage and density limits. New road segments open frontage for future projects. Parks and riverbanks stay protected.
-- **CityArt** draws original pixel art onto a virtual canvas. It caches terrain, airport facilities, buildings and their occlusion data, then adds road traffic, aircraft, water glints and chimney smoke. Playback samples the simulation up to 20 times per second. The desktop, snapshots and development preview use the same renderer and integer scaling.
-- **NativeWallpaper** atomically checkpoints each identified display to the extension's Application Support directory about every 15 seconds of active simulation and at lifecycle transitions. A checkpoint includes the city clock, lots, construction, vehicle trips, flight phases/schedules, city random state and an independent environmental seed. Only the current complete checkpoint schema is accepted; there are no migration paths. System Settings preview surfaces use disposable city state. Settling stops the timer and retains the final frame. Environmental cache keys include the hemisphere-adjusted seasonal phase, lighting and weather, so changes redraw correctly even at the same city tick. Quantized palettes retain the terrain/building cache for most frames.
-
-The private integration follows the [Game of Life native extension](../Game%20of%20Life/NativeWallpaper/INSTALL.md) and [Aerial’s wallpaper extension](https://github.com/AerialScreensaver/Aerial/tree/main/WallpaperExtension).
+[Developer documentation](DEVELOPMENT.md) — building, testing, configuration and implementation notes.
