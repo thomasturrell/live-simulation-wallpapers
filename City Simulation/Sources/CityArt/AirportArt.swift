@@ -107,7 +107,7 @@ extension Pixels {
             let e = dot(u + w, v + d, top), f = dot(u, v + d, top)
             polygon([f, e, dot(u + w, v + d, base), dot(u, v + d, base)], c.color(0xC0B8A1))
             polygon([b, e, dot(u + w, v + d, base), dot(u + w, v, base)], c.color(0x878C86))
-            polygon([a, b, e, f], roof)
+            polygon([a, b, e, f], roof.mix(c.snow, c.weather.snowCover * 0.85))
             line(f, e, c.curb)
             line(b, e, c.outline)
         }

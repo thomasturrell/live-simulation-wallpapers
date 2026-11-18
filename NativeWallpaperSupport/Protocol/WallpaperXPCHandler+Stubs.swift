@@ -39,8 +39,8 @@ extension WallpaperXPCHandler {
 
     // MARK: - Downloads (stubs)
 
-    func isChoiceDownloaded(with _: Any?, reply: @escaping @Sendable (Bool, (any Error)?) -> Void) {
-        reply(true, nil)
+    func isChoiceDownloaded(with _: Any?, reply: @escaping @Sendable (NSNumber?, (any Error)?) -> Void) {
+        reply(NSNumber(value: true), nil)
     }
 
     func download(withChoiceID _: Any?, reply: ((any Error)?) -> Void) -> Any? {

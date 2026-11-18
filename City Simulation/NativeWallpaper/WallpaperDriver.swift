@@ -11,6 +11,7 @@ final class WallpaperDriver {
     private var owners: [UUID: DisplayPlayback] = [:]
     private var saverHint: Bool?
     private var observers: [NSObjectProtocol] = []
+    private var localObservers: [NSObjectProtocol] = []
     var invalidateSnapshots: (() -> Void)?
 
     private init() {
@@ -30,6 +31,20 @@ final class WallpaperDriver {
                 }
             }
         }
+        observers.append(DistributedNotificationCenter.default().addObserver(
+            forName: .init("AppleInterfaceThemeChangedNotification"), object: nil, queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated { self?.refreshEnvironment(appearanceChanged: true) }
+        })
+        let calendarEvents: [Notification.Name] = [.NSCalendarDayChanged, .NSSystemClockDidChange, .NSSystemTimeZoneDidChange]
+        localObservers = calendarEvents.map { name in
+            NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { self?.refreshEnvironment() }
+            }
+        }
+        localObservers.append(NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didWakeNotification, object: nil, queue: .main
+        ) { [weak self] _ in MainActor.assumeIsolated { self?.refreshEnvironment() } })
     }
 
     func acquire(_ id: UUID, _ request: Presentation) throws -> Any {
@@ -55,13 +70,19 @@ final class WallpaperDriver {
     func update(_ id: UUID, _ request: Presentation) {
         guard let playback = owners[id], let view = playback.views[id] else { return }
         let wasSaver = view.isSaver
-        if view.apply(request) { view.draw(playback.city) }
+        let applied = view.apply(request)
+        let environmentChanged = view.needsEnvironmentRedraw(playback.city)
+        if applied || environmentChanged { view.draw(playback.city) }
         if !view.preview && wasSaver != view.isSaver {
             saverHint = nil
             refreshAll()
         } else {
             playback.refresh(hint: saverHint)
         }
+        // Host activity/geometry updates and its own preview refreshes must not
+        // invalidate snapshots again. WallpaperAgent can answer an invalidation
+        // with another update, creating a refresh loop while Settings loads.
+        if environmentChanged && !view.preview { invalidateSnapshots?() }
     }
 
     func invalidate(_ id: UUID) {
@@ -80,7 +101,23 @@ final class WallpaperDriver {
     }
 
     private func refreshAll() {
-        for playback in displays.values { playback.refresh(hint: saverHint) }
+        for playback in displays.values {
+            playback.refresh(hint: saverHint)
+            for view in playback.views.values where !view.suspended { view.draw(playback.city) }
+        }
+    }
+
+    private func refreshEnvironment(appearanceChanged: Bool = false) {
+        var changed = false
+        for playback in displays.values {
+            for view in playback.views.values {
+                if appearanceChanged { view.refreshSystemAppearance() }
+                guard view.needsEnvironmentRedraw(playback.city) else { continue }
+                changed = !view.preview || changed
+                view.draw(playback.city)
+            }
+        }
+        if changed { invalidateSnapshots?() }
     }
 }
 
@@ -198,6 +235,9 @@ final class RemoteView {
     private var scale: CGFloat
     private var hasPlacement: Bool
     private var mode: String
+    private var systemDark: Bool
+    private(set) var environmentMode: EnvironmentMode = .simulationWorld
+    private var renderedEnvironment: EnvironmentFrame?
     private(set) var suspended: Bool
     let preview: Bool
 
@@ -210,6 +250,8 @@ final class RemoteView {
         hasPlacement = request.hasPlacement
         suspended = request.activity == "suspended"
         preview = request.preview
+        systemDark = request.systemDark ?? (UserDefaults.standard.string(forKey: "AppleInterfaceStyle") == "Dark")
+        if let mode = request.optionIDs["environment"].flatMap(EnvironmentMode.init(rawValue:)) { environmentMode = mode }
         root.frame = CGRect(origin: .zero, size: size)
         root.contentsScale = scale
         root.masksToBounds = true
@@ -227,6 +269,10 @@ final class RemoteView {
 
     func apply(_ request: Presentation) -> Bool {
         let previous = (size, scale, suspended)
+        let oldMode = environmentMode
+        let oldDark = systemDark
+        if let mode = request.optionIDs["environment"].flatMap(EnvironmentMode.init(rawValue:)) { environmentMode = mode }
+        if let dark = request.systemDark { systemDark = dark }
         if let mode = request.mode {
             self.mode = mode
             hasPlacement = request.hasPlacement
@@ -234,20 +280,33 @@ final class RemoteView {
         if let activity = request.activity { suspended = activity == "suspended" }
         if let size = request.size { self.size = size }
         if let scale = request.scale { self.scale = scale }
-        return previous != (size, scale, suspended)
+        return previous != (size, scale, suspended) || oldMode != environmentMode || oldDark != systemDark
+    }
+
+    func refreshSystemAppearance() { systemDark = UserDefaults.standard.string(forKey: "AppleInterfaceStyle") == "Dark" }
+
+    func environment(for city: City) -> EnvironmentFrame {
+        Environment.frame(city: city, mode: environmentMode, systemDark: systemDark)
+    }
+
+    func needsEnvironmentRedraw(_ city: City) -> Bool {
+        renderedEnvironment != environment(for: city).quantized
     }
 
     func draw(_ city: City) {
-        guard !suspended else { return }
+        // Suspension stops simulation ticks, not explicit static-frame painting.
+        // WallpaperAgent can acquire or reconfigure a desktop while suspended.
         let frame = viewport(scale)
         let rect = frame.imageRect
         CATransaction.begin()
         CATransaction.setDisableActions(true)
         root.frame = CGRect(origin: .zero, size: size)
         root.contentsScale = scale
+        let environment = environment(for: city)
         pixels.frame = CGRect(x: rect.minX / scale, y: rect.minY / scale,
                               width: rect.width / scale, height: rect.height / scale)
-        pixels.contents = renderer.image(for: city, viewport: frame)
+        pixels.contents = renderer.image(for: city, viewport: frame, environment: environment)
+        renderedEnvironment = environment.quantized
         CATransaction.commit()
     }
 
@@ -264,7 +323,7 @@ final class RemoteView {
                                       bitmapInfo: CGImageAlphaInfo.premultipliedFirst.rawValue |
                                           CGBitmapInfo.byteOrder32Little.rawValue) else { return nil }
         // A snapshot should not evict the animation's cached viewport.
-        let image = (frame == viewport(scale) ? renderer : CityRenderer()).image(for: city, viewport: frame)
+        let image = (frame == viewport(scale) ? renderer : CityRenderer()).image(for: city, viewport: frame, environment: environment(for: city))
         frame.draw(image, in: context)
         context.flush()
         return LifeWrapWallpaperSnapshot(surface)

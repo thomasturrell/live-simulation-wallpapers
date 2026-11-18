@@ -17,6 +17,8 @@ The ZIP contains `City Simulation Wallpaper.app` with the embedded `CityWallpape
 
 The extension targets macOS 26 or later. The build script produces an ad-hoc signed universal app and ZIP by default. Set `CITY_SIGN_IDENTITY` to a Developer ID Application identity when building for distribution, then notarise the signed app. The carrier exits after registration. macOS hosts the animation and supplies the desktop image.
 
+Keep a single installed copy of the app and open that copy to register it. After replacing a build, quit/reopen System Settings so its cached menu refreshes. macOS can retain an already-running extension; restarting the wallpaper host loads the replacement binary. City checkpoints are stored separately in the extension's Application Support directory.
+
 WallpaperAgent’s wallpaper extension interface is undocumented and may change with OS updates. Registration alone does not prove the extension will appear in both pickers. WallpaperAgent controls when it switches from a live layer to a cached image, so part or all of the slowdown may be hidden. If macOS withdraws the surface, City Simulation saves its current state and stops playback immediately. Per-display generation and restore require macOS to supply a display ID that maps to a Core Graphics display UUID. Previews and requests without that identifier use the default city and session-only state.
 
 ## Build and preview
@@ -47,6 +49,66 @@ state_dir="$(mktemp -d)"
 The probe exercises the real wallpaper settings and request types, remote Core Animation contexts, IOSurface snapshots, and the adapter’s playback, suspension, settling and persistence. Use `verify-wallpaper --local` with the same paths to exercise the settings, snapshots and lifecycle without allocating remote contexts. The probe runs outside WallpaperAgent. Before distributing, verify installed picker discovery, saver playback and lock/unlock from System Settings, display hot-plug and mirroring, Spaces, sleep and wake, and the idle energy profile on your target macOS versions.
 
 ## Generated assets
+
+### Environment
+
+The **Environment** menu in System Settings → Wallpaper (or Screen Saver) has three choices:
+
+- **Simulation World** (default) uses the city's own eight-minute day/night cycle. Spring, summer, autumn and winter each last two days: eight days and **64 minutes of active city playback** make a year. The saved city clock drives the calendar and weather. Suspension, restart and the existing four-second settle-to-still behaviour preserve the same timeline as traffic and construction; inactive time is never caught up.
+- **Real World · Northern Hemisphere** follows macOS Light/Dark appearance for lighting, independently of actual sunrise/sunset. Seasonal appearance follows the Mac's local Gregorian calendar, smoothly interpolating twelve first-of-month reference stages with actual month lengths and leap years. Rendering after time away immediately uses the current date.
+- **Real World · Southern Hemisphere** uses the same system appearance and calendar, with the seasonal artwork shifted by six months.
+
+Real World modes use **neutral, dry conditions** in every season. They do not generate fictional weather, make network requests, request location permission or require credentials. Apple WeatherKit integration is deferred. There are no provider, location, geography or development preview controls in Wallpaper settings.
+
+Both calendars share the same pixel artwork: deciduous trunks and branches with growing/withdrawing leaf clusters, varied autumn colours and selected blossom trees; evergreen spruces retain layered needles. Lawns, flowers, park gardens and fallen leaves transition with the seasons. Stable per-tree phase and shape variation prevent synchronized foliage changes. Winter alone does not paint snow on the city.
+
+#### Simulated weather
+
+The percentage table in [SimulatedWeather.swift](Sources/CityEngine/SimulatedWeather.swift) controls new weather spells and is intentionally kept out of Wallpaper settings:
+
+| Season | Clear | Cloudy | Rain | Snow |
+| --- | ---: | ---: | ---: | ---: |
+| Spring | 40% | 30% | 30% | 0% |
+| Summer | 60% | 25% | 15% | 0% |
+| Autumn | 25% | 30% | 40% | 5% |
+| Winter | 20% | 25% | 20% | 35% |
+
+Every row totals 100%. Each spell samples the current fictional season's probabilities. Summer cannot select snow, autumn is rainier than summer, and winter can still be clear, cloudy or rainy. Wind uses a separate deterministic random stream and can accompany any of the four conditions.
+
+Spells last 2½ minutes of city time, with 24-second smooth transitions followed by stable conditions. Repeated selections can naturally produce longer spells. Snow cover thaws over the following spell after the flakes stop. Weather is computed from the checkpointed city tick and an independent seed, so it resumes exactly across freezes and restarts without using the traffic/development random stream. No separate weather cache, timer or background process is needed.
+
+Existing weather art remains shared: rain darkens roads and vegetation, adds puddles/ripples and restrained slanted rain; snow adds drifting flakes and temporary cover on lawns, trees and building/airport roofs. Cloud shadows and wind-blown leaves/seeds stay subtle. None of these effects edits terrain, buildings, construction or routes.
+
+#### CityPreview
+
+The standalone development preview has the same Environment choices plus a fractional-month slider, previous/next stage controls, live/day/night lighting, clear/cloudy/rain/snow overrides, independent wind inspection and pause. It uses disposable city state and never changes the installed wallpaper's settings or checkpoints.
+
+```sh
+swift run -c release CityPreview
+swift run -c release CityPreview --environment northern --month 10.5 --light day --weather rain --wind 0.7
+swift run -c release CityPreview --png /tmp/winter-snow.png 1280 720 \
+  --environment simulation --month 4 --light night --weather snow --wind 0.3
+swift run -c release CityPreview --environment southern --month 1 --light day
+swift run -c release CityPreview --gallery /tmp/city-environment-gallery
+```
+
+`--month` is one-based and fractional: the real calendars use 1=January through 12=December (13 wraps to January); Simulation World uses 1=spring, 2=summer, 3=autumn, 4=winter (5 wraps to spring). `--wind` accepts 0...1 and is independent of the weather override. Export and gallery commands use the production renderer without changing the system clock or writing saved cities. The gallery contains monthly, fictional-year, hemisphere, weather/wind and vegetation sheets.
+
+![All twelve Northern Hemisphere monthly reference stages](assets/environment/real-world-months.png)
+
+![The fictional four-month year, including intermediate transitions and day/night](assets/environment/simulation-year.png)
+
+![Northern and Southern Hemisphere seasonal appearances](assets/environment/hemispheres.png)
+
+![Clear, cloudy, rain and snow with independent wind variations](assets/environment/weather-variations.png)
+
+<img src="assets/environment/seasonal-vegetation.png" alt="January through December rows of evergreen, deciduous and blossom tree artwork" width="384">
+
+#### Environmental verification
+
+`./Packaging/test.sh` covers the three Environment options; real and fictional calendars; leap years and local time zones; month/year continuity; Northern/Southern seasonal reversal; appearance-driven lighting and neutral, dry Real World weather; exact seasonal percentage distributions and zero-probability outcomes; spell duration, smooth transitions, independent wind and snow thaw; checkpoint replay, suspension, settling and restart; preview overrides, seasonal tree silhouettes, weather rendering/cache invalidation and small-canvas clipping. It also runs the existing traffic, development, construction, aviation and layout tests. Tests use no network services.
+
+Build with `CITY_BUILD_ABI_PROBE=1 ./NativeWallpaper/build.sh`, then run the probe described above. It checks one Environment picker with exactly three items against the real native XPC types, default and updated values, system-appearance lighting, dry Real World snapshots, zero idle playback timers, suspension and checkpoint resume. It also sends a download-status request through Apple's native XPC interface to catch reply-type mismatches that disconnect WallpaperAgent during environment changes. Repeated unchanged host/appearance updates and Settings preview surfaces must not cause snapshot refresh loops. Installed WallpaperAgent behaviour still needs the manual macOS checks listed above because its private host interface can change independently of the renderer.
 
 These WebP previews use the simulation’s pixel art. The renderer varies building details, tree shapes and vehicle colors, so the gallery shows representative styles.
 
@@ -126,6 +188,6 @@ These previews show the compact airport and its aircraft using the same renderer
 
 - **CityEngine** owns a seedable 56 × 56 city and advances it at 30 fixed ticks per second. It routes trips on a connected road graph, balances development between housing and jobs, and enforces frontage and density limits. New road segments open frontage for future projects. Parks and riverbanks stay protected.
 - **CityArt** draws original pixel art onto a virtual canvas. It caches terrain, airport facilities, buildings and their occlusion data, then adds road traffic, aircraft, water glints and chimney smoke. Playback samples the simulation up to 20 times per second. The desktop, snapshots and development preview use the same renderer and integer scaling.
-- **NativeWallpaper** atomically checkpoints each identified display to the extension’s Application Support directory about every 15 seconds of active simulation and at lifecycle transitions. A checkpoint includes the city clock, lots, current construction, vehicle trips, flight phases and schedules, and random state. Existing version 2 checkpoints retain their original map and gain overflights; airports are placed when a new city is generated. Version 3 airports shrink to the compact footprint, releasing the spare land for development while preserving city progress, access streets and passenger trips. Settings previews use disposable state. When the desktop settles, the timer stops and the final frame stays in place until the next session.
+- **NativeWallpaper** atomically checkpoints each identified display to the extension's Application Support directory about every 15 seconds of active simulation and at lifecycle transitions. A checkpoint includes the city clock, lots, construction, vehicle trips, flight phases/schedules, city random state and an independent environmental seed. Only the current complete checkpoint schema is accepted; there are no migration paths. System Settings preview surfaces use disposable city state. Settling stops the timer and retains the final frame. Environmental cache keys include the hemisphere-adjusted seasonal phase, lighting and weather, so changes redraw correctly even at the same city tick. Quantized palettes retain the terrain/building cache for most frames.
 
 The private integration follows the [Game of Life native extension](../Game%20of%20Life/NativeWallpaper/INSTALL.md) and [Aerial’s wallpaper extension](https://github.com/AerialScreensaver/Aerial/tree/main/WallpaperExtension).

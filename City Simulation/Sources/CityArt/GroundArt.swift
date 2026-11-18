@@ -60,6 +60,32 @@ extension Pixels {
                 if dy != 0 { tile(p, -1, dy > 0 ? 2 : -8, 3, 6, c.paths) }
             }
         }
+        // Flower beds, scattered meadow flowers and fallen leaves share the
+        // seasonal artwork in both calendars. Paths and buildings stay intact.
+        if [.grass, .park, .promenade].contains(lot.ground), lot.building == nil {
+            let density = c.season.flowers * (lot.ground == .park ? 1 : 0.55)
+            for i in 0..<4 where Double((n * 13 + i * 29) % 100) / 100 < density {
+                let dot = p.iso((n + i * 7) % 13 - 6, (n * 3 + i * 5) % 13 - 6)
+                let flower = c.color([0xE7BD83, 0xD7C8B6, 0xC78689][i % 3])
+                span(dot.x, dot.x, dot.y - 1, flower.mix(c.snow, c.weather.snowCover))
+                span(dot.x, dot.x, dot.y, c.foliage)
+            }
+            if c.season.foliage < 0.7 && c.season.warmth > 0.15 && c.season.blossom < 0.1 {
+                for i in 0..<3 {
+                    let dot = p.iso((n + i * 5) % 13 - 6, (n * 7 + i * 3) % 13 - 6)
+                    span(dot.x, dot.x + 1, dot.y, c.color(0xAB7A47).mix(c.snow, c.weather.snowCover))
+                }
+            }
+        }
+        if lot.ground.carriesTraffic || lot.ground == .water {
+            if c.weather.rain > 0.2 && n % 4 == 0 {
+                let wet = p.iso(-4, 3)
+                span(wet.x - 2, wet.x + 2, wet.y, c.waterLight.mix(c.asphalt, 0.45))
+            }
+            if lot.ground.carriesTraffic && c.weather.snowCover > 0.15 {
+                line(p.iso(-7, -6), p.iso(-7, 6), c.curb.mix(c.snow, c.weather.snowCover))
+            }
+        }
     }
 
     private mutating func road(at p: Dot, plot: Plot, map: CityMap, palette c: Palette, bridge: Bool) {
@@ -107,17 +133,49 @@ extension Pixels {
     }
 
     mutating func tree(at p: Dot, style: Int, palette c: Palette) {
-        let h = 6 + style % 5
-        let green = c.color([0x76934E, 0x668951, 0x93A354, 0xA29952, 0x63906C, 0x8A9B5C][style % 6])
+        let h = 10 + style % 5
         let tip = p.offset(style % 3 - 1, -h)
-        box(p.offset(0, -4), 1, 5, c.color(0x755B48, 0x322D3C))
-        polygon([tip, tip.offset(4, 3), tip.offset(5, 6), tip.offset(1, 9),
-                 tip.offset(-4, 7), tip.offset(-5, 4), tip.offset(-2, 1)], c.leafShade)
-        polygon([tip.offset(-1, 0), tip.offset(3, 2), tip.offset(3, 5),
-                 tip.offset(-1, 7), tip.offset(-5, 5), tip.offset(-4, 2)], c.foliage)
-        polygon([tip.offset(-1, 0), tip.offset(2, 2), tip.offset(1, 3), tip.offset(-2, 5),
-                 tip.offset(-4, 4), tip.offset(-3, 2)], green)
-        span(tip.x - 2, tip.x, tip.y + 2, green.mix(c.shore, 0.17))
+        let bark = c.color(0x755B48, 0x322D3C)
+        line(p, tip.offset(0, 2), bark)
+        if style.isMultiple(of: 5) {
+            // Evergreen spruces retain distinct tiered needles all year.
+            for tier in 0..<3 {
+                let top = tip.offset(0, tier * 3)
+                let half = 2 + tier
+                polygon([top, top.offset(half, 5), top.offset(-half, 5)], c.color(0x365E50, 0x233B42))
+                polygon([top, top.offset(0, 5), top.offset(-half, 5)], c.color(0x628168, 0x344B4F))
+                if c.weather.snowCover > Double(tier + 1) / 5 {
+                    line(top, top.offset(-half + 1, 3), c.snow)
+                }
+            }
+            return
+        }
+        // Branches remain visible as foliage withdraws. Stable per-tree phase
+        // and cluster thresholds prevent the whole city changing in lockstep.
+        let season = SeasonAppearance.at(month: (c.environment?.month ?? 5) + Double(style % 9 - 4) * 0.065)
+        let clusters = [(-3, 3), (3, 4), (0, 0), (-4, 6), (2, 7), (0, 4), (-2, 1), (4, 6)]
+        let green = c.color(season.leafColor).mix(c.color(0xB4AC64), Double(style % 6) * 0.025)
+        for (i, offset) in clusters.enumerated() {
+            let centre = tip.offset(offset.0, offset.1)
+            line(p.offset(0, -3), centre, bark)
+            line(centre, centre.offset(i % 2 == 0 ? -1 : 1, -2), bark)
+            let threshold = Double((i * 3 + style) % 8) / 8 + 0.045
+            let growth = max(0, min(1, (season.foliage - threshold) * 7))
+            let radius = Int((growth * 3).rounded())
+            if radius > 0 {
+                let r = radius
+                polygon([centre.offset(-r, -1), centre.offset(-1, -r), centre.offset(r, -1),
+                         centre.offset(r, 1), centre.offset(0, r), centre.offset(-r, 1)], green.mix(c.leafShade, i % 3 == 0 ? 0.3 : 0.05))
+                span(centre.x - r + 1, centre.x, centre.y - r + 1, green.mix(c.shore, 0.17))
+            }
+            if style % 3 == 1 && season.blossom > threshold && c.weather.snowCover < 0.4 {
+                span(centre.x - 1, centre.x + 1, centre.y - 1, c.color(0xDCB0B1, 0x816D88))
+                span(centre.x, centre.x, centre.y - 2, c.color(0xF0D3C6, 0xA292A3))
+            }
+            if c.weather.snowCover > threshold {
+                span(centre.x - 1, centre.x + 1, centre.y - max(0, radius - 1), c.snow)
+            }
+        }
     }
 
     mutating func lamp(at p: Dot, palette c: Palette) {

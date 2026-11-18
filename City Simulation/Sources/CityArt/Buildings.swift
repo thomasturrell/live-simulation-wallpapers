@@ -13,8 +13,8 @@ private struct Footprint {
 private struct Masonry {
     let roof: Ink, edge: Ink, light: Ink, shade: Ink, trim: Ink
     init(_ c: Palette, _ roof: UInt32, _ edge: UInt32, _ light: UInt32, _ shade: UInt32, _ trim: UInt32) {
-        self.roof = c.color(roof)
-        self.edge = c.color(edge)
+        self.roof = c.roof(roof)
+        self.edge = c.color(edge).mix(c.snow, c.weather.snowCover * 0.36)
         self.light = c.color(light)
         self.shade = c.color(shade)
         self.trim = c.color(trim)

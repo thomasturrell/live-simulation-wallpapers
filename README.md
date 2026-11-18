@@ -16,7 +16,7 @@ The first wallpaper is based on [Conway’s Game of Life](https://en.wikipedia.o
 
 ## City Simulation
 
-A living isometric pixel-art city with traffic, growing neighbourhoods and lights that come on after dark. Some cities include a regional airport with arriving and departing passenger aircraft.
+A living isometric pixel-art city with traffic, growing neighbourhoods and lights that come on after dark. Some cities include a regional airport with arriving and departing passenger aircraft. Choose a simulated seasonal world with fictional weather, or follow the Mac’s appearance and real-world calendar in the Northern or Southern Hemisphere.
 
 ![Illustrated macOS Lock Screen for Wright with a compact airport, passenger aircraft, moving traffic and rippling water in an isometric pixel-art city](assets/city-lock-screen.webp)
 

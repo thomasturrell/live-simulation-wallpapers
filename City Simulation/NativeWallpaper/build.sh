@@ -29,7 +29,13 @@ for arch in "${archs[@]}"; do
     swift build "${options[@]}" --target CityArt
     bin="$(swift build "${options[@]}" --show-bin-path)"
     compile_bridge
-    objects=("$bin"/CityEngine.build/*.swift.o "$bin"/CityArt.build/*.swift.o)
+    # Deleted sources can leave stale objects in SwiftPM's incremental cache.
+    objects=()
+    for target in CityEngine CityArt; do
+        for source_file in Sources/"$target"/*.swift; do
+            objects+=("$bin/$target.build/${source_file##*/}.o")
+        done
+    done
     link_wallpaper NativeWallpaper/ExtensionMain.swift "${objects[@]}" \
         -Xlinker -e -Xlinker _NSExtensionMain -o "$scratch/wallpaper-$arch"
     if [ "${CITY_BUILD_ABI_PROBE:-0}" = 1 ] && [ "$arch" = "$(uname -m)" ]; then
