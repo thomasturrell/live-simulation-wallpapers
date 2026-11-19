@@ -63,8 +63,8 @@ struct PreviewControls: View {
                         Text("Wind · \(Int(model.wind * 100))%").font(.caption.monospacedDigit())
                     }
                     Picker("Traffic", selection: $model.trafficConvention) {
-                        Text("UK · Keep left").tag(TrafficConvention.uk)
-                        Text("Keep right").tag(TrafficConvention.rightHand)
+                        Text("Keep left").tag(TrafficConvention.uk)
+                        Text("Keep Right").tag(TrafficConvention.rightHand)
                     }
                     Text("Changing traffic restarts the preview city.").font(.caption).foregroundStyle(.secondary)
                     Toggle("Pause city", isOn: $model.paused)

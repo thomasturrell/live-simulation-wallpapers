@@ -82,7 +82,7 @@ Existing weather art remains shared: rain darkens roads and vegetation, adds pud
 
 ### CityPreview controls and exports
 
-The standalone development preview has the same Environment choices plus a fractional-month slider, previous/next stage controls, live/day/night lighting, clear/cloudy/rain/snow overrides, independent wind inspection and pause. The **Traffic** picker switches between **UK · Keep left** and **Keep right**. Switching restarts the disposable preview city so cars begin with routes on the selected side. The preview leaves installed wallpaper settings and checkpoints untouched.
+The standalone development preview has the same Environment choices plus a fractional-month slider, previous/next stage controls, live/day/night lighting, clear/cloudy/rain/snow overrides, independent wind inspection and pause. The **Traffic** picker switches between **Keep left** and **Keep Right**. Switching restarts the disposable preview city so cars begin with routes on the selected side. The preview leaves installed wallpaper settings and checkpoints untouched.
 
 ```sh
 swift run -c release CityPreview
