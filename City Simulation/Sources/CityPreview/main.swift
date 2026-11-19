@@ -14,6 +14,7 @@ final class PreviewModel: ObservableObject {
     @Published var weather = "live"
     @Published var inspectWind = false
     @Published var wind = 0.5
+    @Published var trafficConvention: TrafficConvention = .default
     @Published var paused = false
     @Published var status = ""
     var preview: EnvironmentPreview {
@@ -33,7 +34,7 @@ struct PreviewControls: View {
         HStack(spacing: 0) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
-                    Text("City environment").font(.title2.bold())
+                    Text("City preview").font(.title2.bold())
                     Picker("Environment", selection: $model.mode) {
                         ForEach(EnvironmentMode.allCases, id: \.self) { Text($0.title).tag($0) }
                     }.onChange(of: model.mode) { previous, current in
@@ -61,6 +62,11 @@ struct PreviewControls: View {
                         Slider(value: $model.wind, in: 0...1)
                         Text("Wind · \(Int(model.wind * 100))%").font(.caption.monospacedDigit())
                     }
+                    Picker("Traffic", selection: $model.trafficConvention) {
+                        Text("UK · Keep left").tag(TrafficConvention.uk)
+                        Text("Keep right").tag(TrafficConvention.rightHand)
+                    }
+                    Text("Changing traffic restarts the preview city.").font(.caption).foregroundStyle(.secondary)
                     Toggle("Pause city", isOn: $model.paused)
                     Text(model.status).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                     Spacer(minLength: 0)
@@ -90,11 +96,15 @@ struct PreviewCanvas: NSViewRepresentable {
 @MainActor
 final class PreviewView: NSView {
     private let model: PreviewModel
-    private var playback = Playback(city: City())
+    private var playback: Playback
     private let renderer = CityRenderer()
     private var timer: Timer?
     private var timestamp = ProcessInfo.processInfo.systemUptime
-    init(model: PreviewModel) { self.model = model; super.init(frame: .zero) }
+    init(model: PreviewModel) {
+        self.model = model
+        playback = Playback(city: City(trafficConvention: model.trafficConvention))
+        super.init(frame: .zero)
+    }
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
 
     override func viewDidMoveToWindow() {
@@ -102,6 +112,10 @@ final class PreviewView: NSView {
         configure()
     }
     func configure() {
+        if playback.city.trafficConvention != model.trafficConvention {
+            playback = Playback(city: City(trafficConvention: model.trafficConvention))
+            timestamp = ProcessInfo.processInfo.systemUptime
+        }
         let active = window != nil && !model.paused
         playback.present(visible: active, animated: active)
         if active && timer == nil {
@@ -148,6 +162,7 @@ func run() throws {
     var args = Array(CommandLine.arguments.dropFirst())
     var mode = EnvironmentMode.simulationWorld
     var preview = EnvironmentPreview()
+    var convention = TrafficConvention.default
     func option(_ name: String) throws -> String? {
         guard let index = args.firstIndex(of: name) else { return nil }
         guard index + 1 < args.count else { throw PreviewError.usage }
@@ -175,8 +190,12 @@ func run() throws {
         guard let wind = Double(value), wind.isFinite, (0...1).contains(wind) else { throw PreviewError.usage }
         preview.wind = wind
     }
+    if let value = try option("--traffic") {
+        guard let selected = TrafficConvention(rawValue: value) else { throw PreviewError.usage }
+        convention = selected
+    }
     if args.first == "--gallery", args.count == 2 {
-        try writeGallery(to: URL(fileURLWithPath: args[1], isDirectory: true))
+        try writeGallery(to: URL(fileURLWithPath: args[1], isDirectory: true), convention: convention)
         return
     }
     if args.first == "--icns", args.count == 2 {
@@ -190,7 +209,7 @@ func run() throws {
         let seconds = args.count > 4 ? Int(args[4]) : 0
         guard let width, let height, let seconds, (1...5120).contains(width), (1...5120).contains(height),
               (0...900).contains(seconds) else { throw PreviewError.usage }
-        var city = City()
+        var city = City(trafficConvention: convention)
         for _ in 0..<seconds * City.ticksPerSecond { city.step() }
         let viewport = CityViewport(pixelWidth: width, pixelHeight: height)
         let environment = Environment.frame(city: city, mode: mode,
@@ -210,6 +229,7 @@ func run() throws {
     window.title = "City Simulation"
     let model = PreviewModel()
     model.mode = mode
+    model.trafficConvention = convention
     model.inspectWind = preview.wind != nil; model.wind = preview.wind ?? 0.5
     model.inspectCalendar = preview.month != nil; model.month = preview.month ?? 1
     model.light = preview.darkness.map { $0 > 0.5 ? "night" : "day" } ?? "live"
@@ -241,9 +261,9 @@ private func savePNG(_ image: CGImage, to output: URL) throws {
 /// Reproducible contact sheets use the production renderer without advancing a
 /// city or touching wallpaper checkpoints, weather caches or network services.
 @MainActor
-private func writeGallery(to directory: URL) throws {
+private func writeGallery(to directory: URL, convention: TrafficConvention) throws {
     try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-    let city = City()
+    let city = City(trafficConvention: convention)
     let viewport = CityViewport(pixelWidth: 640, pixelHeight: 360)
     func sheet(_ filename: String, columns: Int, examples: [(String, EnvironmentMode, EnvironmentPreview)]) throws {
         let w = columns * 320, h = ((examples.count + columns - 1) / columns) * 202
@@ -340,6 +360,6 @@ final class PreviewDelegate: NSObject, NSApplicationDelegate {
 do {
     try MainActor.assumeIsolated { try run() }
 } catch {
-    fputs("Usage: CityPreview [--png FILE [WIDTH HEIGHT [SIMULATED-SECONDS]]] [--environment simulation|northern|southern] [--month NUMBER] [--light day|night] [--weather clear|cloudy|rain|snow] [--wind 0...1] | --gallery DIRECTORY\n\(error)\n", stderr)
+    fputs("Usage: CityPreview [--png FILE [WIDTH HEIGHT [SIMULATED-SECONDS]]] [--traffic uk|right] [--environment simulation|northern|southern] [--month NUMBER] [--light day|night] [--weather clear|cloudy|rain|snow] [--wind 0...1] | --gallery DIRECTORY\n\(error)\n", stderr)
     exit(1)
 }

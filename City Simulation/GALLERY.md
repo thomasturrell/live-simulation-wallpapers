@@ -66,11 +66,13 @@ A small regional airport and the aircraft that visit it. The flight cycle plays 
 
 ## Streets
 
+These streets use the UK convention, with broken white centre lines and white stop lines across the lanes approaching controlled junctions.
+
 | Straight street | Street corner | Dead end |
 | --- | --- | --- |
-| ![Straight road with lane markings](assets/straight-street.webp) | ![Road turning through a corner](assets/street-corner.webp) | ![Street ending at a curb](assets/dead-end.webp) |
+| ![Straight road with evenly spaced white centre dashes](assets/straight-street.webp) | ![White centre marking following the curve of a road](assets/street-corner.webp) | ![Street ending at a curb](assets/dead-end.webp) |
 | **T-junction** | **Crossroads** | **Bridge** |
-| ![Road tile with three connections](assets/t-junction.webp) | ![Four-way road junction with crossing markings](assets/crossroads.webp) | ![Road bridge with railings over water](assets/bridge.webp) |
+| ![T-junction with a stop line across each of three incoming lanes](assets/t-junction.webp) | ![Crossroads with four staggered approach stop lines and a clear centre](assets/crossroads.webp) | ![Road bridge with railings over water and white centre dashes](assets/bridge.webp) |
 
 ## Street furniture, trees and traffic
 

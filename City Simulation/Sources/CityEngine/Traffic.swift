@@ -21,18 +21,22 @@ public struct Vehicle: Codable, Equatable {
     var distance: Double { Double(progress) / Double(pace) }
     var segment: Int { min(Int(distance), route.count - 2) }
 
-    public var pose: Pose { pose(at: distance) }
+    package func pose(in convention: TrafficConvention) -> Pose { pose(at: distance, in: convention) }
 
-    func pose(at distance: Double) -> Pose {
+    func pose(at distance: Double, in convention: TrafficConvention) -> Pose {
         let end = Double(route.count - 1)
-        let center = position(at: distance)
-        let before = position(at: max(0, distance - 0.04))
-        let after = position(at: min(end, distance + 0.04))
+        let center = position(at: distance, in: convention)
+        let before = position(at: max(0, distance - 0.04), in: convention)
+        let after = position(at: min(end, distance + 0.04), in: convention)
         return Pose(x: center.x, y: center.y, dx: after.x - before.x, dy: after.y - before.y,
                     visibility: min(1, distance * 4, (end - distance) * 4))
     }
 
-    private func position(at distance: Double) -> SIMD2<Double> {
+    private func position(at distance: Double, in convention: TrafficConvention) -> SIMD2<Double> {
+        func lateral(_ direction: SIMD2<Double>) -> SIMD2<Double> {
+            let normal = convention.laneNormal(x: Int(direction.x), y: Int(direction.y))
+            return SIMD2(Double(normal.x), Double(normal.y)) * 0.20
+        }
         let segment = min(Int(distance), route.count - 2)
         let from = vector(route[segment]), to = vector(route[segment + 1])
         let direction = to - from
@@ -68,10 +72,6 @@ public struct Vehicle: Codable, Equatable {
     }
 
     private func vector(_ p: Plot) -> SIMD2<Double> { SIMD2(Double(p.x), Double(p.y)) }
-    private func lateral(_ direction: SIMD2<Double>) -> SIMD2<Double> {
-        SIMD2(-direction.y, direction.x) * 0.20
-    }
-
     private func curve(_ a: SIMD2<Double>, _ b: SIMD2<Double>, _ c: SIMD2<Double>, _ t: Double) -> SIMD2<Double> {
         let rest = 1 - t
         return a * (rest * rest) + b * (2 * rest * t) + c * (t * t)
@@ -93,7 +93,7 @@ extension City {
     mutating func moveTraffic() {
         // Stable priority lets cars in junctions clear first. Each move avoids
         // both cars still waiting and positions already accepted this tick.
-        var footprints = Dictionary(uniqueKeysWithValues: vehicles.map { ($0.id, $0.footprint) })
+        var footprints = Dictionary(uniqueKeysWithValues: vehicles.map { ($0.id, $0.footprint(in: trafficConvention)) })
         var reservedPaths = Dictionary(uniqueKeysWithValues: vehicles.map { ($0.id, reservedPath(for: $0)) })
         let currentJunctions = Dictionary(uniqueKeysWithValues: vehicles.map { ($0.id, junctions(occupiedBy: $0)) })
         let order = vehicles.indices.sorted {
@@ -113,7 +113,7 @@ extension City {
             }) else { continue }
             let entering = junctions(occupiedBy: next).filter { !currentJunctions[vehicle.id, default: []].contains($0) }
             guard entering.allSatisfy({ junction in
-                if junction.neighbors.filter(map.isRoad).count == 2 { return true }
+                if !map.hasJunctionControl(at: junction) { return true }
                 let phase = (tick / 18 + junction.x * 11 + junction.y * 5) % 10
                 let eastWest = vehicle.route[vehicle.segment].y == vehicle.route[vehicle.segment + 1].y
                 guard eastWest ? (0...3).contains(phase) : (5...8).contains(phase) else { return false }
@@ -124,14 +124,14 @@ extension City {
             if let nextEnd = reservationEnd(for: next), nextEnd > currentEnd + 0.000001 {
                 // Check a manoeuvre when claiming it. Rechecking a path already
                 // reserved can make its owner yield to cars waiting at its edge.
-                guard next.path(through: nextEnd).allSatisfy({ space in
+                guard next.path(through: nextEnd, in: trafficConvention).allSatisfy({ space in
                     footprints.allSatisfy { id, other in id == vehicle.id || !space.overlaps(other, clearance: 0.06) }
                         && reservedPaths.allSatisfy { id, path in id == vehicle.id || !path.contains { space.overlaps($0, clearance: 0.06) } }
                 }) else { continue }
             }
-            let current = vehicle.footprint
-            let middle = vehicle.footprint(at: vehicle.distance + 0.5 / Double(vehicle.pace))
-            let destination = next.footprint
+            let current = footprints[vehicle.id]!
+            let middle = vehicle.footprint(at: vehicle.distance + 0.5 / Double(vehicle.pace), in: trafficConvention)
+            let destination = next.footprint(in: trafficConvention)
             guard footprints.allSatisfy({ id, space in
                 if id == vehicle.id { return true }
                 // Old checkpoints may already contain an overlap. Allow a car
@@ -199,17 +199,19 @@ extension City {
 
     private mutating func dispatchJourney(from start: Address, to end: Address, freight: Bool, underway: Bool = false) {
         guard vehicles.count < 60 else { return }
-        guard let route = map.route(from: start.road, to: end.road, origin: start.lot, destination: end.lot), route.count > 3 else { return }
+        guard let route = map.route(from: start.road, to: end.road, origin: start.lot, destination: end.lot,
+                                    convention: trafficConvention), route.count > 3 else { return }
         let pace = 21 + random.pick(9)
         let color = random.pick(8)
         let progress = underway ? 4 + random.pick((route.count - 2) * pace) : 1
         let vehicle = Vehicle(id: nextVehicle, route: route, color: color, pace: pace, long: freight,
                               origin: start.lot, destination: end.lot, progress: progress)
         let reservation = reservedPath(for: vehicle)
-        let path = reservation.isEmpty ? [vehicle.footprint] : reservation
+        let path = reservation.isEmpty ? [vehicle.footprint(in: trafficConvention)] : reservation
         guard !vehicles.contains(where: { other in
             path.contains { space in
-                space.overlaps(other.footprint, clearance: 0.06) || reservedPath(for: other).contains { space.overlaps($0, clearance: 0.06) }
+                space.overlaps(other.footprint(in: trafficConvention), clearance: 0.06)
+                    || reservedPath(for: other).contains { space.overlaps($0, clearance: 0.06) }
             }
         }) else { return }
         vehicles.append(vehicle)
@@ -224,7 +226,7 @@ extension City {
     }
 
     private func reservedPath(for vehicle: Vehicle) -> [TrafficFootprint] {
-        reservationEnd(for: vehicle).map { vehicle.path(through: $0) } ?? []
+        reservationEnd(for: vehicle).map { vehicle.path(through: $0, in: trafficConvention) } ?? []
     }
 
     private func reservationEnd(for vehicle: Vehicle) -> Double? {

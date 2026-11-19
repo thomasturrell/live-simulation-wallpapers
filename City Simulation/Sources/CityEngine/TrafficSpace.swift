@@ -3,12 +3,12 @@ import Foundation
 extension Vehicle {
     // Ground-space dimensions include the full-size artwork and a small gap.
     var halfLength: Double { long ? 0.34 : 0.22 }
-    var junctionClearance: Double { 0.5 + halfLength + 0.12 }
+    var junctionClearance: Double { RoadGeometry.stopLineDistance + halfLength }
     var junctionExitClearance: Double { 5.0 / 16 + halfLength + 0.01 }
-    var footprint: TrafficFootprint { footprint(at: distance) }
+    func footprint(in convention: TrafficConvention) -> TrafficFootprint { footprint(at: distance, in: convention) }
 
-    func path(through end: Double) -> [TrafficFootprint] {
-        stride(from: distance, through: end + 0.025, by: 0.025).map { footprint(at: min($0, end)) }
+    func path(through end: Double, in convention: TrafficConvention) -> [TrafficFootprint] {
+        stride(from: distance, through: end + 0.025, by: 0.025).map { footprint(at: min($0, end), in: convention) }
     }
 
     func gap(to leader: Vehicle) -> Double? {
@@ -21,8 +21,8 @@ extension Vehicle {
         return nil
     }
 
-    func footprint(at distance: Double) -> TrafficFootprint {
-        let pose = pose(at: distance)
+    func footprint(at distance: Double, in convention: TrafficConvention) -> TrafficFootprint {
+        let pose = pose(at: distance, in: convention)
         let center = SIMD2(pose.x, pose.y)
         let length = hypot(pose.dx, pose.dy)
         let direction = length > 0 ? SIMD2(pose.dx, pose.dy) / length : SIMD2(1, 0)

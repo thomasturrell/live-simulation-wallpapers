@@ -82,7 +82,7 @@ Existing weather art remains shared: rain darkens roads and vegetation, adds pud
 
 ### CityPreview controls and exports
 
-The standalone development preview has the same Environment choices plus a fractional-month slider, previous/next stage controls, live/day/night lighting, clear/cloudy/rain/snow overrides, independent wind inspection and pause. It uses disposable city state and never changes the installed wallpaper's settings or checkpoints.
+The standalone development preview has the same Environment choices plus a fractional-month slider, previous/next stage controls, live/day/night lighting, clear/cloudy/rain/snow overrides, independent wind inspection and pause. The **Traffic** picker switches between **UK · Keep left** and **Keep right**. Switching restarts the disposable preview city so cars begin with routes on the selected side. The preview leaves installed wallpaper settings and checkpoints untouched.
 
 ```sh
 swift run -c release CityPreview
@@ -90,10 +90,11 @@ swift run -c release CityPreview --environment northern --month 10.5 --light day
 swift run -c release CityPreview --png /tmp/winter-snow.png 1280 720 \
   --environment simulation --month 4 --light night --weather snow --wind 0.3
 swift run -c release CityPreview --environment southern --month 1 --light day
+swift run -c release CityPreview --png /tmp/city-keep-right.png --traffic right --light night --weather clear
 swift run -c release CityPreview --gallery /tmp/city-environment-gallery
 ```
 
-`--month` is one-based and fractional: the real calendars use 1=January through 12=December (13 wraps to January); Simulation World uses 1=spring, 2=summer, 3=autumn, 4=winter (5 wraps to spring). `--wind` accepts 0...1 and is independent of the weather override. Export and gallery commands use the production renderer without changing the system clock or writing saved cities. The gallery contains monthly, fictional-year, hemisphere, weather/wind and vegetation sheets.
+`--month` is one-based and fractional: the real calendars use 1=January through 12=December (13 wraps to January); Simulation World uses 1=spring, 2=summer, 3=autumn, 4=winter (5 wraps to spring). `--wind` accepts 0...1 and is independent of the weather override. Use `--traffic uk` (default) or `--traffic right` for the preview, PNG export and environment gallery. Export and gallery commands use the production renderer without changing the system clock or writing saved cities. The gallery contains monthly, fictional-year, hemisphere, weather/wind and vegetation sheets.
 
 ### Environmental verification
 
@@ -103,9 +104,9 @@ Build with `CITY_BUILD_ABI_PROBE=1 ./NativeWallpaper/build.sh`, then run the pro
 
 ## Architecture and persistence
 
-- **CityEngine** owns a seedable 56 × 56 city and advances it at 30 fixed ticks per second. Traffic stops before junctions with room for the whole vehicle, waits for a clear crossing and exit, and keeps space between cars through turns and driveway manoeuvres. Trips approach and leave buildings from the matching side of the road. It routes trips on a connected road graph, balances development between housing and jobs, and enforces frontage and density limits. New road segments open frontage for future projects. Parks and riverbanks stay protected.
-- **CityArt** draws original pixel art onto a virtual canvas. It caches terrain, airport facilities, buildings and their occlusion data, then adds road traffic, aircraft, water glints and chimney smoke. Playback samples the simulation up to 20 times per second. The desktop, snapshots and development preview use the same renderer and integer scaling.
-- **NativeWallpaper** atomically checkpoints each identified display to the extension's Application Support directory about every 15 seconds of active simulation and at lifecycle transitions. A checkpoint includes the city clock, lots, construction, vehicle trips, flight phases/schedules, city random state and an independent environmental seed. Only the current complete checkpoint schema is accepted; there are no migration paths. System Settings preview surfaces use disposable city state. Settling stops the timer and retains the final frame. Environmental cache keys include the hemisphere-adjusted seasonal phase, lighting and weather, so changes redraw correctly even at the same city tick. Quantized palettes retain the terrain/building cache for most frames.
+- **CityEngine** owns a seedable 56 × 56 city and advances it at 30 fixed ticks per second. The internal traffic convention defaults to UK left-hand traffic and controls lane geometry and driveway routing. Traffic stops before junctions with room for the whole vehicle, waits for a clear crossing and exit, and keeps space between cars through turns and driveway manoeuvres. Trips approach and leave buildings from the matching side of the road. It routes trips on a connected road graph, balances development between housing and jobs, and enforces frontage and density limits. New road segments open frontage for future projects. Parks and riverbanks stay protected.
+- **CityArt** draws original pixel art onto a virtual canvas. UK streets and bridges use white centre dashes. At controlled junctions, the renderer uses the city's convention and the simulation's stopping distance to paint a white line across each incoming lane. It caches terrain, airport facilities, buildings and their occlusion data, then adds road traffic, aircraft, water glints and chimney smoke. Playback samples the simulation up to 20 times per second. The desktop, snapshots and development preview use the same renderer and integer scaling.
+- **NativeWallpaper** atomically checkpoints each identified display to the extension's Application Support directory about every 15 seconds of active simulation and at lifecycle transitions. A checkpoint includes the city clock, lots, construction, vehicle trips, traffic convention, flight phases/schedules, city random state and an independent environmental seed. Version 5 checkpoints restore as right-hand cities so existing routes and positions carry over. New cities use the internal default. System Settings preview surfaces use disposable city state. Settling stops the timer and retains the final frame. Environmental cache keys include the hemisphere-adjusted seasonal phase, lighting and weather, so changes redraw correctly even at the same city tick. Quantized palettes retain the terrain/building cache for most frames.
 
 The private integration follows the [Game of Life native extension](../Game%20of%20Life/NativeWallpaper/INSTALL.md) and [Aerial’s wallpaper extension](https://github.com/AerialScreensaver/Aerial/tree/main/WallpaperExtension).
 

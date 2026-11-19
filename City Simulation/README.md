@@ -12,7 +12,7 @@ The city comes to life while your screen saver runs, then becomes a still citysc
 
 Start with a bustling city and watch its neighbourhoods develop. Cranes overlook construction sites as buildings rise from foundations to finished homes and offices. New streets make room for growth, while parks and riverside paths keep their place beside the changing skyline.
 
-Cars travel between homes, shops, offices and factories, crossing bridges and queuing at busy junctions. Look closer for fountains, glinting water and chimney smoke.
+Cars travel between homes, shops, offices and factories, crossing bridges and queuing at busy junctions. In new cities, traffic keeps left on streets with white centre markings. Look closer for fountains, glinting water and chimney smoke.
 
 Some cities have a small regional airport on the outskirts. Watch passenger aircraft descend, land and taxi to the terminal before heading out for take-off. Even without an airport, you may spot a plane passing overhead.
 
