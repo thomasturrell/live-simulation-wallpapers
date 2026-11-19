@@ -12,7 +12,7 @@ Use a Swift 6 toolchain with the macOS 26 SDK or newer. From this directory:
 swift run -c release CityPreview
 swift run -c release CityPreview --png /tmp/city-5k.png 5120 2880
 swift run -c release CityPreview --png /tmp/city-at-night.png 1280 720 270
-swift run -c release CityPreview --png /tmp/city-airport.png 1280 720 100
+swift run -c release CityPreview --seed 215 --png /tmp/city-airport.png 1280 720 100
 ```
 
 The first command produces the app and ZIP in `dist/`. Pass an output directory as the first argument to write them elsewhere, or set `CITY_NATIVE_ARCHS` to limit the architecture slices. The resizable preview window animates immediately without installing the extension. PNG export takes an optional width, height and time in simulated seconds. At the default seed, the first construction site opens after nine seconds and completes after fifteen.
@@ -84,8 +84,10 @@ Existing weather art remains shared: rain darkens roads and vegetation, adds pud
 
 The standalone development preview has the same Environment choices plus a fractional-month slider, previous/next stage controls, live/day/night lighting, clear/cloudy/rain/snow overrides, independent wind inspection and pause. It uses disposable city state and never changes the installed wallpaper's settings or checkpoints.
 
+Choose **New seed** to start a randomly generated city, or enter a decimal seed and choose **Load seed** to revisit a layout. The preview starts each new city at the beginning and retains your environment controls and pause setting. Pass `--seed` to start the live preview or make a PNG or gallery export with the same layout. Seed 215 shows the full airport at the default preview size.
+
 ```sh
-swift run -c release CityPreview
+swift run -c release CityPreview --seed 215
 swift run -c release CityPreview --environment northern --month 10.5 --light day --weather rain --wind 0.7
 swift run -c release CityPreview --png /tmp/winter-snow.png 1280 720 \
   --environment simulation --month 4 --light night --weather snow --wind 0.3
