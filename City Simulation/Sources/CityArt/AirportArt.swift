@@ -56,12 +56,12 @@ extension Pixels {
         }
 
         // A single ground pass keeps each guide line continuous across lot boundaries.
-        stroke(11, 40, 166, 40, c.paint)
-        stroke(15, 40, 15, 58, c.paint)
-        stroke(158, 40, 158, 58, c.paint)
-        stroke(81, 15, 81, 40, c.paint)
-        stroke(77, 21, 85, 21, c.paint)
-        for v in [53, 56] { stroke(11, v, 19, v, c.paint) }
+        stroke(11, 40, 166, 40, c.taxiwayPaint)
+        stroke(15, 40, 15, 58, c.taxiwayPaint)
+        stroke(158, 40, 158, 58, c.taxiwayPaint)
+        stroke(81, 15, 81, 40, c.taxiwayPaint)
+        stroke(77, 21, 85, 21, c.taxiwayPaint)
+        for v in [53, 56] { stroke(11, v, 19, v, c.taxiwayPaint) }
 
         let white = c.color(0xD8D4BD, 0x92939A)
         stroke(8, 59, 177, 59, white)

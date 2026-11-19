@@ -23,7 +23,9 @@ struct Palette {
 
     var asphalt: Ink { color(0x555963, 0x262C41).mix(color(0x3F505F, 0x202B40), weather.rain * 0.55) }
     var roadEdge: Ink { color(0x40474F, 0x1D2536) }
-    var paint: Ink { color(0xC6B58A, 0x756B58) }
+    var taxiwayPaint: Ink { color(0xC6B58A, 0x756B58) }
+    var whiteRoadPaint: Ink { color(0xE9E8E2, 0xA7ADB9) }
+    var yellowRoadPaint: Ink { color(0xC6B58A, 0x81775E) }
     var curb: Ink { color(0xB7AA94, 0x535468) }
     var sidewalk: Ink { color(0x9A9487, 0x414659) }
     var water: Ink { color(0x427982, 0x21394F) }

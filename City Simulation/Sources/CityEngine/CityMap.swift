@@ -153,6 +153,10 @@ public struct CityMap: Codable, Equatable {
     }
 
     public func isRoad(_ point: Plot) -> Bool { contains(point) && self[point].ground.carriesTraffic }
+
+    package func hasJunctionControl(at point: Plot) -> Bool {
+        point.neighbors.filter(isRoad).count > 2
+    }
     public func roadAccess(at point: Plot) -> Plot? {
         point.neighbors.first { contains($0) && self[$0].ground == .road }
     }
@@ -171,7 +175,15 @@ public struct CityMap: Codable, Equatable {
     }
 
     public func route(from start: Plot, to end: Plot) -> [Plot]? {
+        route(from: start, to: end, origin: nil, destination: nil, convention: .default)
+    }
+
+    func route(from start: Plot, to end: Plot, origin: Plot?, destination: Plot?, convention: TrafficConvention) -> [Plot]? {
         guard isRoad(start), isRoad(end) else { return nil }
+        func canAccess(_ lot: Plot?, from road: Plot, lane: SIMD2<Int>) -> Bool {
+            guard let lot else { return true }
+            return (lot.x - road.x) * lane.x + (lot.y - road.y) * lane.y >= 0
+        }
         func index(_ plot: Plot) -> Int { plot.x + plot.y * Self.side }
         var previous = [Plot?](repeating: nil, count: lots.count)
         var queue = [start]
@@ -185,6 +197,11 @@ public struct CityMap: Codable, Equatable {
                 return path.reversed()
             }
             for neighbor in point.neighbors where isRoad(neighbor) && previous[index(neighbor)] == nil {
+                // Driveways join the lane on their own side of the road. Choose
+                // an approach that avoids cutting across opposing traffic.
+                let lane = convention.laneNormal(x: neighbor.x - point.x, y: neighbor.y - point.y)
+                if point == start, !canAccess(origin, from: start, lane: lane) { continue }
+                if neighbor == end, !canAccess(destination, from: end, lane: lane) { continue }
                 previous[index(neighbor)] = point
                 queue.append(neighbor)
             }

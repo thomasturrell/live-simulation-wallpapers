@@ -45,8 +45,10 @@ func runwayStripesKeepTheirShapeAndGuidesStayClear(alongY: Bool, night: Double) 
     }
     for centre in [52, 78, 104, 130] { #expect(stripe(centre - 4, 67) == reference) }
     let intrudingGuides = pixels.storage.indices.filter {
-        pixels.storage[$0] == palette.paint.pixel && local($0 % pixels.width, $0 / pixels.width).v > 58.5
+        pixels.storage[$0] == palette.taxiwayPaint.pixel && local($0 % pixels.width, $0 / pixels.width).v > 58.5
     }
+    #expect(pixels.storage.contains(palette.taxiwayPaint.pixel))
+    #expect(!pixels.storage.contains(palette.whiteRoadPaint.pixel))
     #expect(intrudingGuides.isEmpty)
 }
 
