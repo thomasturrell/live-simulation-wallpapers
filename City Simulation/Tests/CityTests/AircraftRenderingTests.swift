@@ -3,8 +3,8 @@
 import Foundation
 import Testing
 
-@Test(arguments: [false, true], [false, true])
-func aircraftKeepAStableSilhouetteOnStraightGroundSegments(alongY: Bool, shadow: Bool) {
+@Test(arguments: [false, true], [0.0, 1.0])
+func aircraftKeepAStableSilhouetteOnStraightGroundSegments(alongY: Bool, night: Double) {
     let airport = Airport(origin: Plot(10, 10), alongY: alongY)
     let segments: [(Aircraft.Phase, Range<Int>)] = [
         (.landing, 0..<13 * City.ticksPerSecond),
@@ -12,21 +12,151 @@ func aircraftKeepAStableSilhouetteOnStraightGroundSegments(alongY: Bool, shadow:
         (.taxiIn, 7 * City.ticksPerSecond..<19 * City.ticksPerSecond),
         (.taxiOut, 0..<13 * City.ticksPerSecond)
     ]
-    for (phase, ticks) in segments {
-        if shadow && phase == .takeoff { continue } // A rising aircraft's shadow intentionally fades.
-        var flight = Aircraft(id: 0, livery: 0, phase: phase, standTime: 1800,
-                              lane: 0, reverse: false, alongY: alongY)
-        var reference: [UInt32]?
-        var changedFrames = 0
-        for tick in ticks {
-            flight.elapsed = tick
-            var sprite = Pixels(width: 48, height: 40, background: Ink(0x82975D))
-            sprite.aircraft(at: Dot(24, 20), pose: flight.pose(at: airport), livery: 0,
-                            shadow: shadow, blink: false, palette: Palette(night: 0))
-            if let reference, sprite.storage != reference { changedFrames += 1 }
-            else if reference == nil { reference = sprite.storage }
+    for shadow in night == 0 ? [false, true] : [false] {
+        for (phase, ticks) in segments {
+            if shadow && phase == .takeoff { continue } // A rising aircraft's shadow intentionally fades.
+            var flight = Aircraft(id: 0, livery: 0, phase: phase, standTime: 1800,
+                                  lane: 0, reverse: false, alongY: alongY)
+            var reference: [UInt32]?
+            var changedFrames = 0
+            for tick in ticks {
+                flight.elapsed = tick
+                var sprite = Pixels(width: 48, height: 40, background: Ink(0x82975D))
+                sprite.aircraft(at: Dot(24, 20), pose: flight.pose(at: airport), livery: 0,
+                                shadow: shadow, blink: false, palette: Palette(night: night))
+                if let reference, sprite.storage != reference { changedFrames += 1 }
+                else if reference == nil { reference = sprite.storage }
+            }
+            #expect(changedFrames == 0, "Straight \(phase) changed the aircraft silhouette in \(changedFrames) frames")
         }
-        #expect(changedFrames == 0, "Straight \(phase) changed the aircraft silhouette in \(changedFrames) frames")
+    }
+}
+
+@Test(arguments: [-0.22, 0, 0.22])
+func aircraftSilhouetteStaysConnectedWhileTurningAndBanking(bank: Double) throws {
+    let background = Ink(0x82975D)
+    let base = Pixels(width: 48, height: 40, background: background)
+    let center = Dot(24, 20)
+    let night = Palette(night: 1)
+    let lights = [night.color(0xB15E4E, 0xE18069), night.color(0x71A286, 0x9DD3AB)]
+    // Diagonal neighbors count as connected in the isometric sprite.
+    let neighbors = [-1, 0, 1].flatMap { row in [-1, 0, 1].map { row * base.width + $0 } }
+    for degrees in stride(from: 0, to: 360, by: 5) {
+        let angle = Double(degrees) * .pi / 180
+        let pose = Aircraft.Pose(x: 0, y: 0, dx: cos(angle), dy: sin(angle), altitude: 0, bank: bank, gear: false)
+        var day = base, dark = base, flashing = base, groundShadow = base
+        day.aircraft(at: center, pose: pose, livery: 0, shadow: false, blink: false, palette: Palette(night: 0))
+        dark.aircraft(at: center, pose: pose, livery: 0, shadow: false, blink: false, palette: night)
+        flashing.aircraft(at: center, pose: pose, livery: 0, shadow: false, blink: true, palette: night)
+        if bank == 0 {
+            groundShadow.aircraft(at: center, pose: pose, livery: 0, shadow: true, blink: false, palette: night)
+        }
+
+        let painted = day.storage.indices.filter { day.storage[$0] != background.pixel }
+        #expect(dark.storage.indices.filter { dark.storage[$0] != background.pixel } == painted)
+        #expect(flashing.storage.indices.filter { flashing.storage[$0] != background.pixel } == painted)
+        let beacon = dark.storage.indices.filter { dark.storage[$0] != flashing.storage[$0] }
+        #expect(beacon.count == 1)
+        #expect(beacon.first.map { flashing.storage[$0] } == night.gold.pixel)
+
+        let columns = painted.map { $0 % base.width }
+        let rows = painted.map { $0 / base.width }
+        let width = try #require(columns.max()) - #require(columns.min()) + 1
+        let height = try #require(rows.max()) - #require(rows.min()) + 1
+        #expect(width <= 27)
+        #expect(height <= 18)
+
+        var remaining = Set(painted.dropFirst())
+        var pending = [try #require(painted.first)]
+        while let pixel = pending.popLast() {
+            for offset in neighbors {
+                if let next = remaining.remove(pixel + offset) { pending.append(next) }
+            }
+        }
+        #expect(remaining.isEmpty, "Detached aircraft pixels at \(degrees)° with bank \(bank)")
+
+        for light in lights {
+            let pixels = dark.storage.indices.filter { dark.storage[$0] == light.pixel }
+            #expect(pixels.count == 1)
+            let tip = try #require(pixels.first)
+            if bank == 0 {
+                // Flattening the level wing moves its tip down by at most one pixel.
+                #expect([tip, tip + base.width].contains { groundShadow.storage[$0] != background.pixel })
+            }
+        }
+    }
+}
+
+@Test(arguments: [false, true], [0.0, 1.0])
+func aircraftLiveriesColorTheFinAndFuselage(alongY: Bool, night: Double) {
+    let palette = Palette(night: night)
+    let airport = Airport(origin: Plot(10, 10), alongY: alongY)
+    let center = Dot(24, 20)
+    let waterColors = [palette.water, palette.waterDark, palette.waterLight]
+    let colors: [UInt32] = [0x477C83, 0xAD6253, 0xB49755, 0x677A9A]
+    for (livery, color) in colors.enumerated() {
+        let accent = palette.color(color).mix(palette.color(0xE0DDC9, 0x9DA8B3), 0.34)
+        for water in waterColors {
+            let channelDifferences = [0, 8, 16].map { shift in
+                abs(Int((accent.rgb >> shift) & 255) - Int((water.rgb >> shift) & 255))
+            }
+            #expect(channelDifferences.contains { $0 >= 25 }, "Livery \(livery) blends into the river")
+        }
+        for phase in [Aircraft.Phase.parked, .landing] {
+            let flight = Aircraft(id: 0, livery: livery, phase: phase, standTime: 1800,
+                                  lane: 0, reverse: false, alongY: alongY)
+            let pose = flight.pose(at: airport)
+            var sprite = Pixels(width: 48, height: 40, background: Ink(0x82975D))
+            sprite.aircraft(at: center, pose: pose, livery: livery, shadow: false, blink: false, palette: palette)
+            let facing = pose.dx > pose.dy ? 1 : -1
+            let accents = sprite.storage.indices.filter { sprite.storage[$0] == accent.pixel }
+            let along = accents.map { ($0 % sprite.width - center.x) * facing }
+            #expect(along.contains { $0 <= -6 }, "Livery \(livery) is missing from the tail")
+            #expect(along.contains { (-5...1).contains($0) }, "Livery \(livery) is missing from the fuselage")
+        }
+    }
+}
+
+@Test(arguments: [false, true], [0.0, 1.0])
+func overflightRendersTheEntireAircraftOverOpenWater(alongY: Bool, night: Double) throws {
+    // These two crossings put the entire sprite over open water at wallpaper scale.
+    var city = City(seed: alongY ? 23 : 171)
+    var plane = Aircraft(id: 0, livery: 0, phase: .overflight, standTime: 1800,
+                         lane: 0, reverse: alongY, alongY: alongY)
+    plane.elapsed = alongY ? 1133 : 905
+    let pose = plane.pose(at: city.map.airport)
+    let viewport = CityViewport(pixelWidth: 1280, pixelHeight: 720)
+    let position = viewport.project(pose.x, pose.y, altitude: pose.altitude)
+    var preview = EnvironmentPreview()
+    preview.darkness = night
+    preview.month = 2
+    preview.weather = .clear
+    let environment = Environment.frame(city: city, preview: preview).quantized
+    let palette = Palette(night: night, environment: environment)
+    let water = [palette.water, palette.waterDark, palette.waterLight].map(\.pixel)
+    let background = CityRenderer().image(for: city, viewport: viewport, environment: environment)
+    city.aviation.aircraft = [plane]
+    let image = CityRenderer().image(for: city, viewport: viewport, environment: environment)
+    let backgroundData = try #require(background.dataProvider?.data) as Data
+    let imageData = try #require(image.dataProvider?.data) as Data
+
+    var sprite = Pixels(width: 36, height: 26, background: Ink(0))
+    let center = Dot(18, 13)
+    sprite.aircraft(at: center, pose: pose, livery: plane.livery, shadow: false, blink: true, palette: palette)
+    let painted = sprite.storage.indices.filter { sprite.storage[$0] != Ink(0).pixel }
+    #expect(painted.count > 60)
+    backgroundData.withUnsafeBytes { backdrop in
+        imageData.withUnsafeBytes { frame in
+            let ground = backdrop.bindMemory(to: UInt32.self)
+            let pixels = frame.bindMemory(to: UInt32.self)
+            for index in painted {
+                let x = position.x + index % sprite.width - center.x
+                let y = position.y + index / sprite.width - center.y
+                let destination = y * viewport.width + x
+                #expect(water.contains(ground[destination]))
+                #expect(pixels[destination] == sprite.storage[index])
+            }
+        }
     }
 }
 
