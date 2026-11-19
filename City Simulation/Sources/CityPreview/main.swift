@@ -30,48 +30,60 @@ final class PreviewModel: ObservableObject {
 struct PreviewControls: View {
     @ObservedObject var model: PreviewModel
     var body: some View {
-        HStack(spacing: 0) {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    Text("City environment").font(.title2.bold())
-                    Picker("Environment", selection: $model.mode) {
-                        ForEach(EnvironmentMode.allCases, id: \.self) { Text($0.title).tag($0) }
-                    }.onChange(of: model.mode) { previous, current in
-                        if previous.isSimulation != current.isSimulation { model.month = 1 }
-                    }
-                    Divider()
-                    Toggle("Inspect calendar", isOn: $model.inspectCalendar)
-                    if model.inspectCalendar {
-                        Slider(value: $model.month, in: 1...(model.mode.isSimulation ? 5 : 13), step: 0.01)
-                        Text(calendarDescription).font(.caption.monospacedDigit())
-                        HStack {
-                            Button("Previous") { model.month = max(1, ceil(model.month) - 1) }
-                            Button("Next") { model.month = min(model.mode.isSimulation ? 5 : 13, floor(model.month) + 1) }
-                        }
-                    }
-                    Picker("Lighting", selection: $model.light) {
-                        Text("Live").tag("live"); Text("Day").tag("day"); Text("Night").tag("night")
-                    }
-                    Picker("Weather preview", selection: $model.weather) {
-                        Text("Live").tag("live")
-                        ForEach(WeatherKind.allCases, id: \.self) { Text($0.title).tag($0.rawValue) }
-                    }
-                    Toggle("Inspect wind", isOn: $model.inspectWind)
-                    if model.inspectWind {
-                        Slider(value: $model.wind, in: 0...1)
-                        Text("Wind · \(Int(model.wind * 100))%").font(.caption.monospacedDigit())
-                    }
-                    Toggle("Pause city", isOn: $model.paused)
-                    Text(model.status).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
-                    Spacer(minLength: 0)
-                    Text("Previews leave saved wallpaper cities untouched. Wallpaper settings are in System Settings → Wallpaper.")
-                        .font(.caption).foregroundStyle(.secondary)
-                }.padding(20)
-            }.frame(width: 300)
-            Divider()
-            PreviewCanvas(model: model)
-        }.frame(minWidth: 940, minHeight: 680)
+        GeometryReader { geometry in
+            let compact = geometry.size.width < 760
+            let layout = compact ? AnyLayout(VStackLayout(spacing: 0)) : AnyLayout(HStackLayout(spacing: 0))
+            layout {
+                controls
+                    .frame(width: compact ? nil : 300, height: compact ? min(280, geometry.size.height * 0.4) : nil)
+                Divider()
+                PreviewCanvas(model: model)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        }
+        .frame(minWidth: 360, minHeight: 320)
     }
+
+    private var controls: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                Text("City environment").font(.title2.bold())
+                Picker("Environment", selection: $model.mode) {
+                    ForEach(EnvironmentMode.allCases, id: \.self) { Text($0.title).tag($0) }
+                }.onChange(of: model.mode) { previous, current in
+                    if previous.isSimulation != current.isSimulation { model.month = 1 }
+                }
+                Divider()
+                Toggle("Inspect calendar", isOn: $model.inspectCalendar)
+                if model.inspectCalendar {
+                    Slider(value: $model.month, in: 1...(model.mode.isSimulation ? 5 : 13), step: 0.01)
+                    Text(calendarDescription).font(.caption.monospacedDigit())
+                    HStack {
+                        Button("Previous") { model.month = max(1, ceil(model.month) - 1) }
+                        Button("Next") { model.month = min(model.mode.isSimulation ? 5 : 13, floor(model.month) + 1) }
+                    }
+                }
+                Picker("Lighting", selection: $model.light) {
+                    Text("Live").tag("live"); Text("Day").tag("day"); Text("Night").tag("night")
+                }
+                Picker("Weather preview", selection: $model.weather) {
+                    Text("Live").tag("live")
+                    ForEach(WeatherKind.allCases, id: \.self) { Text($0.title).tag($0.rawValue) }
+                }
+                Toggle("Inspect wind", isOn: $model.inspectWind)
+                if model.inspectWind {
+                    Slider(value: $model.wind, in: 0...1)
+                    Text("Wind · \(Int(model.wind * 100))%").font(.caption.monospacedDigit())
+                }
+                Toggle("Pause city", isOn: $model.paused)
+                Text(model.status).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: 0)
+                Text("Previews leave saved wallpaper cities untouched. Wallpaper settings are in System Settings → Wallpaper.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }.padding(20)
+        }
+    }
+
     private var calendarDescription: String {
         let count = model.mode.isSimulation ? 4 : 12
         let index = (Int(model.month) - 1) % count
@@ -205,9 +217,16 @@ func run() throws {
     guard args.isEmpty else { throw PreviewError.usage }
     let app = NSApplication.shared
     app.setActivationPolicy(.regular)
+    let mainMenu = NSMenu()
+    let appMenu = NSMenu()
+    appMenu.addItem(withTitle: "Quit City Simulation", action: #selector(NSApplication.terminate(_:)),
+                    keyEquivalent: "q").target = app
+    mainMenu.addItem(withTitle: "City Simulation", action: nil, keyEquivalent: "").submenu = appMenu
+    app.mainMenu = mainMenu
     let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1320, height: 780),
                           styleMask: [.titled, .closable, .resizable, .miniaturizable], backing: .buffered, defer: false)
     window.title = "City Simulation"
+    window.collectionBehavior = [.fullScreenPrimary, .fullScreenAllowsTiling]
     let model = PreviewModel()
     model.mode = mode
     model.inspectWind = preview.wind != nil; model.wind = preview.wind ?? 0.5

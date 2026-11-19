@@ -104,10 +104,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     @objc private func openSettings() {
         if settingsWindow == nil {
-            let window = NSWindow(contentRect: CGRect(x: 0, y: 0, width: 728, height: 650),
-                                  styleMask: [.titled, .closable, .miniaturizable],
-                                  backing: .buffered, defer: false)
+            let window = SettingsWindow(contentRect: CGRect(x: 0, y: 0, width: 728, height: 650),
+                                        styleMask: [.titled, .closable, .resizable, .miniaturizable],
+                                        backing: .buffered, defer: false)
             window.title = "Game of Life"
+            window.shortcutMenu = statusItem?.menu
+            window.collectionBehavior = [.fullScreenPrimary, .fullScreenAllowsTiling]
             window.isReleasedWhenClosed = false
             window.delegate = self
             window.center()
@@ -137,5 +139,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             alert.informativeText = error.localizedDescription
         }
         if let window = settingsWindow { alert.beginSheetModal(for: window) }
+    }
+}
+
+private final class SettingsWindow: NSWindow {
+    weak var shortcutMenu: NSMenu?
+
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        // The menu-bar app has no main menu to dispatch the status item's shortcuts.
+        shortcutMenu?.performKeyEquivalent(with: event) == true || super.performKeyEquivalent(with: event)
     }
 }
