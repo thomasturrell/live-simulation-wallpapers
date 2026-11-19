@@ -1,0 +1,673 @@
+[
+  {
+    "id": "woodland-food-web",
+    "name": "Woodland food web",
+    "category": "nature",
+    "description": "Leaves and seeds support herbivores, predators and the organisms that recycle litter.",
+    "layout": "mesh",
+    "groups": [],
+    "nodes": [
+      {"id": "oak-canopy", "name": "Oak canopy", "symbol": "tree", "kind": "entity", "detail": "Feeds insects and produces seeds for woodland mammals.", "concept": "forest"},
+      {"id": "caterpillars", "name": "Caterpillars", "kind": "entity"},
+      {"id": "songbirds", "name": "Songbirds", "kind": "entity"},
+      {"id": "acorns", "name": "Acorns", "kind": "store"},
+      {"id": "wood-mice", "name": "Wood mice", "kind": "entity"},
+      {"id": "owls", "name": "Owls", "kind": "entity"},
+      {"id": "leaf-litter", "name": "Leaf litter", "kind": "store", "concept": "detritus"},
+      {"id": "fungi", "name": "Fungi", "symbol": "leaf", "kind": "process", "detail": "Break down woody litter and recycle nutrients.", "concept": "decomposition"}
+    ],
+    "edges": [
+      {"source": "oak-canopy", "target": "caterpillars", "kind": "flow", "label": "supplies leaves"},
+      {"source": "caterpillars", "target": "songbirds", "kind": "flow", "label": "feeds nestlings"},
+      {"source": "oak-canopy", "target": "acorns", "kind": "flow", "label": "produces seeds"},
+      {"source": "acorns", "target": "wood-mice", "kind": "flow", "label": "feeds mice"},
+      {"source": "wood-mice", "target": "owls", "kind": "flow", "label": "feeds owls"},
+      {"source": "songbirds", "target": "owls", "kind": "flow", "label": "feeds owls"},
+      {"source": "oak-canopy", "target": "leaf-litter", "kind": "flow", "label": "sheds leaves"},
+      {"source": "leaf-litter", "target": "fungi", "kind": "flow", "label": "supplies carbon"},
+      {"source": "fungi", "target": "oak-canopy", "kind": "feedback", "label": "releases nutrients"}
+    ]
+  },
+  {
+    "id": "photosynthesis",
+    "name": "Photosynthesis",
+    "category": "nature",
+    "description": "Leaves use light energy to fix carbon dioxide into sugars.",
+    "layout": "grouped",
+    "groups": [
+      {"id": "light-reactions", "name": "Light reactions"},
+      {"id": "carbon-fixation", "name": "Carbon fixation"},
+      {"id": "energy-transfer", "name": "Energy transfer", "parent": "light-reactions"}
+    ],
+    "nodes": [
+      {"id": "sunlight", "name": "Sunlight", "symbol": "sun.max", "kind": "entity", "concept": "solar"},
+      {"id": "chlorophyll", "name": "Chlorophyll", "kind": "sensor", "group": "light-reactions"},
+      {"id": "water", "name": "Water", "kind": "entity", "group": "light-reactions"},
+      {"id": "electron-transport", "name": "Electron transport", "kind": "process", "detail": "Uses excited electrons to build an energy gradient.", "group": "energy-transfer"},
+      {"id": "atp-and-nadph", "name": "ATP and NADPH", "kind": "store", "group": "energy-transfer"},
+      {"id": "calvin-cycle", "name": "Calvin cycle", "kind": "process", "detail": "Incorporates carbon into organic molecules.", "group": "carbon-fixation"},
+      {"id": "carbon-dioxide", "name": "Carbon dioxide", "kind": "entity", "concept": "co2", "group": "carbon-fixation"},
+      {"id": "sugar", "name": "Sugar", "kind": "entity", "group": "carbon-fixation"}
+    ],
+    "edges": [
+      {"source": "sunlight", "target": "chlorophyll", "kind": "flow", "label": "excites pigments"},
+      {"source": "chlorophyll", "target": "electron-transport", "kind": "signal", "label": "initiates transfer"},
+      {"source": "water", "target": "electron-transport", "kind": "flow", "label": "supplies electrons"},
+      {"source": "electron-transport", "target": "atp-and-nadph", "kind": "flow", "label": "provides energy carriers"},
+      {"source": "atp-and-nadph", "target": "calvin-cycle", "kind": "flow", "label": "powers fixation"},
+      {"source": "carbon-dioxide", "target": "calvin-cycle", "kind": "flow", "label": "supplies carbon"},
+      {"source": "calvin-cycle", "target": "sugar", "kind": "flow", "label": "builds carbohydrate"}
+    ]
+  },
+  {
+    "id": "water-cycle",
+    "name": "Water cycle",
+    "category": "nature",
+    "description": "Water moves between the atmosphere, land, groundwater and sea.",
+    "layout": "cycle",
+    "groups": [],
+    "nodes": [
+      {"id": "ocean", "name": "Ocean", "symbol": "water.waves", "kind": "store", "concept": "ocean"},
+      {"id": "evaporation", "name": "Evaporation", "symbol": "sun.horizon", "kind": "process"},
+      {"id": "water-vapour", "name": "Water vapour", "symbol": "cloud", "kind": "entity"},
+      {"id": "clouds", "name": "Clouds", "symbol": "cloud", "kind": "entity", "detail": "Form as water vapour condenses into droplets or ice.", "concept": "cloud"},
+      {"id": "precipitation", "name": "Precipitation", "symbol": "cloud.rain", "kind": "event", "concept": "rain"},
+      {"id": "river-runoff", "name": "River runoff", "symbol": "water.waves", "kind": "process", "concept": "river"},
+      {"id": "aquifer", "name": "Aquifer", "symbol": "drop", "kind": "store", "detail": "Stores water in permeable rock and sediments.", "concept": "groundwater"},
+      {"id": "transpiration", "name": "Transpiration", "symbol": "leaf", "kind": "process"}
+    ],
+    "edges": [
+      {"source": "ocean", "target": "evaporation", "kind": "flow", "label": "supplies water"},
+      {"source": "evaporation", "target": "water-vapour", "kind": "flow", "label": "adds vapour"},
+      {"source": "water-vapour", "target": "clouds", "kind": "flow", "label": "condenses"},
+      {"source": "clouds", "target": "precipitation", "kind": "flow", "label": "releases water"},
+      {"source": "precipitation", "target": "river-runoff", "kind": "flow", "label": "feeds streams"},
+      {"source": "river-runoff", "target": "ocean", "kind": "flow", "label": "returns water"},
+      {"source": "precipitation", "target": "aquifer", "kind": "flow", "label": "recharges aquifer"},
+      {"source": "aquifer", "target": "river-runoff", "kind": "flow", "label": "sustains baseflow"},
+      {"source": "aquifer", "target": "transpiration", "kind": "flow", "label": "supplies roots"},
+      {"source": "transpiration", "target": "water-vapour", "kind": "flow", "label": "releases vapour"}
+    ]
+  },
+  {
+    "id": "carbon-cycle",
+    "name": "Carbon cycle",
+    "category": "nature",
+    "description": "Carbon passes among air, plants, soils and the ocean over different timescales.",
+    "layout": "mesh",
+    "groups": [],
+    "nodes": [
+      {"id": "atmosphere", "name": "Atmosphere", "kind": "store", "concept": "co2"},
+      {"id": "land-plants", "name": "Land plants", "symbol": "tree", "kind": "entity", "concept": "forest"},
+      {"id": "soil-carbon", "name": "Soil carbon", "symbol": "leaf", "kind": "store", "detail": "Retains carbon in roots and organic matter.", "concept": "soil"},
+      {"id": "decomposers", "name": "Decomposers", "symbol": "leaf", "kind": "process", "concept": "decomposition"},
+      {"id": "surface-ocean", "name": "Surface ocean", "symbol": "water.waves", "kind": "store", "concept": "ocean"},
+      {"id": "deep-ocean", "name": "Deep ocean", "kind": "store"},
+      {"id": "marine-plankton", "name": "Marine plankton", "kind": "entity", "detail": "Converts dissolved carbon into living material.", "concept": "plankton"}
+    ],
+    "edges": [
+      {"source": "atmosphere", "target": "land-plants", "kind": "flow", "label": "feeds fixation"},
+      {"source": "land-plants", "target": "soil-carbon", "kind": "flow", "label": "contributes litter"},
+      {"source": "soil-carbon", "target": "decomposers", "kind": "flow", "label": "feeds decay"},
+      {"source": "decomposers", "target": "atmosphere", "kind": "flow", "label": "releases carbon"},
+      {"source": "atmosphere", "target": "surface-ocean", "kind": "flow", "label": "dissolves gas"},
+      {"source": "surface-ocean", "target": "atmosphere", "kind": "flow", "label": "outgasses"},
+      {"source": "surface-ocean", "target": "marine-plankton", "kind": "flow", "label": "supports fixation"},
+      {"source": "marine-plankton", "target": "deep-ocean", "kind": "flow", "label": "exports particles"},
+      {"source": "deep-ocean", "target": "surface-ocean", "kind": "flow", "label": "returns dissolved carbon"}
+    ]
+  },
+  {
+    "id": "adaptive-immunity",
+    "name": "Adaptive immunity",
+    "category": "nature",
+    "description": "Recognition activates specialised cells and leaves a memory of earlier encounters.",
+    "layout": "tree",
+    "groups": [],
+    "nodes": [
+      {"id": "antigen", "name": "Antigen", "kind": "entity"},
+      {"id": "presenting-cell", "name": "Presenting cell", "kind": "entity", "detail": "Displays antigen fragments for recognition."},
+      {"id": "helper-t-cell", "name": "Helper T cell", "kind": "hub"},
+      {"id": "b-cell", "name": "B cell", "kind": "entity"},
+      {"id": "plasma-cell", "name": "Plasma cell", "kind": "process", "detail": "Produces antibodies that recognise a particular target."},
+      {"id": "antibodies", "name": "Antibodies", "kind": "entity"},
+      {"id": "memory-cells", "name": "Memory cells", "kind": "store"}
+    ],
+    "edges": [
+      {"source": "antigen", "target": "presenting-cell", "kind": "flow", "label": "supplies antigen"},
+      {"source": "presenting-cell", "target": "helper-t-cell", "kind": "signal", "label": "presents fragment"},
+      {"source": "helper-t-cell", "target": "b-cell", "kind": "signal", "label": "supports activation"},
+      {"source": "b-cell", "target": "plasma-cell", "kind": "flow", "label": "differentiates"},
+      {"source": "plasma-cell", "target": "antibodies", "kind": "flow", "label": "secretes"},
+      {"source": "antibodies", "target": "antigen", "kind": "dependency", "label": "binds target"},
+      {"source": "b-cell", "target": "memory-cells", "kind": "flow", "label": "forms memory"},
+      {"source": "helper-t-cell", "target": "memory-cells", "kind": "flow", "label": "forms memory"}
+    ]
+  },
+  {
+    "id": "withdrawal-reflex",
+    "name": "Withdrawal reflex",
+    "category": "nature",
+    "description": "A sensory stimulus can trigger muscle withdrawal through a spinal circuit.",
+    "layout": "flow",
+    "groups": [],
+    "nodes": [
+      {"id": "skin-receptor", "name": "Skin receptor", "kind": "sensor", "concept": "sensation"},
+      {"id": "sensory-neuron", "name": "Sensory neuron", "kind": "entity"},
+      {"id": "spinal-interneuron", "name": "Spinal interneuron", "kind": "hub", "detail": "Links sensory input to a rapid local response."},
+      {"id": "flexor-motor-neuron", "name": "Flexor motor neuron", "kind": "entity"},
+      {"id": "flexor-muscle", "name": "Flexor muscle", "kind": "process", "concept": "muscle"},
+      {"id": "inhibitory-neuron", "name": "Inhibitory neuron", "kind": "entity", "detail": "Reduces activity in the opposing muscle."},
+      {"id": "extensor-motor-neuron", "name": "Extensor motor neuron", "kind": "entity"}
+    ],
+    "edges": [
+      {"source": "skin-receptor", "target": "sensory-neuron", "kind": "signal", "label": "signals stimulus"},
+      {"source": "sensory-neuron", "target": "spinal-interneuron", "kind": "signal", "label": "carries impulse"},
+      {"source": "spinal-interneuron", "target": "flexor-motor-neuron", "kind": "signal", "label": "excites"},
+      {"source": "flexor-motor-neuron", "target": "flexor-muscle", "kind": "signal", "label": "contracts muscle"},
+      {"source": "spinal-interneuron", "target": "inhibitory-neuron", "kind": "signal", "label": "recruits"},
+      {"source": "inhibitory-neuron", "target": "extensor-motor-neuron", "kind": "inhibition", "label": "suppresses extension"}
+    ]
+  },
+  {
+    "id": "human-circulation",
+    "name": "Human circulation",
+    "category": "nature",
+    "description": "Blood passes through the lungs and body in two connected loops.",
+    "layout": "cycle",
+    "groups": [],
+    "nodes": [
+      {"id": "right-atrium", "name": "Right atrium", "kind": "store"},
+      {"id": "right-ventricle", "name": "Right ventricle", "kind": "process"},
+      {"id": "lung-capillaries", "name": "Lung capillaries", "kind": "entity", "detail": "Exchange oxygen and carbon dioxide with the lungs.", "concept": "gas-exchange"},
+      {"id": "left-atrium", "name": "Left atrium", "kind": "store"},
+      {"id": "left-ventricle", "name": "Left ventricle", "kind": "process", "detail": "Drives oxygenated blood into the body."},
+      {"id": "systemic-arteries", "name": "Systemic arteries", "kind": "hub"},
+      {"id": "body-tissues", "name": "Body tissues", "kind": "entity"},
+      {"id": "systemic-veins", "name": "Systemic veins", "kind": "hub"}
+    ],
+    "edges": [
+      {"source": "right-atrium", "target": "right-ventricle", "kind": "flow", "label": "fills chamber"},
+      {"source": "right-ventricle", "target": "lung-capillaries", "kind": "flow", "label": "pumps blood"},
+      {"source": "lung-capillaries", "target": "left-atrium", "kind": "flow", "label": "returns oxygenated blood"},
+      {"source": "left-atrium", "target": "left-ventricle", "kind": "flow", "label": "fills chamber"},
+      {"source": "left-ventricle", "target": "systemic-arteries", "kind": "flow", "label": "drives flow"},
+      {"source": "systemic-arteries", "target": "body-tissues", "kind": "flow", "label": "supplies oxygen"},
+      {"source": "body-tissues", "target": "systemic-veins", "kind": "flow", "label": "drains blood"},
+      {"source": "systemic-veins", "target": "right-atrium", "kind": "flow", "label": "returns blood"}
+    ]
+  },
+  {
+    "id": "tetrapod-ancestry",
+    "name": "Tetrapod ancestry",
+    "category": "nature",
+    "description": "A branching lineage connects living amphibians, mammals, reptiles and birds.",
+    "layout": "tree",
+    "groups": [],
+    "nodes": [
+      {"id": "tetrapod-ancestor", "name": "Tetrapod ancestor", "kind": "entity"},
+      {"id": "amphibian-lineage", "name": "Amphibian lineage", "kind": "entity"},
+      {"id": "amniote-ancestor", "name": "Amniote ancestor", "kind": "entity", "detail": "Represents the shared ancestry of amniotes."},
+      {"id": "synapsid-lineage", "name": "Synapsid lineage", "kind": "entity"},
+      {"id": "mammals", "name": "Mammals", "kind": "entity"},
+      {"id": "sauropsid-lineage", "name": "Sauropsid lineage", "kind": "entity"},
+      {"id": "lepidosaurs", "name": "Lepidosaurs", "kind": "entity"},
+      {"id": "archosaurs", "name": "Archosaurs", "kind": "entity", "detail": "Includes the lineages of crocodilians and birds."},
+      {"id": "birds", "name": "Birds", "kind": "entity"}
+    ],
+    "edges": [
+      {"source": "tetrapod-ancestor", "target": "amphibian-lineage", "kind": "flow", "label": "branches into"},
+      {"source": "tetrapod-ancestor", "target": "amniote-ancestor", "kind": "flow", "label": "gives rise to"},
+      {"source": "amniote-ancestor", "target": "synapsid-lineage", "kind": "flow", "label": "branches into"},
+      {"source": "synapsid-lineage", "target": "mammals", "kind": "flow", "label": "includes"},
+      {"source": "amniote-ancestor", "target": "sauropsid-lineage", "kind": "flow", "label": "branches into"},
+      {"source": "sauropsid-lineage", "target": "lepidosaurs", "kind": "flow", "label": "includes"},
+      {"source": "sauropsid-lineage", "target": "archosaurs", "kind": "flow", "label": "includes"},
+      {"source": "archosaurs", "target": "birds", "kind": "flow", "label": "includes"}
+    ]
+  },
+  {
+    "id": "ice-and-albedo",
+    "name": "Ice and albedo",
+    "category": "nature",
+    "description": "Reflective ice changes how much sunlight the surface absorbs.",
+    "layout": "cycle",
+    "groups": [],
+    "nodes": [
+      {"id": "surface-warming", "name": "Surface warming", "symbol": "thermometer.medium", "kind": "event", "concept": "temperature"},
+      {"id": "sea-ice", "name": "Sea ice", "symbol": "snowflake", "kind": "store", "detail": "Reflects more incoming sunlight than open water.", "concept": "ice"},
+      {"id": "open-water", "name": "Open water", "symbol": "water.waves", "kind": "entity", "concept": "ocean"},
+      {"id": "solar-absorption", "name": "Solar absorption", "symbol": "sun.max", "kind": "process", "concept": "solar"},
+      {"id": "upper-ocean-heat", "name": "Upper ocean heat", "kind": "store", "detail": "Retains some absorbed energy near the surface."},
+      {"id": "winter-cooling", "name": "Winter cooling", "kind": "event"}
+    ],
+    "edges": [
+      {"source": "surface-warming", "target": "sea-ice", "kind": "inhibition", "label": "accelerates melt"},
+      {"source": "sea-ice", "target": "open-water", "kind": "inhibition", "label": "reduces open area"},
+      {"source": "open-water", "target": "solar-absorption", "kind": "flow", "label": "increases absorption"},
+      {"source": "solar-absorption", "target": "upper-ocean-heat", "kind": "flow", "label": "adds heat"},
+      {"source": "upper-ocean-heat", "target": "surface-warming", "kind": "feedback", "label": "reinforces warming"},
+      {"source": "winter-cooling", "target": "sea-ice", "kind": "flow", "label": "promotes freezing"},
+      {"source": "sea-ice", "target": "solar-absorption", "kind": "inhibition", "label": "reflects sunlight"}
+    ]
+  },
+  {
+    "id": "nitrogen-cycling",
+    "name": "Nitrogen cycling",
+    "category": "nature",
+    "description": "Microbes transform nitrogen between atmospheric, soil and biological forms.",
+    "layout": "cycle",
+    "groups": [],
+    "nodes": [
+      {"id": "airborne-nitrogen", "name": "Airborne nitrogen", "kind": "store"},
+      {"id": "nitrogen-fixers", "name": "Nitrogen fixers", "kind": "process", "detail": "Convert atmospheric nitrogen into biologically usable forms."},
+      {"id": "ammonium", "name": "Ammonium", "kind": "entity"},
+      {"id": "nitrifiers", "name": "Nitrifiers", "kind": "process"},
+      {"id": "nitrate", "name": "Nitrate", "kind": "entity"},
+      {"id": "plant-tissue", "name": "Plant tissue", "kind": "entity"},
+      {"id": "decomposers", "name": "Decomposers", "symbol": "leaf", "kind": "process", "concept": "decomposition"},
+      {"id": "denitrifiers", "name": "Denitrifiers", "kind": "process", "detail": "Return nitrogen to the atmosphere."}
+    ],
+    "edges": [
+      {"source": "airborne-nitrogen", "target": "nitrogen-fixers", "kind": "flow", "label": "supplies nitrogen"},
+      {"source": "nitrogen-fixers", "target": "ammonium", "kind": "flow", "label": "produces ammonium"},
+      {"source": "ammonium", "target": "nitrifiers", "kind": "flow", "label": "supplies substrate"},
+      {"source": "nitrifiers", "target": "nitrate", "kind": "flow", "label": "produces nitrate"},
+      {"source": "nitrate", "target": "plant-tissue", "kind": "flow", "label": "supports growth"},
+      {"source": "plant-tissue", "target": "decomposers", "kind": "flow", "label": "supplies litter"},
+      {"source": "decomposers", "target": "ammonium", "kind": "flow", "label": "releases ammonium"},
+      {"source": "nitrate", "target": "denitrifiers", "kind": "flow", "label": "supplies nitrate"},
+      {"source": "denitrifiers", "target": "airborne-nitrogen", "kind": "flow", "label": "returns nitrogen"}
+    ]
+  },
+  {
+    "id": "pollination-network",
+    "name": "Pollination network",
+    "category": "nature",
+    "description": "Flowering plants and visiting animals exchange food and pollen.",
+    "layout": "mesh",
+    "groups": [],
+    "nodes": [
+      {"id": "meadow-flowers", "name": "Meadow flowers", "kind": "entity"},
+      {"id": "orchard-blossom", "name": "Orchard blossom", "kind": "entity"},
+      {"id": "bumblebees", "name": "Bumblebees", "symbol": "camera.macro", "kind": "entity", "detail": "Carry pollen between flowers while foraging.", "concept": "pollinator"},
+      {"id": "solitary-bees", "name": "Solitary bees", "kind": "entity"},
+      {"id": "hoverflies", "name": "Hoverflies", "kind": "entity"},
+      {"id": "pollen-transfer", "name": "Pollen transfer", "kind": "process"},
+      {"id": "fruit-set", "name": "Fruit set", "kind": "event", "detail": "Follows successful pollination and fertilisation."}
+    ],
+    "edges": [
+      {"source": "meadow-flowers", "target": "bumblebees", "kind": "flow", "label": "supplies nectar"},
+      {"source": "orchard-blossom", "target": "bumblebees", "kind": "flow", "label": "supplies pollen"},
+      {"source": "orchard-blossom", "target": "solitary-bees", "kind": "flow", "label": "supplies food"},
+      {"source": "meadow-flowers", "target": "hoverflies", "kind": "flow", "label": "supplies nectar"},
+      {"source": "bumblebees", "target": "pollen-transfer", "kind": "flow", "label": "carries pollen"},
+      {"source": "solitary-bees", "target": "pollen-transfer", "kind": "flow", "label": "carries pollen"},
+      {"source": "hoverflies", "target": "pollen-transfer", "kind": "flow", "label": "carries pollen"},
+      {"source": "pollen-transfer", "target": "fruit-set", "kind": "flow", "label": "enables fertilisation"}
+    ]
+  },
+  {
+    "id": "kelp-forest",
+    "name": "Kelp forest",
+    "category": "nature",
+    "description": "Predator and grazer populations shape a coastal underwater forest.",
+    "layout": "tree",
+    "groups": [],
+    "nodes": [
+      {"id": "kelp-canopy", "name": "Kelp canopy", "kind": "entity"},
+      {"id": "sea-urchins", "name": "Sea urchins", "kind": "entity", "detail": "Graze kelp and can suppress the canopy."},
+      {"id": "sea-otters", "name": "Sea otters", "kind": "entity", "detail": "Limit grazing pressure by eating sea urchins."},
+      {"id": "reef-fish", "name": "Reef fish", "kind": "entity"},
+      {"id": "detached-kelp", "name": "Detached kelp", "kind": "entity", "concept": "detritus"},
+      {"id": "detritivores", "name": "Detritivores", "kind": "entity"},
+      {"id": "nutrient-upwelling", "name": "Nutrient upwelling", "kind": "process", "concept": "upwelling"}
+    ],
+    "edges": [
+      {"source": "nutrient-upwelling", "target": "kelp-canopy", "kind": "flow", "label": "supplies nutrients"},
+      {"source": "kelp-canopy", "target": "sea-urchins", "kind": "flow", "label": "feeds grazers"},
+      {"source": "sea-otters", "target": "sea-urchins", "kind": "inhibition", "label": "limits grazers"},
+      {"source": "sea-urchins", "target": "kelp-canopy", "kind": "inhibition", "label": "grazes blades"},
+      {"source": "kelp-canopy", "target": "reef-fish", "kind": "flow", "label": "shelters juveniles"},
+      {"source": "kelp-canopy", "target": "detached-kelp", "kind": "flow", "label": "sheds blades"},
+      {"source": "detached-kelp", "target": "detritivores", "kind": "flow", "label": "feeds scavengers"}
+    ]
+  },
+  {
+    "id": "forest-succession",
+    "name": "Forest succession",
+    "category": "nature",
+    "description": "Disturbance opens a patch where grasses, shrubs and trees establish in turn.",
+    "layout": "vertical",
+    "groups": [],
+    "nodes": [
+      {"id": "canopy-gap", "name": "Canopy gap", "kind": "event", "detail": "Admits light to the forest floor."},
+      {"id": "pioneer-herbs", "name": "Pioneer herbs", "kind": "entity"},
+      {"id": "shrub-layer", "name": "Shrub layer", "kind": "entity"},
+      {"id": "young-trees", "name": "Young trees", "kind": "entity"},
+      {"id": "mature-canopy", "name": "Mature canopy", "symbol": "tree", "kind": "entity", "detail": "Shades the understorey as tree crowns meet.", "concept": "forest"},
+      {"id": "shade", "name": "Shade", "kind": "entity"},
+      {"id": "fallen-timber", "name": "Fallen timber", "kind": "store", "concept": "detritus"}
+    ],
+    "edges": [
+      {"source": "canopy-gap", "target": "pioneer-herbs", "kind": "flow", "label": "opens habitat"},
+      {"source": "pioneer-herbs", "target": "shrub-layer", "kind": "flow", "label": "stabilises soil"},
+      {"source": "shrub-layer", "target": "young-trees", "kind": "flow", "label": "shelters seedlings"},
+      {"source": "young-trees", "target": "mature-canopy", "kind": "flow", "label": "matures into canopy"},
+      {"source": "mature-canopy", "target": "shade", "kind": "flow", "label": "casts shade"},
+      {"source": "shade", "target": "pioneer-herbs", "kind": "inhibition", "label": "limits growth"},
+      {"source": "mature-canopy", "target": "fallen-timber", "kind": "flow", "label": "sheds timber"},
+      {"source": "fallen-timber", "target": "canopy-gap", "kind": "flow", "label": "opens new gaps"}
+    ]
+  },
+  {
+    "id": "river-floodplain",
+    "name": "River floodplain",
+    "category": "nature",
+    "description": "A river overtops its bank and exchanges water, sediment and nutrients with its floodplain.",
+    "layout": "cycle",
+    "groups": [],
+    "nodes": [
+      {"id": "river-channel", "name": "River channel", "symbol": "water.waves", "kind": "entity", "concept": "river"},
+      {"id": "high-flow", "name": "High flow", "symbol": "cloud.rain", "kind": "event", "concept": "rain"},
+      {"id": "overbank-flow", "name": "Overbank flow", "kind": "process", "detail": "Spreads water and sediment beyond the channel."},
+      {"id": "floodplain-soil", "name": "Floodplain soil", "symbol": "leaf", "kind": "store", "concept": "soil"},
+      {"id": "wetland-pool", "name": "Wetland pool", "kind": "store", "detail": "Holds water after the river recedes."},
+      {"id": "groundwater", "name": "Groundwater", "symbol": "drop", "kind": "store", "concept": "groundwater"},
+      {"id": "return-flow", "name": "Return flow", "kind": "process"}
+    ],
+    "edges": [
+      {"source": "high-flow", "target": "river-channel", "kind": "flow", "label": "raises stage"},
+      {"source": "river-channel", "target": "overbank-flow", "kind": "flow", "label": "spills water"},
+      {"source": "overbank-flow", "target": "floodplain-soil", "kind": "flow", "label": "deposits sediment"},
+      {"source": "overbank-flow", "target": "wetland-pool", "kind": "flow", "label": "fills pools"},
+      {"source": "wetland-pool", "target": "groundwater", "kind": "flow", "label": "recharges aquifer"},
+      {"source": "groundwater", "target": "return-flow", "kind": "flow", "label": "sustains drainage"},
+      {"source": "return-flow", "target": "river-channel", "kind": "flow", "label": "returns water"}
+    ]
+  },
+  {
+    "id": "coastal-upwelling",
+    "name": "Coastal upwelling",
+    "category": "nature",
+    "description": "Wind displaces surface water and draws nutrients up from deeper layers.",
+    "layout": "vertical",
+    "groups": [],
+    "nodes": [
+      {"id": "alongshore-wind", "name": "Alongshore wind", "symbol": "wind", "kind": "entity", "concept": "wind"},
+      {"id": "surface-transport", "name": "Surface transport", "kind": "process", "detail": "Moves surface water away from the coast."},
+      {"id": "deep-water", "name": "Deep water", "symbol": "water.waves", "kind": "store", "concept": "ocean"},
+      {"id": "upwelling", "name": "Upwelling", "kind": "process", "concept": "upwelling"},
+      {"id": "nutrients", "name": "Nutrients", "kind": "entity"},
+      {"id": "phytoplankton", "name": "Phytoplankton", "kind": "entity", "detail": "Uses light and newly supplied nutrients to grow.", "concept": "plankton"},
+      {"id": "forage-fish", "name": "Forage fish", "kind": "entity"},
+      {"id": "zooplankton", "name": "Zooplankton", "kind": "entity"}
+    ],
+    "edges": [
+      {"source": "alongshore-wind", "target": "surface-transport", "kind": "flow", "label": "drives transport"},
+      {"source": "surface-transport", "target": "upwelling", "kind": "signal", "label": "draws replacement"},
+      {"source": "deep-water", "target": "upwelling", "kind": "flow", "label": "supplies cold water"},
+      {"source": "upwelling", "target": "nutrients", "kind": "flow", "label": "delivers nutrients"},
+      {"source": "nutrients", "target": "phytoplankton", "kind": "flow", "label": "supports growth"},
+      {"source": "phytoplankton", "target": "zooplankton", "kind": "flow", "label": "feeds grazers"},
+      {"source": "zooplankton", "target": "forage-fish", "kind": "flow", "label": "feeds fish"}
+    ]
+  },
+  {
+    "id": "snowpack-hydrology",
+    "name": "Snowpack hydrology",
+    "category": "nature",
+    "description": "Winter snow stores water and releases it as temperatures rise.",
+    "layout": "cycle",
+    "groups": [],
+    "nodes": [
+      {"id": "snowfall", "name": "Snowfall", "kind": "event"},
+      {"id": "snowpack", "name": "Snowpack", "symbol": "snowflake", "kind": "store", "detail": "Stores winter precipitation until the thaw.", "concept": "ice"},
+      {"id": "spring-warmth", "name": "Spring warmth", "symbol": "thermometer.medium", "kind": "entity", "concept": "temperature"},
+      {"id": "meltwater", "name": "Meltwater", "kind": "entity"},
+      {"id": "soil-storage", "name": "Soil storage", "symbol": "leaf", "kind": "store", "concept": "soil"},
+      {"id": "streamflow", "name": "Streamflow", "symbol": "water.waves", "kind": "entity", "concept": "river"},
+      {"id": "sublimation", "name": "Sublimation", "kind": "process", "detail": "Transfers ice directly into water vapour."}
+    ],
+    "edges": [
+      {"source": "snowfall", "target": "snowpack", "kind": "flow", "label": "adds snow"},
+      {"source": "spring-warmth", "target": "meltwater", "kind": "flow", "label": "drives melting"},
+      {"source": "snowpack", "target": "meltwater", "kind": "flow", "label": "releases water"},
+      {"source": "meltwater", "target": "soil-storage", "kind": "flow", "label": "infiltrates"},
+      {"source": "meltwater", "target": "streamflow", "kind": "flow", "label": "runs off"},
+      {"source": "soil-storage", "target": "streamflow", "kind": "flow", "label": "sustains baseflow"},
+      {"source": "snowpack", "target": "sublimation", "kind": "flow", "label": "loses vapour"}
+    ]
+  },
+  {
+    "id": "plate-tectonics",
+    "name": "Plate tectonics",
+    "category": "nature",
+    "description": "Oceanic crust forms at spreading ridges and returns to the mantle at trenches.",
+    "layout": "cycle",
+    "groups": [],
+    "nodes": [
+      {"id": "mantle-material", "name": "Mantle material", "kind": "entity"},
+      {"id": "spreading-ridge", "name": "Spreading ridge", "kind": "process", "detail": "Creates oceanic crust as plates diverge."},
+      {"id": "oceanic-crust", "name": "Oceanic crust", "kind": "entity"},
+      {"id": "cooling-plate", "name": "Cooling plate", "kind": "entity"},
+      {"id": "subduction-zone", "name": "Subduction zone", "kind": "process", "detail": "Returns a descending plate to the mantle."},
+      {"id": "volcanic-arc", "name": "Volcanic arc", "kind": "entity"},
+      {"id": "mantle-wedge", "name": "Mantle wedge", "kind": "entity"}
+    ],
+    "edges": [
+      {"source": "mantle-material", "target": "spreading-ridge", "kind": "flow", "label": "supplies melt"},
+      {"source": "spreading-ridge", "target": "oceanic-crust", "kind": "flow", "label": "creates crust"},
+      {"source": "oceanic-crust", "target": "cooling-plate", "kind": "flow", "label": "loses heat"},
+      {"source": "cooling-plate", "target": "subduction-zone", "kind": "flow", "label": "sinks at trench"},
+      {"source": "subduction-zone", "target": "mantle-material", "kind": "flow", "label": "recycles slab"},
+      {"source": "subduction-zone", "target": "mantle-wedge", "kind": "flow", "label": "releases fluids"},
+      {"source": "mantle-wedge", "target": "volcanic-arc", "kind": "flow", "label": "supplies magma"}
+    ]
+  },
+  {
+    "id": "rock-cycle",
+    "name": "Rock cycle",
+    "category": "nature",
+    "description": "Heat, pressure, erosion and cooling transform rock between major forms.",
+    "layout": "mesh",
+    "groups": [],
+    "nodes": [
+      {"id": "magma", "name": "Magma", "kind": "store"},
+      {"id": "igneous-rock", "name": "Igneous rock", "kind": "entity"},
+      {"id": "sediment", "name": "Sediment", "kind": "entity"},
+      {"id": "sedimentary-rock", "name": "Sedimentary rock", "kind": "entity", "detail": "Records layers of deposited and consolidated grains."},
+      {"id": "metamorphic-rock", "name": "Metamorphic rock", "kind": "entity", "detail": "Forms as heat and pressure alter existing rock."},
+      {"id": "burial", "name": "Burial", "kind": "process"},
+      {"id": "weathering", "name": "Weathering", "kind": "process"}
+    ],
+    "edges": [
+      {"source": "magma", "target": "igneous-rock", "kind": "flow", "label": "crystallises"},
+      {"source": "igneous-rock", "target": "weathering", "kind": "flow", "label": "exposes minerals"},
+      {"source": "weathering", "target": "sediment", "kind": "flow", "label": "produces grains"},
+      {"source": "sediment", "target": "sedimentary-rock", "kind": "flow", "label": "compacts and cements"},
+      {"source": "sedimentary-rock", "target": "burial", "kind": "flow", "label": "enters deeper crust"},
+      {"source": "burial", "target": "metamorphic-rock", "kind": "flow", "label": "raises heat and pressure"},
+      {"source": "metamorphic-rock", "target": "magma", "kind": "flow", "label": "melts"},
+      {"source": "metamorphic-rock", "target": "weathering", "kind": "flow", "label": "erodes at surface"}
+    ]
+  },
+  {
+    "id": "circadian-rhythm",
+    "name": "Circadian rhythm",
+    "category": "nature",
+    "description": "Light entrains an internal clock that coordinates daily biological rhythms.",
+    "layout": "cycle",
+    "groups": [],
+    "nodes": [
+      {"id": "daylight", "name": "Daylight", "symbol": "sun.max", "kind": "entity", "concept": "solar"},
+      {"id": "retinal-cells", "name": "Retinal cells", "kind": "sensor", "concept": "sensation"},
+      {"id": "central-clock", "name": "Central clock", "symbol": "clock", "kind": "hub", "detail": "Synchronises daily rhythms with the light cycle.", "concept": "clock"},
+      {"id": "pineal-gland", "name": "Pineal gland", "kind": "process"},
+      {"id": "melatonin", "name": "Melatonin", "kind": "entity", "detail": "Signals the timing of biological night."},
+      {"id": "sleep-timing", "name": "Sleep timing", "kind": "event"},
+      {"id": "peripheral-clocks", "name": "Peripheral clocks", "kind": "hub"}
+    ],
+    "edges": [
+      {"source": "daylight", "target": "retinal-cells", "kind": "flow", "label": "stimulates receptors"},
+      {"source": "retinal-cells", "target": "central-clock", "kind": "signal", "label": "entrains rhythm"},
+      {"source": "central-clock", "target": "pineal-gland", "kind": "signal", "label": "times secretion"},
+      {"source": "pineal-gland", "target": "melatonin", "kind": "flow", "label": "releases hormone"},
+      {"source": "melatonin", "target": "sleep-timing", "kind": "signal", "label": "signals biological night"},
+      {"source": "central-clock", "target": "peripheral-clocks", "kind": "signal", "label": "coordinates phase"},
+      {"source": "sleep-timing", "target": "central-clock", "kind": "feedback", "label": "alters light exposure"}
+    ]
+  },
+  {
+    "id": "hearing",
+    "name": "Hearing",
+    "category": "nature",
+    "description": "Changes in air pressure become frequency-sensitive signals in the ear.",
+    "layout": "flow",
+    "groups": [],
+    "nodes": [
+      {"id": "sound-wave", "name": "Sound wave", "symbol": "waveform", "kind": "entity", "concept": "sound"},
+      {"id": "eardrum", "name": "Eardrum", "kind": "sensor"},
+      {"id": "ossicles", "name": "Ossicles", "kind": "entity"},
+      {"id": "cochlear-fluid", "name": "Cochlear fluid", "kind": "entity"},
+      {"id": "basilar-membrane", "name": "Basilar membrane", "kind": "entity", "detail": "Responds most strongly at different places for different pitches."},
+      {"id": "hair-cells", "name": "Hair cells", "kind": "sensor", "detail": "Convert mechanical motion into nerve signals.", "concept": "sensation"},
+      {"id": "auditory-nerve", "name": "Auditory nerve", "kind": "hub"}
+    ],
+    "edges": [
+      {"source": "sound-wave", "target": "eardrum", "kind": "flow", "label": "vibrates membrane"},
+      {"source": "eardrum", "target": "ossicles", "kind": "flow", "label": "moves bones"},
+      {"source": "ossicles", "target": "cochlear-fluid", "kind": "flow", "label": "transmits pressure"},
+      {"source": "cochlear-fluid", "target": "basilar-membrane", "kind": "flow", "label": "drives waves"},
+      {"source": "basilar-membrane", "target": "hair-cells", "kind": "flow", "label": "bends bundles"},
+      {"source": "hair-cells", "target": "auditory-nerve", "kind": "signal", "label": "signals frequency"}
+    ]
+  },
+  {
+    "id": "plant-water-transport",
+    "name": "Plant water transport",
+    "category": "nature",
+    "description": "Evaporation from leaves draws a column of water through the plant.",
+    "layout": "vertical",
+    "groups": [],
+    "nodes": [
+      {"id": "soil-water", "name": "Soil water", "symbol": "leaf", "kind": "store", "concept": "soil"},
+      {"id": "root-hairs", "name": "Root hairs", "kind": "sensor"},
+      {"id": "xylem", "name": "Xylem", "kind": "hub", "detail": "Conducts water from roots towards leaves."},
+      {"id": "leaf-veins", "name": "Leaf veins", "kind": "entity"},
+      {"id": "stomata", "name": "Stomata", "kind": "decision"},
+      {"id": "atmosphere", "name": "Atmosphere", "kind": "entity"},
+      {"id": "guard-cells", "name": "Guard cells", "kind": "process", "detail": "Regulate the size of each stomatal opening."}
+    ],
+    "edges": [
+      {"source": "soil-water", "target": "root-hairs", "kind": "flow", "label": "supplies water"},
+      {"source": "root-hairs", "target": "xylem", "kind": "flow", "label": "transfers water"},
+      {"source": "xylem", "target": "leaf-veins", "kind": "flow", "label": "conducts sap"},
+      {"source": "leaf-veins", "target": "stomata", "kind": "flow", "label": "supplies leaf water"},
+      {"source": "stomata", "target": "atmosphere", "kind": "flow", "label": "releases vapour"},
+      {"source": "guard-cells", "target": "stomata", "kind": "signal", "label": "adjusts opening"},
+      {"source": "leaf-veins", "target": "guard-cells", "kind": "signal", "label": "affects turgor"}
+    ]
+  },
+  {
+    "id": "muscle-coordination",
+    "name": "Muscle coordination",
+    "category": "nature",
+    "description": "Motor commands and sensory feedback regulate the force and position of a limb.",
+    "layout": "cycle",
+    "groups": [],
+    "nodes": [
+      {"id": "motor-command", "name": "Motor command", "kind": "event"},
+      {"id": "motor-neuron", "name": "Motor neuron", "kind": "hub"},
+      {"id": "muscle-fibres", "name": "Muscle fibres", "kind": "process", "concept": "muscle"},
+      {"id": "joint-position", "name": "Joint position", "symbol": "location", "kind": "entity", "concept": "position"},
+      {"id": "muscle-spindle", "name": "Muscle spindle", "kind": "sensor", "detail": "Detects changes in muscle length.", "concept": "sensation"},
+      {"id": "spinal-circuit", "name": "Spinal circuit", "kind": "process", "detail": "Uses sensory input to modify muscle activation."}
+    ],
+    "edges": [
+      {"source": "motor-command", "target": "motor-neuron", "kind": "signal", "label": "recruits units"},
+      {"source": "motor-neuron", "target": "muscle-fibres", "kind": "signal", "label": "triggers contraction"},
+      {"source": "muscle-fibres", "target": "joint-position", "kind": "flow", "label": "moves joint"},
+      {"source": "joint-position", "target": "muscle-spindle", "kind": "flow", "label": "changes stretch"},
+      {"source": "muscle-spindle", "target": "spinal-circuit", "kind": "signal", "label": "reports length"},
+      {"source": "spinal-circuit", "target": "motor-neuron", "kind": "feedback", "label": "adjusts activation"}
+    ]
+  },
+  {
+    "id": "soil-formation",
+    "name": "Soil formation",
+    "category": "nature",
+    "description": "Mineral weathering and decomposing organic matter build soil structure.",
+    "layout": "tree",
+    "groups": [],
+    "nodes": [
+      {"id": "parent-rock", "name": "Parent rock", "kind": "entity"},
+      {"id": "weathered-grains", "name": "Weathered grains", "kind": "entity"},
+      {"id": "plant-litter", "name": "Plant litter", "kind": "entity", "concept": "detritus"},
+      {"id": "soil-organisms", "name": "Soil organisms", "symbol": "leaf", "kind": "process", "concept": "decomposition"},
+      {"id": "humus", "name": "Humus", "kind": "store", "detail": "Holds decomposed organic material in the soil."},
+      {"id": "soil-aggregates", "name": "Soil aggregates", "symbol": "leaf", "kind": "entity", "concept": "soil"},
+      {"id": "pore-spaces", "name": "Pore spaces", "kind": "entity", "detail": "Admit air and store water between aggregates."}
+    ],
+    "edges": [
+      {"source": "parent-rock", "target": "weathered-grains", "kind": "flow", "label": "weathers into grains"},
+      {"source": "plant-litter", "target": "soil-organisms", "kind": "flow", "label": "feeds organisms"},
+      {"source": "soil-organisms", "target": "humus", "kind": "flow", "label": "forms humus"},
+      {"source": "humus", "target": "soil-aggregates", "kind": "flow", "label": "binds particles"},
+      {"source": "weathered-grains", "target": "soil-aggregates", "kind": "flow", "label": "supplies minerals"},
+      {"source": "soil-aggregates", "target": "pore-spaces", "kind": "flow", "label": "creates pores"}
+    ]
+  },
+  {
+    "id": "lake-turnover",
+    "name": "Lake turnover",
+    "category": "nature",
+    "description": "Seasonal changes in density can mix oxygen and nutrients through a lake.",
+    "layout": "cycle",
+    "groups": [],
+    "nodes": [
+      {"id": "surface-layer", "name": "Surface layer", "symbol": "drop", "kind": "store", "concept": "freshwater"},
+      {"id": "summer-heating", "name": "Summer heating", "symbol": "sun.max", "kind": "event", "concept": "solar"},
+      {"id": "density-gradient", "name": "Density gradient", "kind": "entity", "detail": "Separates water layers of different densities."},
+      {"id": "deep-water", "name": "Deep water", "kind": "store"},
+      {"id": "autumn-cooling", "name": "Autumn cooling", "symbol": "thermometer.medium", "kind": "event", "concept": "temperature"},
+      {"id": "wind-mixing", "name": "Wind mixing", "symbol": "wind", "kind": "process", "detail": "Redistributes oxygen and nutrients as layers mix.", "concept": "wind"},
+      {"id": "nutrient-pulse", "name": "Nutrient pulse", "kind": "event"}
+    ],
+    "edges": [
+      {"source": "summer-heating", "target": "surface-layer", "kind": "flow", "label": "warms surface"},
+      {"source": "surface-layer", "target": "density-gradient", "kind": "flow", "label": "produces stratification"},
+      {"source": "density-gradient", "target": "wind-mixing", "kind": "inhibition", "label": "resists mixing"},
+      {"source": "autumn-cooling", "target": "density-gradient", "kind": "inhibition", "label": "weakens gradient"},
+      {"source": "wind-mixing", "target": "deep-water", "kind": "flow", "label": "carries oxygen"},
+      {"source": "deep-water", "target": "nutrient-pulse", "kind": "flow", "label": "supplies nutrients"},
+      {"source": "nutrient-pulse", "target": "surface-layer", "kind": "flow", "label": "enriches surface"}
+    ]
+  },
+  {
+    "id": "grassland-grazing",
+    "name": "Grassland grazing",
+    "category": "nature",
+    "description": "Grazers redistribute plant growth and nutrients across a patchwork of grassland.",
+    "layout": "mesh",
+    "groups": [],
+    "nodes": [
+      {"id": "grass-shoots", "name": "Grass shoots", "kind": "entity"},
+      {"id": "grazing-herd", "name": "Grazing herd", "kind": "entity"},
+      {"id": "dung", "name": "Dung", "kind": "entity"},
+      {"id": "dung-beetles", "name": "Dung beetles", "kind": "process", "detail": "Bury and break down dung in the soil."},
+      {"id": "soil-nutrients", "name": "Soil nutrients", "symbol": "leaf", "kind": "store", "concept": "soil"},
+      {"id": "predators", "name": "Predators", "kind": "entity"},
+      {"id": "refuge-patches", "name": "Refuge patches", "kind": "entity", "detail": "Protect some young shoots from grazing."}
+    ],
+    "edges": [
+      {"source": "grass-shoots", "target": "grazing-herd", "kind": "flow", "label": "feeds herd"},
+      {"source": "grazing-herd", "target": "dung", "kind": "flow", "label": "deposits nutrients"},
+      {"source": "dung", "target": "dung-beetles", "kind": "flow", "label": "feeds beetles"},
+      {"source": "dung-beetles", "target": "soil-nutrients", "kind": "flow", "label": "incorporates dung"},
+      {"source": "soil-nutrients", "target": "grass-shoots", "kind": "feedback", "label": "supports regrowth"},
+      {"source": "predators", "target": "grazing-herd", "kind": "signal", "label": "changes grazing sites"},
+      {"source": "refuge-patches", "target": "grass-shoots", "kind": "flow", "label": "shelters regrowth"}
+    ]
+  }
+]

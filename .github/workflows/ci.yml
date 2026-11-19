@@ -25,12 +25,14 @@ jobs:
           test -s LICENSE
           git diff --check HEAD^1 HEAD
 
-      - name: Test Game of Life and City Simulation
+      - name: Test wallpaper packages
         run: |
           "Game of Life/Packaging/test.sh"
           "City Simulation/Packaging/test.sh"
+          "System Design/Packaging/test.sh"
 
-      - name: Build and verify both native wallpaper bundles
+      - name: Build and verify native wallpaper bundles
         run: |
           LIFE_NATIVE_ARCHS="$(uname -m)" "Game of Life/NativeWallpaper/build.sh"
           CITY_NATIVE_ARCHS="$(uname -m)" "City Simulation/NativeWallpaper/build.sh"
+          DESIGN_NATIVE_ARCHS="$(uname -m)" "System Design/NativeWallpaper/build.sh"

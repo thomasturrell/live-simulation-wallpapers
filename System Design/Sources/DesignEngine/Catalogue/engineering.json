@@ -1,0 +1,681 @@
+[
+  {
+    "id": "domestic-solar-power",
+    "name": "Domestic solar power",
+    "category": "engineering",
+    "description": "A home balances rooftop generation, stored energy and electricity from the grid.",
+    "layout": "grouped",
+    "groups": [
+      {"id": "generation", "name": "Generation"},
+      {"id": "power-conversion", "name": "Power conversion"},
+      {"id": "storage", "name": "Storage", "parent": "power-conversion"},
+      {"id": "demand", "name": "Demand"}
+    ],
+    "nodes": [
+      {"id": "solar-array", "name": "Solar array", "symbol": "sun.max", "kind": "entity", "detail": "Turns daylight into direct current.", "concept": "solar", "group": "generation"},
+      {"id": "hybrid-inverter", "name": "Hybrid inverter", "symbol": "arrow.left.arrow.right", "kind": "hub", "detail": "Connects the roof, battery and household circuits.", "group": "power-conversion"},
+      {"id": "battery-bank", "name": "Battery bank", "symbol": "battery.75percent", "kind": "store", "detail": "Holds surplus energy for the evening.", "concept": "storage", "group": "storage"},
+      {"id": "charge-controller", "name": "Charge controller", "symbol": "switch.2", "kind": "decision", "group": "storage"},
+      {"id": "household-loads", "name": "Household loads", "symbol": "house", "kind": "entity", "group": "demand"},
+      {"id": "grid-connection", "name": "Grid connection", "symbol": "bolt", "kind": "hub", "detail": "Exchanges power with the distribution network.", "concept": "grid", "group": "demand"},
+      {"id": "smart-meter", "name": "Smart meter", "symbol": "gauge.with.dots.needle.67percent", "kind": "sensor", "detail": "Records electricity entering and leaving the home.", "group": "demand"},
+      {"id": "sunlight", "name": "Sunlight", "symbol": "sun.max", "kind": "entity"}
+    ],
+    "edges": [
+      {"source": "sunlight", "target": "solar-array", "kind": "flow", "label": "illuminates cells"},
+      {"source": "solar-array", "target": "hybrid-inverter", "kind": "flow", "label": "supplies DC"},
+      {"source": "hybrid-inverter", "target": "household-loads", "kind": "flow", "label": "supplies AC"},
+      {"source": "hybrid-inverter", "target": "charge-controller", "kind": "flow", "label": "diverts surplus"},
+      {"source": "charge-controller", "target": "battery-bank", "kind": "flow", "label": "charges cells"},
+      {"source": "battery-bank", "target": "hybrid-inverter", "kind": "flow", "label": "releases energy"},
+      {"source": "hybrid-inverter", "target": "grid-connection", "kind": "flow", "label": "exports surplus"},
+      {"source": "grid-connection", "target": "household-loads", "kind": "flow", "label": "imports power"},
+      {"source": "smart-meter", "target": "hybrid-inverter", "kind": "feedback", "label": "reports demand"},
+      {"source": "grid-connection", "target": "smart-meter", "kind": "flow", "label": "registers exchange"}
+    ]
+  },
+  {
+    "id": "electricity-distribution",
+    "name": "Electricity distribution",
+    "category": "engineering",
+    "description": "Substations step down voltage and feeders carry power to local loads.",
+    "layout": "tree",
+    "groups": [],
+    "nodes": [
+      {"id": "transmission-grid", "name": "Transmission grid", "symbol": "bolt.horizontal.circle", "kind": "hub", "concept": "grid"},
+      {"id": "primary-substation", "name": "Primary substation", "kind": "process", "detail": "Reduces transmission voltage for local feeders."},
+      {"id": "feeder-a", "name": "Feeder A", "kind": "entity"},
+      {"id": "feeder-b", "name": "Feeder B", "kind": "entity"},
+      {"id": "street-transformer", "name": "Street transformer", "kind": "process", "detail": "Steps feeder voltage down for nearby homes."},
+      {"id": "homes", "name": "Homes", "kind": "entity"},
+      {"id": "industrial-load", "name": "Industrial load", "kind": "entity"},
+      {"id": "circuit-breaker", "name": "Circuit breaker", "kind": "decision"}
+    ],
+    "edges": [
+      {"source": "transmission-grid", "target": "primary-substation", "kind": "flow", "label": "supplies high voltage"},
+      {"source": "primary-substation", "target": "feeder-a", "kind": "flow", "label": "energises feeder"},
+      {"source": "primary-substation", "target": "feeder-b", "kind": "flow", "label": "energises feeder"},
+      {"source": "feeder-a", "target": "street-transformer", "kind": "flow", "label": "carries power"},
+      {"source": "street-transformer", "target": "homes", "kind": "flow", "label": "supplies homes"},
+      {"source": "feeder-b", "target": "industrial-load", "kind": "flow", "label": "supplies factory"},
+      {"source": "circuit-breaker", "target": "feeder-a", "kind": "signal", "label": "isolates fault"}
+    ]
+  },
+  {
+    "id": "heat-pump",
+    "name": "Heat pump",
+    "category": "engineering",
+    "description": "A refrigerant carries heat from a cool source to a warmer space.",
+    "layout": "cycle",
+    "groups": [],
+    "nodes": [
+      {"id": "evaporator", "name": "Evaporator", "kind": "process", "detail": "Takes heat into a low-pressure refrigerant."},
+      {"id": "compressor", "name": "Compressor", "kind": "process", "concept": "compression"},
+      {"id": "condenser", "name": "Condenser", "kind": "process"},
+      {"id": "expansion-valve", "name": "Expansion valve", "kind": "decision", "detail": "Lowers refrigerant pressure before evaporation."},
+      {"id": "outdoor-source", "name": "Outdoor source", "kind": "entity"},
+      {"id": "indoor-loop", "name": "Indoor loop", "symbol": "flame", "kind": "entity", "concept": "heating"},
+      {"id": "electrical-supply", "name": "Electrical supply", "symbol": "bolt.horizontal.circle", "kind": "entity", "concept": "grid"}
+    ],
+    "edges": [
+      {"source": "evaporator", "target": "compressor", "kind": "flow", "label": "sends vapour"},
+      {"source": "compressor", "target": "condenser", "kind": "flow", "label": "sends hot gas"},
+      {"source": "condenser", "target": "expansion-valve", "kind": "flow", "label": "sends liquid"},
+      {"source": "expansion-valve", "target": "evaporator", "kind": "flow", "label": "meters refrigerant"},
+      {"source": "outdoor-source", "target": "evaporator", "kind": "flow", "label": "supplies heat"},
+      {"source": "condenser", "target": "indoor-loop", "kind": "flow", "label": "releases heat"},
+      {"source": "electrical-supply", "target": "compressor", "kind": "flow", "label": "drives motor"}
+    ]
+  },
+  {
+    "id": "thermostatic-heating",
+    "name": "Thermostatic heating",
+    "category": "engineering",
+    "description": "A room temperature reading closes the loop between a set point and heat output.",
+    "layout": "cycle",
+    "groups": [
+      {"id": "reference", "name": "Reference"},
+      {"id": "control", "name": "Control"},
+      {"id": "plant", "name": "Plant"}
+    ],
+    "nodes": [
+      {"id": "set-point", "name": "Set point", "kind": "entity", "detail": "Defines the desired room temperature.", "group": "reference"},
+      {"id": "thermostat", "name": "Thermostat", "symbol": "thermometer.medium", "kind": "decision", "detail": "Compares the room reading with the desired temperature.", "concept": "control", "group": "control"},
+      {"id": "heating-relay", "name": "Heating relay", "kind": "process", "group": "control"},
+      {"id": "heat-source", "name": "Heat source", "symbol": "flame", "kind": "process", "concept": "heating", "group": "plant"},
+      {"id": "room-air", "name": "Room air", "kind": "entity", "group": "plant"},
+      {"id": "temperature-sensor", "name": "Temperature sensor", "symbol": "thermometer.medium", "kind": "sensor", "detail": "Samples the room for the next control decision.", "concept": "temperature", "group": "plant"}
+    ],
+    "edges": [
+      {"source": "set-point", "target": "thermostat", "kind": "signal", "label": "sets target"},
+      {"source": "thermostat", "target": "heating-relay", "kind": "signal", "label": "calls for heat"},
+      {"source": "heating-relay", "target": "heat-source", "kind": "signal", "label": "switches source"},
+      {"source": "heat-source", "target": "room-air", "kind": "flow", "label": "warms room"},
+      {"source": "room-air", "target": "temperature-sensor", "kind": "flow", "label": "changes reading"},
+      {"source": "temperature-sensor", "target": "thermostat", "kind": "feedback", "label": "reports temperature"}
+    ]
+  },
+  {
+    "id": "negative-feedback-control",
+    "name": "Negative feedback control",
+    "category": "engineering",
+    "description": "A controller uses measured error to steer a process towards its reference.",
+    "layout": "cycle",
+    "groups": [],
+    "nodes": [
+      {"id": "reference", "name": "Reference", "kind": "entity"},
+      {"id": "comparator", "name": "Comparator", "kind": "decision", "detail": "Finds the difference between goal and output."},
+      {"id": "controller", "name": "Controller", "symbol": "slider.horizontal.3", "kind": "process", "concept": "control"},
+      {"id": "actuator", "name": "Actuator", "symbol": "gearshape", "kind": "process", "detail": "Turns a control signal into physical action.", "concept": "actuation"},
+      {"id": "plant", "name": "Plant", "kind": "entity"},
+      {"id": "output-sensor", "name": "Output sensor", "symbol": "waveform.path.ecg", "kind": "sensor", "concept": "telemetry"},
+      {"id": "disturbance", "name": "Disturbance", "kind": "event"}
+    ],
+    "edges": [
+      {"source": "reference", "target": "comparator", "kind": "signal", "label": "sets goal"},
+      {"source": "comparator", "target": "controller", "kind": "flow", "label": "supplies error"},
+      {"source": "controller", "target": "actuator", "kind": "signal", "label": "commands effort"},
+      {"source": "actuator", "target": "plant", "kind": "flow", "label": "changes input"},
+      {"source": "plant", "target": "output-sensor", "kind": "flow", "label": "exposes output"},
+      {"source": "output-sensor", "target": "comparator", "kind": "feedback", "label": "returns measurement"},
+      {"source": "disturbance", "target": "plant", "kind": "flow", "label": "alters response"}
+    ]
+  },
+  {
+    "id": "direct-current-circuit",
+    "name": "Direct current circuit",
+    "category": "engineering",
+    "description": "A source maintains a potential difference across a switched resistive load.",
+    "layout": "cycle",
+    "groups": [],
+    "nodes": [
+      {"id": "voltage-source", "name": "Voltage source", "symbol": "battery.75percent", "kind": "entity", "concept": "storage"},
+      {"id": "switch", "name": "Switch", "kind": "decision", "detail": "Makes or breaks the conducting path."},
+      {"id": "load-resistor", "name": "Load resistor", "kind": "entity"},
+      {"id": "return-conductor", "name": "Return conductor", "kind": "entity"},
+      {"id": "ammeter", "name": "Ammeter", "kind": "sensor"},
+      {"id": "voltmeter", "name": "Voltmeter", "kind": "sensor", "detail": "Measures the potential difference across the load."}
+    ],
+    "edges": [
+      {"source": "voltage-source", "target": "switch", "kind": "flow", "label": "supplies potential"},
+      {"source": "switch", "target": "ammeter", "kind": "flow", "label": "closes circuit"},
+      {"source": "ammeter", "target": "load-resistor", "kind": "flow", "label": "carries current"},
+      {"source": "load-resistor", "target": "return-conductor", "kind": "flow", "label": "returns current"},
+      {"source": "return-conductor", "target": "voltage-source", "kind": "flow", "label": "completes loop"},
+      {"source": "load-resistor", "target": "voltmeter", "kind": "signal", "label": "sets measured drop"}
+    ]
+  },
+  {
+    "id": "drinking-water-network",
+    "name": "Drinking water network",
+    "category": "engineering",
+    "description": "Treatment and elevated storage maintain a safe, pressurised supply.",
+    "layout": "tree",
+    "groups": [],
+    "nodes": [
+      {"id": "reservoir", "name": "Reservoir", "symbol": "drop", "kind": "store", "concept": "freshwater"},
+      {"id": "treatment-works", "name": "Treatment works", "kind": "process"},
+      {"id": "clearwell", "name": "Clearwell", "kind": "store"},
+      {"id": "pumping-station", "name": "Pumping station", "symbol": "drop.circle", "kind": "process", "concept": "pumping"},
+      {"id": "water-tower", "name": "Water tower", "kind": "store", "detail": "Stores treated water at a height that supplies pressure."},
+      {"id": "distribution-main", "name": "Distribution main", "symbol": "drop", "kind": "hub", "concept": "water-main"},
+      {"id": "households", "name": "Households", "kind": "entity"},
+      {"id": "pressure-sensor", "name": "Pressure sensor", "kind": "sensor", "detail": "Reports whether the network has enough pressure."}
+    ],
+    "edges": [
+      {"source": "reservoir", "target": "treatment-works", "kind": "flow", "label": "supplies raw water"},
+      {"source": "treatment-works", "target": "clearwell", "kind": "flow", "label": "fills basin"},
+      {"source": "clearwell", "target": "pumping-station", "kind": "flow", "label": "supplies water"},
+      {"source": "pumping-station", "target": "water-tower", "kind": "flow", "label": "lifts water"},
+      {"source": "water-tower", "target": "distribution-main", "kind": "flow", "label": "maintains head"},
+      {"source": "distribution-main", "target": "households", "kind": "flow", "label": "delivers water"},
+      {"source": "distribution-main", "target": "pressure-sensor", "kind": "flow", "label": "sets pressure"},
+      {"source": "pressure-sensor", "target": "pumping-station", "kind": "feedback", "label": "adjusts pumping"}
+    ]
+  },
+  {
+    "id": "assembly-line",
+    "name": "Assembly line",
+    "category": "engineering",
+    "description": "Workpieces pass between specialised stations and inspection diverts defects.",
+    "layout": "flow",
+    "groups": [],
+    "nodes": [
+      {"id": "parts-store", "name": "Parts store", "symbol": "shippingbox", "kind": "store", "concept": "inventory"},
+      {"id": "feeder", "name": "Feeder", "kind": "process"},
+      {"id": "assembly-cell", "name": "Assembly cell", "symbol": "wrench.and.screwdriver", "kind": "process", "detail": "Joins parts into a working assembly.", "concept": "manufacturing"},
+      {"id": "inspection", "name": "Inspection", "symbol": "magnifyingglass", "kind": "sensor", "concept": "inspection"},
+      {"id": "quality-gate", "name": "Quality gate", "kind": "decision", "detail": "Separates accepted assemblies from rework."},
+      {"id": "rework-station", "name": "Rework station", "kind": "process"},
+      {"id": "finished-goods", "name": "Finished goods", "kind": "store"}
+    ],
+    "edges": [
+      {"source": "parts-store", "target": "feeder", "kind": "flow", "label": "supplies parts"},
+      {"source": "feeder", "target": "assembly-cell", "kind": "flow", "label": "feeds workpiece"},
+      {"source": "assembly-cell", "target": "inspection", "kind": "flow", "label": "sends assembly"},
+      {"source": "inspection", "target": "quality-gate", "kind": "signal", "label": "reports result"},
+      {"source": "quality-gate", "target": "rework-station", "kind": "flow", "label": "diverts defects"},
+      {"source": "rework-station", "target": "inspection", "kind": "flow", "label": "returns for check"},
+      {"source": "quality-gate", "target": "finished-goods", "kind": "flow", "label": "releases product"}
+    ]
+  },
+  {
+    "id": "rail-signalling",
+    "name": "Rail signalling",
+    "category": "engineering",
+    "description": "Track occupancy and interlocking protect a train’s route.",
+    "layout": "vertical",
+    "groups": [],
+    "nodes": [
+      {"id": "track-circuit", "name": "Track circuit", "symbol": "tram", "kind": "sensor", "concept": "rail"},
+      {"id": "route-request", "name": "Route request", "kind": "event"},
+      {"id": "interlocking", "name": "Interlocking", "symbol": "slider.horizontal.3", "kind": "decision", "detail": "Checks for conflicting routes before clearing a signal.", "concept": "control"},
+      {"id": "point-motor", "name": "Point motor", "symbol": "gearshape", "kind": "process", "concept": "actuation"},
+      {"id": "switch-position", "name": "Switch position", "kind": "sensor", "detail": "Confirms that points are aligned with the route."},
+      {"id": "signal", "name": "Signal", "kind": "entity"},
+      {"id": "train", "name": "Train", "kind": "entity"}
+    ],
+    "edges": [
+      {"source": "track-circuit", "target": "interlocking", "kind": "signal", "label": "reports occupancy"},
+      {"source": "route-request", "target": "interlocking", "kind": "signal", "label": "requests route"},
+      {"source": "interlocking", "target": "point-motor", "kind": "signal", "label": "sets points"},
+      {"source": "point-motor", "target": "switch-position", "kind": "flow", "label": "changes position"},
+      {"source": "switch-position", "target": "interlocking", "kind": "feedback", "label": "proves alignment"},
+      {"source": "interlocking", "target": "signal", "kind": "signal", "label": "clears aspect"},
+      {"source": "signal", "target": "train", "kind": "signal", "label": "authorises movement"},
+      {"source": "train", "target": "track-circuit", "kind": "flow", "label": "occupies track"}
+    ]
+  },
+  {
+    "id": "wind-generation",
+    "name": "Wind generation",
+    "category": "engineering",
+    "description": "Blade pitch and generator torque adapt a turbine to changing wind.",
+    "layout": "cycle",
+    "groups": [],
+    "nodes": [
+      {"id": "wind-field", "name": "Wind field", "symbol": "wind", "kind": "entity", "concept": "wind"},
+      {"id": "rotor", "name": "Rotor", "kind": "process"},
+      {"id": "drive-shaft", "name": "Drive shaft", "kind": "entity"},
+      {"id": "generator", "name": "Generator", "symbol": "bolt", "kind": "process", "concept": "generation"},
+      {"id": "converter", "name": "Converter", "kind": "process", "detail": "Conditions variable generator output for the grid."},
+      {"id": "grid-interface", "name": "Grid interface", "symbol": "bolt.horizontal.circle", "kind": "hub", "concept": "grid"},
+      {"id": "pitch-controller", "name": "Pitch controller", "symbol": "slider.horizontal.3", "kind": "decision", "detail": "Changes blade angle to control rotor power.", "concept": "control"},
+      {"id": "anemometer", "name": "Anemometer", "kind": "sensor"}
+    ],
+    "edges": [
+      {"source": "wind-field", "target": "rotor", "kind": "flow", "label": "turns blades"},
+      {"source": "rotor", "target": "drive-shaft", "kind": "flow", "label": "transfers torque"},
+      {"source": "drive-shaft", "target": "generator", "kind": "flow", "label": "drives rotor"},
+      {"source": "generator", "target": "converter", "kind": "flow", "label": "supplies current"},
+      {"source": "converter", "target": "grid-interface", "kind": "flow", "label": "synchronises power"},
+      {"source": "wind-field", "target": "anemometer", "kind": "flow", "label": "sets wind reading"},
+      {"source": "anemometer", "target": "pitch-controller", "kind": "signal", "label": "reports speed"},
+      {"source": "pitch-controller", "target": "rotor", "kind": "feedback", "label": "adjusts blade pitch"}
+    ]
+  },
+  {
+    "id": "hydroelectric-station",
+    "name": "Hydroelectric station",
+    "category": "engineering",
+    "description": "Water released from a reservoir drives turbines before returning to the river.",
+    "layout": "flow",
+    "groups": [],
+    "nodes": [
+      {"id": "reservoir", "name": "Reservoir", "symbol": "drop", "kind": "store", "concept": "freshwater"},
+      {"id": "intake-gate", "name": "Intake gate", "kind": "decision"},
+      {"id": "penstock", "name": "Penstock", "kind": "entity", "detail": "Carries pressurised water down to the turbine."},
+      {"id": "turbine", "name": "Turbine", "kind": "process"},
+      {"id": "generator", "name": "Generator", "symbol": "bolt", "kind": "process", "concept": "generation"},
+      {"id": "switchyard", "name": "Switchyard", "symbol": "bolt.horizontal.circle", "kind": "hub", "concept": "grid"},
+      {"id": "tailrace", "name": "Tailrace", "kind": "entity", "detail": "Returns spent water below the station."},
+      {"id": "river", "name": "River", "symbol": "water.waves", "kind": "entity", "concept": "river"}
+    ],
+    "edges": [
+      {"source": "reservoir", "target": "intake-gate", "kind": "flow", "label": "supplies head"},
+      {"source": "intake-gate", "target": "penstock", "kind": "flow", "label": "meters flow"},
+      {"source": "penstock", "target": "turbine", "kind": "flow", "label": "delivers water"},
+      {"source": "turbine", "target": "generator", "kind": "flow", "label": "turns shaft"},
+      {"source": "generator", "target": "switchyard", "kind": "flow", "label": "exports power"},
+      {"source": "turbine", "target": "tailrace", "kind": "flow", "label": "discharges water"},
+      {"source": "tailrace", "target": "river", "kind": "flow", "label": "rejoins channel"}
+    ]
+  },
+  {
+    "id": "district-heating",
+    "name": "District heating",
+    "category": "engineering",
+    "description": "A network carries heat to buildings and returns cooler water to the plant.",
+    "layout": "cycle",
+    "groups": [],
+    "nodes": [
+      {"id": "heat-plant", "name": "Heat plant", "symbol": "flame", "kind": "process", "concept": "heating"},
+      {"id": "supply-main", "name": "Supply main", "kind": "hub"},
+      {"id": "building-exchanger", "name": "Building exchanger", "kind": "process", "detail": "Transfers heat without mixing the two water circuits."},
+      {"id": "radiators", "name": "Radiators", "kind": "entity"},
+      {"id": "return-main", "name": "Return main", "kind": "hub", "detail": "Carries cooler water back for reheating."},
+      {"id": "circulation-pump", "name": "Circulation pump", "symbol": "drop.circle", "kind": "process", "concept": "pumping"},
+      {"id": "thermal-store", "name": "Thermal store", "kind": "store"}
+    ],
+    "edges": [
+      {"source": "heat-plant", "target": "supply-main", "kind": "flow", "label": "heats water"},
+      {"source": "supply-main", "target": "building-exchanger", "kind": "flow", "label": "delivers heat"},
+      {"source": "building-exchanger", "target": "radiators", "kind": "flow", "label": "transfers heat"},
+      {"source": "building-exchanger", "target": "return-main", "kind": "flow", "label": "returns cooler water"},
+      {"source": "return-main", "target": "circulation-pump", "kind": "flow", "label": "supplies return flow"},
+      {"source": "circulation-pump", "target": "heat-plant", "kind": "flow", "label": "recirculates"},
+      {"source": "heat-plant", "target": "thermal-store", "kind": "flow", "label": "charges store"},
+      {"source": "thermal-store", "target": "supply-main", "kind": "flow", "label": "releases heat"}
+    ]
+  },
+  {
+    "id": "battery-management",
+    "name": "Battery management",
+    "category": "engineering",
+    "description": "Measurements from cells govern charging limits and balancing.",
+    "layout": "grouped",
+    "groups": [
+      {"id": "pack", "name": "Pack"},
+      {"id": "controller", "name": "Controller"}
+    ],
+    "nodes": [
+      {"id": "cell-stack", "name": "Cell stack", "symbol": "battery.75percent", "kind": "store", "concept": "storage", "group": "pack"},
+      {"id": "voltage-taps", "name": "Voltage taps", "kind": "sensor", "group": "pack"},
+      {"id": "temperature-probe", "name": "Temperature probe", "symbol": "thermometer.medium", "kind": "sensor", "concept": "temperature", "group": "pack"},
+      {"id": "state-estimator", "name": "State estimator", "kind": "process", "detail": "Estimates available charge from pack measurements.", "group": "controller"},
+      {"id": "safety-limits", "name": "Safety limits", "kind": "decision", "group": "controller"},
+      {"id": "contactor", "name": "Contactor", "kind": "process", "detail": "Disconnects the pack when limits are exceeded.", "group": "pack"},
+      {"id": "balancer", "name": "Balancer", "kind": "process", "group": "controller"}
+    ],
+    "edges": [
+      {"source": "cell-stack", "target": "voltage-taps", "kind": "flow", "label": "exposes voltages"},
+      {"source": "cell-stack", "target": "temperature-probe", "kind": "flow", "label": "emits heat"},
+      {"source": "voltage-taps", "target": "state-estimator", "kind": "signal", "label": "reports voltage"},
+      {"source": "temperature-probe", "target": "safety-limits", "kind": "signal", "label": "reports temperature"},
+      {"source": "state-estimator", "target": "safety-limits", "kind": "signal", "label": "estimates charge"},
+      {"source": "safety-limits", "target": "contactor", "kind": "signal", "label": "opens circuit"},
+      {"source": "voltage-taps", "target": "balancer", "kind": "signal", "label": "identifies imbalance"},
+      {"source": "balancer", "target": "cell-stack", "kind": "feedback", "label": "equalises cells"}
+    ]
+  },
+  {
+    "id": "elevator-dispatch",
+    "name": "Elevator dispatch",
+    "category": "engineering",
+    "description": "A dispatcher assigns hall calls while each car checks its own safe motion.",
+    "layout": "radial",
+    "groups": [],
+    "nodes": [
+      {"id": "dispatcher", "name": "Dispatcher", "symbol": "slider.horizontal.3", "kind": "hub", "detail": "Matches new calls to available cars.", "concept": "control"},
+      {"id": "hall-call", "name": "Hall call", "kind": "event"},
+      {"id": "car-position", "name": "Car position", "symbol": "location", "kind": "sensor", "concept": "position"},
+      {"id": "assignment", "name": "Assignment", "kind": "decision"},
+      {"id": "drive", "name": "Drive", "symbol": "gearshape", "kind": "process", "concept": "actuation"},
+      {"id": "door-interlock", "name": "Door interlock", "kind": "decision", "detail": "Confirms the doors are secure before motion."},
+      {"id": "lift-car", "name": "Lift car", "kind": "entity"}
+    ],
+    "edges": [
+      {"source": "hall-call", "target": "dispatcher", "kind": "signal", "label": "requests service"},
+      {"source": "car-position", "target": "dispatcher", "kind": "signal", "label": "reports floor"},
+      {"source": "dispatcher", "target": "assignment", "kind": "flow", "label": "allocates car"},
+      {"source": "assignment", "target": "drive", "kind": "signal", "label": "sets destination"},
+      {"source": "door-interlock", "target": "drive", "kind": "signal", "label": "permits travel"},
+      {"source": "drive", "target": "lift-car", "kind": "flow", "label": "moves car"},
+      {"source": "lift-car", "target": "car-position", "kind": "flow", "label": "updates position"}
+    ]
+  },
+  {
+    "id": "wastewater-treatment",
+    "name": "Wastewater treatment",
+    "category": "engineering",
+    "description": "Solids settle and biological treatment removes dissolved material before discharge.",
+    "layout": "flow",
+    "groups": [],
+    "nodes": [
+      {"id": "influent", "name": "Influent", "kind": "entity", "concept": "wastewater"},
+      {"id": "screen", "name": "Screen", "kind": "process"},
+      {"id": "primary-basin", "name": "Primary basin", "kind": "store"},
+      {"id": "aeration-tank", "name": "Aeration tank", "kind": "process", "detail": "Supplies oxygen to organisms treating the water."},
+      {"id": "clarifier", "name": "Clarifier", "kind": "process", "detail": "Separates settled solids from the liquid."},
+      {"id": "digester", "name": "Digester", "kind": "process"},
+      {"id": "treated-effluent", "name": "Treated effluent", "symbol": "water.waves", "kind": "entity", "concept": "river"}
+    ],
+    "edges": [
+      {"source": "influent", "target": "screen", "kind": "flow", "label": "carries debris"},
+      {"source": "screen", "target": "primary-basin", "kind": "flow", "label": "passes screened water"},
+      {"source": "primary-basin", "target": "aeration-tank", "kind": "flow", "label": "feeds liquid"},
+      {"source": "aeration-tank", "target": "clarifier", "kind": "flow", "label": "sends mixed liquor"},
+      {"source": "clarifier", "target": "aeration-tank", "kind": "feedback", "label": "returns biomass"},
+      {"source": "primary-basin", "target": "digester", "kind": "flow", "label": "sends sludge"},
+      {"source": "clarifier", "target": "digester", "kind": "flow", "label": "sends surplus solids"},
+      {"source": "clarifier", "target": "treated-effluent", "kind": "flow", "label": "releases clarified water"}
+    ]
+  },
+  {
+    "id": "refrigerated-supply",
+    "name": "Refrigerated supply",
+    "category": "engineering",
+    "description": "Insulated storage and transport keep perishable goods within a temperature range.",
+    "layout": "flow",
+    "groups": [],
+    "nodes": [
+      {"id": "cold-store", "name": "Cold store", "symbol": "shippingbox", "kind": "store", "concept": "inventory"},
+      {"id": "loading-dock", "name": "Loading dock", "kind": "entity"},
+      {"id": "refrigerated-vehicle", "name": "Refrigerated vehicle", "symbol": "shippingbox", "kind": "entity", "concept": "freight"},
+      {"id": "distribution-hub", "name": "Distribution hub", "kind": "hub"},
+      {"id": "retail-cabinet", "name": "Retail cabinet", "kind": "store"},
+      {"id": "logger", "name": "Logger", "symbol": "thermometer.medium", "kind": "sensor", "detail": "Records conditions throughout the journey.", "concept": "temperature"},
+      {"id": "alarm", "name": "Alarm", "kind": "event", "detail": "Flags a temperature excursion for inspection."}
+    ],
+    "edges": [
+      {"source": "cold-store", "target": "loading-dock", "kind": "flow", "label": "stages shipment"},
+      {"source": "loading-dock", "target": "refrigerated-vehicle", "kind": "flow", "label": "loads goods"},
+      {"source": "refrigerated-vehicle", "target": "distribution-hub", "kind": "flow", "label": "delivers pallets"},
+      {"source": "distribution-hub", "target": "retail-cabinet", "kind": "flow", "label": "supplies stock"},
+      {"source": "refrigerated-vehicle", "target": "logger", "kind": "flow", "label": "exposes temperature"},
+      {"source": "logger", "target": "alarm", "kind": "signal", "label": "flags excursion"},
+      {"source": "alarm", "target": "distribution-hub", "kind": "signal", "label": "requests inspection"}
+    ]
+  },
+  {
+    "id": "fusion-of-position-sensors",
+    "name": "Fusion of position sensors",
+    "category": "engineering",
+    "description": "A state estimator combines movement and position measurements with a motion model.",
+    "layout": "radial",
+    "groups": [],
+    "nodes": [
+      {"id": "state-estimator", "name": "State estimator", "symbol": "location", "kind": "hub", "detail": "Combines motion predictions with measured positions.", "concept": "position"},
+      {"id": "inertial-unit", "name": "Inertial unit", "kind": "sensor"},
+      {"id": "wheel-encoder", "name": "Wheel encoder", "kind": "sensor"},
+      {"id": "satellite-fix", "name": "Satellite fix", "kind": "sensor"},
+      {"id": "motion-model", "name": "Motion model", "kind": "process"},
+      {"id": "predicted-pose", "name": "Predicted pose", "kind": "entity", "detail": "Carries the best estimate before the next fix."},
+      {"id": "corrected-pose", "name": "Corrected pose", "kind": "entity"}
+    ],
+    "edges": [
+      {"source": "inertial-unit", "target": "motion-model", "kind": "flow", "label": "supplies acceleration"},
+      {"source": "wheel-encoder", "target": "motion-model", "kind": "flow", "label": "supplies distance"},
+      {"source": "motion-model", "target": "predicted-pose", "kind": "flow", "label": "predicts movement"},
+      {"source": "predicted-pose", "target": "state-estimator", "kind": "flow", "label": "supplies prior"},
+      {"source": "satellite-fix", "target": "state-estimator", "kind": "signal", "label": "supplies absolute fix"},
+      {"source": "state-estimator", "target": "corrected-pose", "kind": "flow", "label": "fuses estimates"},
+      {"source": "corrected-pose", "target": "motion-model", "kind": "feedback", "label": "sets next state"}
+    ]
+  },
+  {
+    "id": "traffic-signals",
+    "name": "Traffic signals",
+    "category": "engineering",
+    "description": "Vehicle detection adjusts the allocation of green time at a junction.",
+    "layout": "cycle",
+    "groups": [],
+    "nodes": [
+      {"id": "approach-queue", "name": "Approach queue", "symbol": "car", "kind": "store", "concept": "traffic"},
+      {"id": "loop-detector", "name": "Loop detector", "kind": "sensor", "detail": "Reports that vehicles are waiting on an approach."},
+      {"id": "phase-controller", "name": "Phase controller", "symbol": "slider.horizontal.3", "kind": "decision", "detail": "Chooses the next compatible set of movements.", "concept": "control"},
+      {"id": "green-phase", "name": "Green phase", "kind": "event"},
+      {"id": "vehicle-discharge", "name": "Vehicle discharge", "kind": "process"},
+      {"id": "pedestrian-call", "name": "Pedestrian call", "kind": "event"},
+      {"id": "crossing-phase", "name": "Crossing phase", "kind": "event"}
+    ],
+    "edges": [
+      {"source": "approach-queue", "target": "loop-detector", "kind": "flow", "label": "registers vehicles"},
+      {"source": "loop-detector", "target": "phase-controller", "kind": "signal", "label": "reports demand"},
+      {"source": "phase-controller", "target": "green-phase", "kind": "signal", "label": "enables movement"},
+      {"source": "green-phase", "target": "vehicle-discharge", "kind": "signal", "label": "permits departures"},
+      {"source": "vehicle-discharge", "target": "approach-queue", "kind": "inhibition", "label": "reduces queue"},
+      {"source": "pedestrian-call", "target": "phase-controller", "kind": "signal", "label": "requests crossing"},
+      {"source": "phase-controller", "target": "crossing-phase", "kind": "signal", "label": "grants crossing"},
+      {"source": "crossing-phase", "target": "green-phase", "kind": "inhibition", "label": "separates conflicts"}
+    ]
+  },
+  {
+    "id": "sail-trim",
+    "name": "Sail trim",
+    "category": "engineering",
+    "description": "A sailor balances aerodynamic force, hull motion and apparent wind.",
+    "layout": "cycle",
+    "groups": [],
+    "nodes": [
+      {"id": "true-wind", "name": "True wind", "symbol": "wind", "kind": "entity", "concept": "wind"},
+      {"id": "apparent-wind", "name": "Apparent wind", "kind": "entity", "detail": "Combines true wind with the boat’s motion."},
+      {"id": "sail", "name": "Sail", "kind": "entity"},
+      {"id": "sheet-tension", "name": "Sheet tension", "kind": "decision"},
+      {"id": "hull-motion", "name": "Hull motion", "kind": "entity"},
+      {"id": "telltales", "name": "Telltales", "kind": "sensor", "detail": "Reveal how air flows along the sail."},
+      {"id": "helmsman", "name": "Helmsman", "kind": "process"}
+    ],
+    "edges": [
+      {"source": "true-wind", "target": "apparent-wind", "kind": "flow", "label": "contributes velocity"},
+      {"source": "hull-motion", "target": "apparent-wind", "kind": "feedback", "label": "changes angle"},
+      {"source": "apparent-wind", "target": "sail", "kind": "flow", "label": "loads cloth"},
+      {"source": "sail", "target": "hull-motion", "kind": "flow", "label": "propels hull"},
+      {"source": "sail", "target": "telltales", "kind": "flow", "label": "deflects threads"},
+      {"source": "telltales", "target": "helmsman", "kind": "signal", "label": "reveals flow"},
+      {"source": "helmsman", "target": "sheet-tension", "kind": "signal", "label": "adjusts trim"},
+      {"source": "sheet-tension", "target": "sail", "kind": "signal", "label": "sets shape"}
+    ]
+  },
+  {
+    "id": "optical-telescope",
+    "name": "Optical telescope",
+    "category": "engineering",
+    "description": "A mirror system collects light and forms a stable image at a detector.",
+    "layout": "flow",
+    "groups": [],
+    "nodes": [
+      {"id": "starlight", "name": "Starlight", "kind": "entity"},
+      {"id": "primary-mirror", "name": "Primary mirror", "symbol": "camera.aperture", "kind": "entity", "detail": "Collects light across a wide aperture.", "concept": "optics"},
+      {"id": "secondary-mirror", "name": "Secondary mirror", "kind": "entity"},
+      {"id": "focal-plane", "name": "Focal plane", "kind": "entity"},
+      {"id": "detector", "name": "Detector", "kind": "sensor"},
+      {"id": "tracking-drive", "name": "Tracking drive", "symbol": "gearshape", "kind": "process", "concept": "actuation"},
+      {"id": "guide-camera", "name": "Guide camera", "kind": "sensor", "detail": "Measures image drift against a reference star."}
+    ],
+    "edges": [
+      {"source": "starlight", "target": "primary-mirror", "kind": "flow", "label": "illuminates aperture"},
+      {"source": "primary-mirror", "target": "secondary-mirror", "kind": "flow", "label": "reflects beam"},
+      {"source": "secondary-mirror", "target": "focal-plane", "kind": "flow", "label": "forms image"},
+      {"source": "focal-plane", "target": "detector", "kind": "flow", "label": "exposes pixels"},
+      {"source": "focal-plane", "target": "guide-camera", "kind": "flow", "label": "supplies guide image"},
+      {"source": "guide-camera", "target": "tracking-drive", "kind": "signal", "label": "reports drift"},
+      {"source": "tracking-drive", "target": "primary-mirror", "kind": "feedback", "label": "adjusts pointing"}
+    ]
+  },
+  {
+    "id": "canal-lock",
+    "name": "Canal lock",
+    "category": "engineering",
+    "description": "Gates and sluices alternate to transfer a boat between water levels.",
+    "layout": "cycle",
+    "groups": [],
+    "nodes": [
+      {"id": "lower-reach", "name": "Lower reach", "symbol": "water.waves", "kind": "entity", "concept": "river"},
+      {"id": "lower-gate", "name": "Lower gate", "kind": "decision"},
+      {"id": "lock-chamber", "name": "Lock chamber", "kind": "store", "detail": "Holds the boat while the water level changes."},
+      {"id": "upper-sluice", "name": "Upper sluice", "kind": "process", "detail": "Admits water from the higher reach."},
+      {"id": "upper-reach", "name": "Upper reach", "kind": "entity"},
+      {"id": "upper-gate", "name": "Upper gate", "kind": "decision"},
+      {"id": "lower-sluice", "name": "Lower sluice", "kind": "process"}
+    ],
+    "edges": [
+      {"source": "lower-reach", "target": "lower-gate", "kind": "flow", "label": "admits boat"},
+      {"source": "lower-gate", "target": "lock-chamber", "kind": "flow", "label": "opens passage"},
+      {"source": "upper-reach", "target": "upper-sluice", "kind": "flow", "label": "supplies water"},
+      {"source": "upper-sluice", "target": "lock-chamber", "kind": "flow", "label": "raises level"},
+      {"source": "lock-chamber", "target": "upper-gate", "kind": "flow", "label": "releases boat"},
+      {"source": "upper-gate", "target": "upper-reach", "kind": "flow", "label": "opens passage"},
+      {"source": "lock-chamber", "target": "lower-sluice", "kind": "flow", "label": "drains water"},
+      {"source": "lower-sluice", "target": "lower-reach", "kind": "flow", "label": "returns water"}
+    ]
+  },
+  {
+    "id": "industrial-automation",
+    "name": "Industrial automation",
+    "category": "engineering",
+    "description": "A programmable controller repeatedly reads inputs, evaluates logic and drives a machine.",
+    "layout": "grouped",
+    "groups": [
+      {"id": "inputs", "name": "Inputs"},
+      {"id": "logic", "name": "Logic"},
+      {"id": "outputs", "name": "Outputs"}
+    ],
+    "nodes": [
+      {"id": "proximity-sensor", "name": "Proximity sensor", "kind": "sensor", "group": "inputs"},
+      {"id": "input-module", "name": "Input module", "kind": "hub", "group": "inputs"},
+      {"id": "plc-scan", "name": "PLC scan", "symbol": "slider.horizontal.3", "kind": "process", "detail": "Reads inputs, applies logic and writes outputs.", "concept": "control", "group": "logic"},
+      {"id": "sequence-memory", "name": "Sequence memory", "kind": "store", "detail": "Retains the machine’s current operating step.", "group": "logic"},
+      {"id": "output-module", "name": "Output module", "kind": "hub", "group": "outputs"},
+      {"id": "actuator", "name": "Actuator", "symbol": "gearshape", "kind": "process", "concept": "actuation", "group": "outputs"},
+      {"id": "machine-cell", "name": "Machine cell", "symbol": "wrench.and.screwdriver", "kind": "entity", "concept": "manufacturing"}
+    ],
+    "edges": [
+      {"source": "proximity-sensor", "target": "input-module", "kind": "signal", "label": "reports position"},
+      {"source": "input-module", "target": "plc-scan", "kind": "flow", "label": "samples inputs"},
+      {"source": "sequence-memory", "target": "plc-scan", "kind": "signal", "label": "supplies sequence"},
+      {"source": "plc-scan", "target": "output-module", "kind": "signal", "label": "writes command"},
+      {"source": "output-module", "target": "actuator", "kind": "signal", "label": "energises drive"},
+      {"source": "actuator", "target": "machine-cell", "kind": "flow", "label": "moves tooling"},
+      {"source": "machine-cell", "target": "proximity-sensor", "kind": "feedback", "label": "changes position"}
+    ]
+  },
+  {
+    "id": "flywheel-storage",
+    "name": "Flywheel storage",
+    "category": "engineering",
+    "description": "A motor-generator exchanges electrical energy with a spinning mass.",
+    "layout": "cycle",
+    "groups": [],
+    "nodes": [
+      {"id": "grid-connection", "name": "Grid connection", "symbol": "bolt", "kind": "hub", "concept": "grid"},
+      {"id": "power-converter", "name": "Power converter", "kind": "process"},
+      {"id": "motor-generator", "name": "Motor-generator", "symbol": "bolt", "kind": "process", "detail": "Exchanges mechanical power with the rotor.", "concept": "generation"},
+      {"id": "flywheel", "name": "Flywheel", "symbol": "battery.75percent", "kind": "store", "detail": "Stores energy as rotation of a heavy mass.", "concept": "storage"},
+      {"id": "speed-sensor", "name": "Speed sensor", "kind": "sensor"},
+      {"id": "charge-controller", "name": "Charge controller", "symbol": "switch.2", "kind": "decision", "concept": "control"}
+    ],
+    "edges": [
+      {"source": "grid-connection", "target": "power-converter", "kind": "flow", "label": "supplies current"},
+      {"source": "power-converter", "target": "motor-generator", "kind": "flow", "label": "drives machine"},
+      {"source": "motor-generator", "target": "flywheel", "kind": "flow", "label": "adds momentum"},
+      {"source": "flywheel", "target": "motor-generator", "kind": "flow", "label": "returns torque"},
+      {"source": "motor-generator", "target": "power-converter", "kind": "flow", "label": "generates current"},
+      {"source": "power-converter", "target": "grid-connection", "kind": "flow", "label": "exports power"},
+      {"source": "flywheel", "target": "speed-sensor", "kind": "flow", "label": "sets speed"},
+      {"source": "speed-sensor", "target": "charge-controller", "kind": "signal", "label": "reports charge"},
+      {"source": "charge-controller", "target": "power-converter", "kind": "signal", "label": "sets power"}
+    ]
+  },
+  {
+    "id": "additive-manufacturing",
+    "name": "Additive manufacturing",
+    "category": "engineering",
+    "description": "A digital shape becomes a physical part one deposited layer at a time.",
+    "layout": "vertical",
+    "groups": [],
+    "nodes": [
+      {"id": "solid-model", "name": "Solid model", "kind": "entity"},
+      {"id": "slicer", "name": "Slicer", "kind": "process", "detail": "Divides the solid into printable layers."},
+      {"id": "toolpath", "name": "Toolpath", "kind": "store", "detail": "Records ordered moves for the print head."},
+      {"id": "motion-controller", "name": "Motion controller", "symbol": "slider.horizontal.3", "kind": "process", "concept": "control"},
+      {"id": "extruder", "name": "Extruder", "symbol": "wrench.and.screwdriver", "kind": "process", "concept": "manufacturing"},
+      {"id": "build-plate", "name": "Build plate", "kind": "entity"},
+      {"id": "inspection", "name": "Inspection", "symbol": "magnifyingglass", "kind": "sensor", "concept": "inspection"}
+    ],
+    "edges": [
+      {"source": "solid-model", "target": "slicer", "kind": "flow", "label": "supplies geometry"},
+      {"source": "slicer", "target": "toolpath", "kind": "flow", "label": "generates moves"},
+      {"source": "toolpath", "target": "motion-controller", "kind": "signal", "label": "directs motion"},
+      {"source": "motion-controller", "target": "extruder", "kind": "signal", "label": "meters material"},
+      {"source": "extruder", "target": "build-plate", "kind": "flow", "label": "deposits layers"},
+      {"source": "build-plate", "target": "inspection", "kind": "flow", "label": "presents part"},
+      {"source": "inspection", "target": "solid-model", "kind": "feedback", "label": "informs revision"}
+    ]
+  },
+  {
+    "id": "storm-drainage",
+    "name": "Storm drainage",
+    "category": "engineering",
+    "description": "A catchment gathers runoff and slows it before discharge.",
+    "layout": "tree",
+    "groups": [],
+    "nodes": [
+      {"id": "roof-area", "name": "Roof area", "kind": "entity"},
+      {"id": "street-surface", "name": "Street surface", "kind": "entity"},
+      {"id": "gutter", "name": "Gutter", "kind": "process"},
+      {"id": "storm-inlet", "name": "Storm inlet", "kind": "hub"},
+      {"id": "detention-basin", "name": "Detention basin", "symbol": "drop", "kind": "store", "detail": "Temporarily holds runoff after heavy rain.", "concept": "freshwater"},
+      {"id": "flow-restrictor", "name": "Flow restrictor", "kind": "decision", "detail": "Limits the rate of downstream discharge."},
+      {"id": "receiving-stream", "name": "Receiving stream", "symbol": "water.waves", "kind": "entity", "concept": "river"}
+    ],
+    "edges": [
+      {"source": "roof-area", "target": "gutter", "kind": "flow", "label": "sheds rain"},
+      {"source": "gutter", "target": "storm-inlet", "kind": "flow", "label": "drains runoff"},
+      {"source": "street-surface", "target": "storm-inlet", "kind": "flow", "label": "sheds runoff"},
+      {"source": "storm-inlet", "target": "detention-basin", "kind": "flow", "label": "collects flow"},
+      {"source": "detention-basin", "target": "flow-restrictor", "kind": "flow", "label": "stores peak runoff"},
+      {"source": "flow-restrictor", "target": "receiving-stream", "kind": "flow", "label": "meters discharge"}
+    ]
+  }
+]

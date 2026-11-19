@@ -24,11 +24,22 @@ A living isometric pixel-art city with traffic, growing neighbourhoods and light
 
 [City Simulation installation, build instructions and asset gallery](City%20Simulation/README.md)
 
-For maintainers: [publishing a release](docs/RELEASING.md).
+## System Design
+
+Explore 100 systems through tilted, evolving diagrams. Follow a packet across a network, heat around a refrigerant loop or pollen between flowers. While the screen saver runs, the diagram reveals neighbouring components and follows shared concepts into other systems. The desktop keeps the frame where the exploration settled.
+
+![A tilted diagram showing power flowing between a solar inverter, battery storage and household loads](System%20Design/assets/domestic-solar.png)
+
+[System Design installation, catalogue and build instructions](System%20Design/README.md)
+
+## Release downloads
+
+Choose the native wallpaper ZIP for the wallpaper you want. Each ZIP includes its registration app and installation instructions. [Browse GitHub Releases](https://github.com/thomasturrell/live-simulation-wallpapers/releases).
+
+[Publishing a release](docs/RELEASING.md)
 
 ## Planned features
 
-- **Systems Design** — watch requests flow between services, queues, and databases in a live system diagram.
 - **Optional logo overlays** for a personal or company watermark. Supply your own logo or keep the wallpaper unbranded.
 
 ## Licence

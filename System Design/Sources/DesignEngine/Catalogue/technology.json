@@ -1,0 +1,686 @@
+[
+  {
+    "id": "internet-routing",
+    "name": "Internet routing",
+    "category": "technology",
+    "description": "Autonomous networks exchange reachability and choose paths for traffic.",
+    "layout": "mesh",
+    "groups": [
+      {"id": "interdomain", "name": "Interdomain"},
+      {"id": "forwarding", "name": "Forwarding"}
+    ],
+    "nodes": [
+      {"id": "origin-network", "name": "Origin network", "kind": "entity", "detail": "Announces the prefixes it can reach.", "group": "interdomain"},
+      {"id": "border-router", "name": "Border router", "symbol": "arrow.triangle.branch", "kind": "hub", "detail": "Learns which neighbouring networks offer a path.", "concept": "routing", "group": "interdomain"},
+      {"id": "peer-network", "name": "Peer network", "kind": "entity", "group": "interdomain"},
+      {"id": "transit-provider", "name": "Transit provider", "kind": "hub", "group": "interdomain"},
+      {"id": "routing-table", "name": "Routing table", "kind": "store", "detail": "Keeps the selected next hop for each prefix.", "group": "forwarding"},
+      {"id": "packet-forwarder", "name": "Packet forwarder", "kind": "process", "group": "forwarding"},
+      {"id": "destination-network", "name": "Destination network", "kind": "entity", "group": "forwarding"}
+    ],
+    "edges": [
+      {"source": "origin-network", "target": "border-router", "kind": "signal", "label": "advertises prefix"},
+      {"source": "peer-network", "target": "border-router", "kind": "signal", "label": "offers paths"},
+      {"source": "transit-provider", "target": "border-router", "kind": "signal", "label": "offers transit"},
+      {"source": "border-router", "target": "routing-table", "kind": "flow", "label": "installs route"},
+      {"source": "routing-table", "target": "packet-forwarder", "kind": "signal", "label": "selects next hop"},
+      {"source": "packet-forwarder", "target": "destination-network", "kind": "flow", "label": "forwards packets"},
+      {"source": "border-router", "target": "peer-network", "kind": "signal", "label": "exports policy"}
+    ]
+  },
+  {
+    "id": "dns-resolution",
+    "name": "DNS resolution",
+    "category": "technology",
+    "description": "A resolver follows delegations until it finds an authoritative answer.",
+    "layout": "tree",
+    "groups": [
+      {"id": "delegation", "name": "Delegation"}
+    ],
+    "nodes": [
+      {"id": "client", "name": "Client", "kind": "entity"},
+      {"id": "recursive-resolver", "name": "Recursive resolver", "symbol": "globe", "kind": "hub", "detail": "Follows referrals on behalf of the client.", "concept": "dns"},
+      {"id": "root-server", "name": "Root server", "symbol": "globe", "kind": "hub", "detail": "Refers the resolver to a top-level domain.", "group": "delegation"},
+      {"id": "top-level-domain", "name": "Top-level domain", "kind": "hub", "group": "delegation"},
+      {"id": "authoritative-server", "name": "Authoritative server", "kind": "hub", "group": "delegation"},
+      {"id": "answer-cache", "name": "Answer cache", "symbol": "tray.full", "kind": "store", "detail": "Reuses an answer until its lifetime expires.", "concept": "cache"},
+      {"id": "address-record", "name": "Address record", "symbol": "list.bullet.rectangle", "kind": "entity"}
+    ],
+    "edges": [
+      {"source": "client", "target": "recursive-resolver", "kind": "signal", "label": "asks for address"},
+      {"source": "recursive-resolver", "target": "root-server", "kind": "signal", "label": "requests referral"},
+      {"source": "root-server", "target": "top-level-domain", "kind": "signal", "label": "delegates zone"},
+      {"source": "top-level-domain", "target": "authoritative-server", "kind": "signal", "label": "delegates zone"},
+      {"source": "authoritative-server", "target": "address-record", "kind": "flow", "label": "serves record"},
+      {"source": "address-record", "target": "recursive-resolver", "kind": "flow", "label": "returns answer"},
+      {"source": "recursive-resolver", "target": "answer-cache", "kind": "flow", "label": "caches result"},
+      {"source": "answer-cache", "target": "client", "kind": "flow", "label": "answers repeat query"}
+    ]
+  },
+  {
+    "id": "public-key-infrastructure",
+    "name": "Public key infrastructure",
+    "category": "technology",
+    "description": "A chain of issuers binds a public key to an identity.",
+    "layout": "tree",
+    "groups": [
+      {"id": "issuers", "name": "Issuers"}
+    ],
+    "nodes": [
+      {"id": "root-authority", "name": "Root authority", "kind": "hub", "detail": "Anchors a chain of trust.", "group": "issuers"},
+      {"id": "intermediate-issuer", "name": "Intermediate issuer", "kind": "hub", "group": "issuers"},
+      {"id": "service-identity", "name": "Service identity", "kind": "entity"},
+      {"id": "certificate", "name": "Certificate", "kind": "store"},
+      {"id": "trust-store", "name": "Trust store", "kind": "store", "detail": "Holds the root certificates a verifier accepts."},
+      {"id": "verifier", "name": "Verifier", "kind": "decision", "detail": "Checks the identity, signatures and validity period."},
+      {"id": "revocation-status", "name": "Revocation status", "kind": "sensor"}
+    ],
+    "edges": [
+      {"source": "root-authority", "target": "intermediate-issuer", "kind": "signal", "label": "signs authority"},
+      {"source": "intermediate-issuer", "target": "certificate", "kind": "flow", "label": "issues credential"},
+      {"source": "certificate", "target": "service-identity", "kind": "dependency", "label": "binds public key"},
+      {"source": "root-authority", "target": "trust-store", "kind": "flow", "label": "supplies trust anchor"},
+      {"source": "trust-store", "target": "verifier", "kind": "signal", "label": "establishes trust"},
+      {"source": "certificate", "target": "verifier", "kind": "flow", "label": "presents chain"},
+      {"source": "revocation-status", "target": "verifier", "kind": "signal", "label": "reports validity"}
+    ]
+  },
+  {
+    "id": "operating-system-scheduling",
+    "name": "Operating system scheduling",
+    "category": "technology",
+    "description": "Runnable tasks share a processor and sleep while waiting for events.",
+    "layout": "cycle",
+    "groups": [],
+    "nodes": [
+      {"id": "ready-queue", "name": "Ready queue", "symbol": "square.stack.3d.up", "kind": "store", "detail": "Holds tasks that can run as soon as a core is free.", "concept": "queue"},
+      {"id": "scheduler", "name": "Scheduler", "kind": "decision", "detail": "Selects the next eligible task."},
+      {"id": "processor", "name": "Processor", "symbol": "cpu", "kind": "hub", "concept": "processor"},
+      {"id": "running-task", "name": "Running task", "kind": "process"},
+      {"id": "wait-queue", "name": "Wait queue", "kind": "store", "detail": "Holds tasks waiting for an external event."},
+      {"id": "device-event", "name": "Device event", "kind": "event"},
+      {"id": "time-slice", "name": "Time slice", "kind": "event"}
+    ],
+    "edges": [
+      {"source": "ready-queue", "target": "scheduler", "kind": "flow", "label": "offers tasks"},
+      {"source": "scheduler", "target": "processor", "kind": "signal", "label": "dispatches task"},
+      {"source": "processor", "target": "running-task", "kind": "flow", "label": "executes"},
+      {"source": "running-task", "target": "wait-queue", "kind": "flow", "label": "waits for I/O"},
+      {"source": "device-event", "target": "wait-queue", "kind": "signal", "label": "wakes task"},
+      {"source": "wait-queue", "target": "ready-queue", "kind": "flow", "label": "returns runnable task"},
+      {"source": "time-slice", "target": "running-task", "kind": "signal", "label": "preempts"},
+      {"source": "running-task", "target": "ready-queue", "kind": "flow", "label": "yields processor"}
+    ]
+  },
+  {
+    "id": "ethernet-switching",
+    "name": "Ethernet switching",
+    "category": "technology",
+    "description": "A switch learns source addresses and directs frames to local ports.",
+    "layout": "radial",
+    "groups": [],
+    "nodes": [
+      {"id": "switch-fabric", "name": "Switch fabric", "symbol": "network", "kind": "hub", "detail": "Moves frames between physical ports.", "concept": "network"},
+      {"id": "ingress-port", "name": "Ingress port", "kind": "entity"},
+      {"id": "source-learner", "name": "Source learner", "kind": "process"},
+      {"id": "address-table", "name": "Address table", "kind": "store", "detail": "Remembers which port last saw a source address."},
+      {"id": "port-lookup", "name": "Port lookup", "kind": "decision"},
+      {"id": "egress-port", "name": "Egress port", "kind": "entity"},
+      {"id": "broadcast-domain", "name": "Broadcast domain", "kind": "entity", "detail": "Includes all ports that receive the same broadcast."}
+    ],
+    "edges": [
+      {"source": "ingress-port", "target": "source-learner", "kind": "flow", "label": "supplies source"},
+      {"source": "source-learner", "target": "address-table", "kind": "flow", "label": "updates mapping"},
+      {"source": "ingress-port", "target": "switch-fabric", "kind": "flow", "label": "admits frame"},
+      {"source": "address-table", "target": "port-lookup", "kind": "signal", "label": "maps destination"},
+      {"source": "port-lookup", "target": "switch-fabric", "kind": "signal", "label": "selects port"},
+      {"source": "switch-fabric", "target": "egress-port", "kind": "flow", "label": "delivers frame"},
+      {"source": "switch-fabric", "target": "broadcast-domain", "kind": "flow", "label": "floods unknown address"}
+    ]
+  },
+  {
+    "id": "replicated-log",
+    "name": "Replicated log",
+    "category": "technology",
+    "description": "A leader orders entries and waits for acknowledgements from replicas.",
+    "layout": "mesh",
+    "groups": [],
+    "nodes": [
+      {"id": "client", "name": "Client", "kind": "entity"},
+      {"id": "leader", "name": "Leader", "kind": "hub", "detail": "Coordinates the order shared by the replicas."},
+      {"id": "ordered-log", "name": "Ordered log", "symbol": "list.bullet.rectangle", "kind": "store", "concept": "log"},
+      {"id": "replica-a", "name": "Replica A", "kind": "store"},
+      {"id": "replica-b", "name": "Replica B", "kind": "store"},
+      {"id": "quorum", "name": "Quorum", "kind": "decision", "detail": "Confirms that enough copies have persisted."},
+      {"id": "state-machine", "name": "State machine", "kind": "process", "detail": "Applies committed commands in log order."}
+    ],
+    "edges": [
+      {"source": "client", "target": "leader", "kind": "flow", "label": "proposes command"},
+      {"source": "leader", "target": "ordered-log", "kind": "flow", "label": "appends entry"},
+      {"source": "ordered-log", "target": "replica-a", "kind": "flow", "label": "replicates"},
+      {"source": "ordered-log", "target": "replica-b", "kind": "flow", "label": "replicates"},
+      {"source": "replica-a", "target": "quorum", "kind": "signal", "label": "acknowledges"},
+      {"source": "replica-b", "target": "quorum", "kind": "signal", "label": "acknowledges"},
+      {"source": "quorum", "target": "leader", "kind": "signal", "label": "confirms majority"},
+      {"source": "leader", "target": "state-machine", "kind": "signal", "label": "commits prefix"},
+      {"source": "state-machine", "target": "client", "kind": "flow", "label": "returns result"}
+    ]
+  },
+  {
+    "id": "relational-query-planning",
+    "name": "Relational query planning",
+    "category": "technology",
+    "description": "A declarative query becomes an execution plan informed by table statistics.",
+    "layout": "flow",
+    "groups": [],
+    "nodes": [
+      {"id": "sql-query", "name": "SQL query", "kind": "entity"},
+      {"id": "parser", "name": "Parser", "kind": "process"},
+      {"id": "logical-plan", "name": "Logical plan", "kind": "entity", "detail": "Describes the result without choosing an algorithm."},
+      {"id": "optimiser", "name": "Optimiser", "kind": "decision", "detail": "Compares equivalent ways to retrieve rows."},
+      {"id": "statistics", "name": "Statistics", "kind": "store", "detail": "Estimates how many rows each operation will touch."},
+      {"id": "physical-plan", "name": "Physical plan", "kind": "entity"},
+      {"id": "executor", "name": "Executor", "kind": "process"},
+      {"id": "index", "name": "Index", "symbol": "cylinder", "kind": "store", "concept": "database"}
+    ],
+    "edges": [
+      {"source": "sql-query", "target": "parser", "kind": "flow", "label": "supplies text"},
+      {"source": "parser", "target": "logical-plan", "kind": "flow", "label": "builds tree"},
+      {"source": "logical-plan", "target": "optimiser", "kind": "flow", "label": "proposes operations"},
+      {"source": "statistics", "target": "optimiser", "kind": "signal", "label": "estimates cost"},
+      {"source": "optimiser", "target": "physical-plan", "kind": "flow", "label": "chooses operators"},
+      {"source": "physical-plan", "target": "executor", "kind": "signal", "label": "directs work"},
+      {"source": "index", "target": "executor", "kind": "flow", "label": "supplies matching rows"}
+    ]
+  },
+  {
+    "id": "compiler-pipeline",
+    "name": "Compiler pipeline",
+    "category": "technology",
+    "description": "Source text becomes machine code through a series of representations.",
+    "layout": "flow",
+    "groups": [
+      {"id": "front-end", "name": "Front end"},
+      {"id": "back-end", "name": "Back end"}
+    ],
+    "nodes": [
+      {"id": "source-text", "name": "Source text", "kind": "store"},
+      {"id": "lexer", "name": "Lexer", "kind": "process", "detail": "Splits characters into meaningful tokens.", "group": "front-end"},
+      {"id": "token-stream", "name": "Token stream", "kind": "entity", "group": "front-end"},
+      {"id": "parser", "name": "Parser", "kind": "process", "group": "front-end"},
+      {"id": "syntax-tree", "name": "Syntax tree", "kind": "entity", "detail": "Captures the structure of the parsed program.", "group": "front-end"},
+      {"id": "optimiser", "name": "Optimiser", "kind": "process", "group": "back-end"},
+      {"id": "code-generator", "name": "Code generator", "kind": "process", "group": "back-end"},
+      {"id": "object-file", "name": "Object file", "kind": "store", "group": "back-end"}
+    ],
+    "edges": [
+      {"source": "source-text", "target": "lexer", "kind": "flow", "label": "supplies characters"},
+      {"source": "lexer", "target": "token-stream", "kind": "flow", "label": "emits tokens"},
+      {"source": "token-stream", "target": "parser", "kind": "flow", "label": "provides input"},
+      {"source": "parser", "target": "syntax-tree", "kind": "flow", "label": "builds tree"},
+      {"source": "syntax-tree", "target": "optimiser", "kind": "flow", "label": "lowers to IR"},
+      {"source": "optimiser", "target": "code-generator", "kind": "flow", "label": "supplies optimised IR"},
+      {"source": "code-generator", "target": "object-file", "kind": "flow", "label": "emits code"}
+    ]
+  },
+  {
+    "id": "version-control",
+    "name": "Version control",
+    "category": "technology",
+    "description": "Commits point to snapshots and their parents while branches name tips.",
+    "layout": "tree",
+    "groups": [],
+    "nodes": [
+      {"id": "working-tree", "name": "Working tree", "kind": "entity"},
+      {"id": "staging-area", "name": "Staging area", "kind": "store", "detail": "Records the changes intended for the next commit."},
+      {"id": "commit", "name": "Commit", "kind": "process"},
+      {"id": "tree-object", "name": "Tree object", "kind": "store"},
+      {"id": "parent-commit", "name": "Parent commit", "kind": "entity"},
+      {"id": "branch-reference", "name": "Branch reference", "kind": "entity", "detail": "Names the latest commit on a branch."},
+      {"id": "remote-repository", "name": "Remote repository", "kind": "store"}
+    ],
+    "edges": [
+      {"source": "working-tree", "target": "staging-area", "kind": "flow", "label": "stages changes"},
+      {"source": "staging-area", "target": "commit", "kind": "flow", "label": "supplies snapshot"},
+      {"source": "commit", "target": "tree-object", "kind": "flow", "label": "records tree"},
+      {"source": "commit", "target": "parent-commit", "kind": "dependency", "label": "links history"},
+      {"source": "commit", "target": "branch-reference", "kind": "signal", "label": "advances tip"},
+      {"source": "branch-reference", "target": "remote-repository", "kind": "flow", "label": "pushes reference"},
+      {"source": "remote-repository", "target": "working-tree", "kind": "flow", "label": "supplies checkout"}
+    ]
+  },
+  {
+    "id": "supervised-learning",
+    "name": "Supervised learning",
+    "category": "technology",
+    "description": "Labelled examples and held-out evaluations guide model training.",
+    "layout": "cycle",
+    "groups": [],
+    "nodes": [
+      {"id": "training-set", "name": "Training set", "symbol": "square.grid.3x3", "kind": "store", "concept": "dataset"},
+      {"id": "predictor", "name": "Predictor", "symbol": "function", "kind": "process", "concept": "model"},
+      {"id": "prediction", "name": "Prediction", "kind": "entity"},
+      {"id": "loss-measure", "name": "Loss measure", "kind": "sensor", "detail": "Quantifies the difference from the training target."},
+      {"id": "optimiser", "name": "Optimiser", "kind": "process"},
+      {"id": "weights", "name": "Weights", "kind": "store"},
+      {"id": "validation-set", "name": "Validation set", "kind": "store", "detail": "Measures performance on examples held out of training."},
+      {"id": "evaluation", "name": "Evaluation", "kind": "sensor"}
+    ],
+    "edges": [
+      {"source": "training-set", "target": "predictor", "kind": "flow", "label": "supplies examples"},
+      {"source": "predictor", "target": "prediction", "kind": "flow", "label": "estimates target"},
+      {"source": "prediction", "target": "loss-measure", "kind": "flow", "label": "contributes estimate"},
+      {"source": "training-set", "target": "loss-measure", "kind": "flow", "label": "supplies labels"},
+      {"source": "loss-measure", "target": "optimiser", "kind": "signal", "label": "supplies gradient"},
+      {"source": "optimiser", "target": "weights", "kind": "flow", "label": "adjusts parameters"},
+      {"source": "weights", "target": "predictor", "kind": "feedback", "label": "changes predictions"},
+      {"source": "validation-set", "target": "evaluation", "kind": "flow", "label": "tests generalisation"},
+      {"source": "predictor", "target": "evaluation", "kind": "flow", "label": "supplies estimates"}
+    ]
+  },
+  {
+    "id": "neural-inference",
+    "name": "Neural inference",
+    "category": "technology",
+    "description": "Learned transformations combine an input into an output distribution.",
+    "layout": "flow",
+    "groups": [],
+    "nodes": [
+      {"id": "input-vector", "name": "Input vector", "kind": "entity"},
+      {"id": "input-projection", "name": "Input projection", "kind": "process"},
+      {"id": "hidden-units", "name": "Hidden units", "kind": "hub"},
+      {"id": "activation", "name": "Activation", "kind": "process", "detail": "Introduces a nonlinear response between layers."},
+      {"id": "output-layer", "name": "Output layer", "kind": "process"},
+      {"id": "class-scores", "name": "Class scores", "kind": "entity"},
+      {"id": "learned-weights", "name": "Learned weights", "symbol": "function", "kind": "store", "detail": "Sets the strength of connections learned in training.", "concept": "model"}
+    ],
+    "edges": [
+      {"source": "input-vector", "target": "input-projection", "kind": "flow", "label": "supplies features"},
+      {"source": "input-projection", "target": "hidden-units", "kind": "flow", "label": "mixes inputs"},
+      {"source": "hidden-units", "target": "activation", "kind": "flow", "label": "supplies sums"},
+      {"source": "activation", "target": "output-layer", "kind": "flow", "label": "passes activations"},
+      {"source": "output-layer", "target": "class-scores", "kind": "flow", "label": "produces scores"},
+      {"source": "learned-weights", "target": "input-projection", "kind": "signal", "label": "sets coefficients"},
+      {"source": "learned-weights", "target": "output-layer", "kind": "signal", "label": "sets coefficients"}
+    ]
+  },
+  {
+    "id": "event-driven-services",
+    "name": "Event-driven services",
+    "category": "technology",
+    "description": "Producers publish events and independent subscribers react.",
+    "layout": "radial",
+    "groups": [],
+    "nodes": [
+      {"id": "event-broker", "name": "Event broker", "symbol": "square.stack.3d.up", "kind": "hub", "detail": "Routes published events to interested subscribers.", "concept": "queue"},
+      {"id": "order-service", "name": "Order service", "kind": "process"},
+      {"id": "order-event", "name": "Order event", "kind": "event", "detail": "Announces that an order has changed state."},
+      {"id": "inventory-worker", "name": "Inventory worker", "kind": "process"},
+      {"id": "billing-worker", "name": "Billing worker", "kind": "process"},
+      {"id": "delivery-worker", "name": "Delivery worker", "kind": "process"},
+      {"id": "event-log", "name": "Event log", "symbol": "list.bullet.rectangle", "kind": "store", "detail": "Keeps a history that subscribers can replay.", "concept": "log"}
+    ],
+    "edges": [
+      {"source": "order-service", "target": "order-event", "kind": "flow", "label": "emits"},
+      {"source": "order-event", "target": "event-broker", "kind": "flow", "label": "publishes"},
+      {"source": "event-broker", "target": "inventory-worker", "kind": "flow", "label": "distributes event"},
+      {"source": "event-broker", "target": "billing-worker", "kind": "flow", "label": "distributes event"},
+      {"source": "event-broker", "target": "delivery-worker", "kind": "flow", "label": "distributes event"},
+      {"source": "event-broker", "target": "event-log", "kind": "flow", "label": "retains history"},
+      {"source": "event-log", "target": "event-broker", "kind": "flow", "label": "replays events"}
+    ]
+  },
+  {
+    "id": "container-orchestration",
+    "name": "Container orchestration",
+    "category": "technology",
+    "description": "Controllers reconcile the desired workload with running containers.",
+    "layout": "grouped",
+    "groups": [
+      {"id": "control-plane", "name": "Control plane"},
+      {"id": "worker-node", "name": "Worker node"},
+      {"id": "workload-placement", "name": "Workload placement", "parent": "control-plane"}
+    ],
+    "nodes": [
+      {"id": "workload-spec", "name": "Workload spec", "kind": "store", "group": "control-plane"},
+      {"id": "api-server", "name": "API server", "kind": "hub", "group": "control-plane"},
+      {"id": "controller", "name": "Controller", "kind": "process", "detail": "Compares requested replicas with observed replicas.", "group": "workload-placement"},
+      {"id": "scheduler", "name": "Scheduler", "kind": "decision", "group": "workload-placement"},
+      {"id": "node-agent", "name": "Node agent", "kind": "process", "detail": "Starts and monitors containers on one machine.", "group": "worker-node"},
+      {"id": "container", "name": "Container", "kind": "process", "group": "worker-node"},
+      {"id": "status-report", "name": "Status report", "kind": "sensor", "group": "worker-node"}
+    ],
+    "edges": [
+      {"source": "workload-spec", "target": "api-server", "kind": "flow", "label": "submits intent"},
+      {"source": "api-server", "target": "controller", "kind": "signal", "label": "supplies desired state"},
+      {"source": "controller", "target": "scheduler", "kind": "flow", "label": "requests placement"},
+      {"source": "scheduler", "target": "node-agent", "kind": "signal", "label": "assigns workload"},
+      {"source": "node-agent", "target": "container", "kind": "signal", "label": "starts container"},
+      {"source": "container", "target": "status-report", "kind": "flow", "label": "reports health"},
+      {"source": "status-report", "target": "api-server", "kind": "feedback", "label": "updates observed state"}
+    ]
+  },
+  {
+    "id": "content-delivery",
+    "name": "Content delivery",
+    "category": "technology",
+    "description": "An edge cache serves nearby readers and fetches missing content from an origin.",
+    "layout": "tree",
+    "groups": [],
+    "nodes": [
+      {"id": "reader", "name": "Reader", "symbol": "book", "kind": "entity"},
+      {"id": "name-resolver", "name": "Name resolver", "symbol": "globe", "kind": "hub", "concept": "dns"},
+      {"id": "edge-location", "name": "Edge location", "symbol": "network", "kind": "hub", "concept": "network"},
+      {"id": "cache-lookup", "name": "Cache lookup", "kind": "decision", "detail": "Checks whether a fresh local copy exists."},
+      {"id": "object-cache", "name": "Object cache", "symbol": "tray.full", "kind": "store", "concept": "cache"},
+      {"id": "origin-server", "name": "Origin server", "kind": "store", "detail": "Holds the source copy for a cache miss."},
+      {"id": "response", "name": "Response", "kind": "event"}
+    ],
+    "edges": [
+      {"source": "reader", "target": "name-resolver", "kind": "signal", "label": "looks up host"},
+      {"source": "name-resolver", "target": "reader", "kind": "signal", "label": "returns edge address"},
+      {"source": "reader", "target": "edge-location", "kind": "flow", "label": "requests object"},
+      {"source": "edge-location", "target": "cache-lookup", "kind": "signal", "label": "checks key"},
+      {"source": "object-cache", "target": "cache-lookup", "kind": "flow", "label": "offers cached object"},
+      {"source": "cache-lookup", "target": "origin-server", "kind": "signal", "label": "requests missing object"},
+      {"source": "origin-server", "target": "object-cache", "kind": "flow", "label": "fills cache"},
+      {"source": "object-cache", "target": "response", "kind": "flow", "label": "serves bytes"},
+      {"source": "response", "target": "reader", "kind": "flow", "label": "delivers content"}
+    ]
+  },
+  {
+    "id": "memory-hierarchy",
+    "name": "Memory hierarchy",
+    "category": "technology",
+    "description": "A processor looks through increasingly distant stores for a memory line.",
+    "layout": "vertical",
+    "groups": [],
+    "nodes": [
+      {"id": "processor", "name": "Processor", "symbol": "cpu", "kind": "hub", "concept": "processor"},
+      {"id": "l1-cache", "name": "L1 cache", "symbol": "tray.full", "kind": "store", "detail": "Keeps recently used lines close to the core.", "concept": "cache"},
+      {"id": "l2-cache", "name": "L2 cache", "kind": "store"},
+      {"id": "last-level-cache", "name": "Last-level cache", "kind": "store"},
+      {"id": "memory-controller", "name": "Memory controller", "kind": "process", "detail": "Schedules transfers to and from memory chips."},
+      {"id": "main-memory", "name": "Main memory", "kind": "store"}
+    ],
+    "edges": [
+      {"source": "processor", "target": "l1-cache", "kind": "signal", "label": "requests line"},
+      {"source": "l1-cache", "target": "l2-cache", "kind": "signal", "label": "forwards miss"},
+      {"source": "l2-cache", "target": "last-level-cache", "kind": "signal", "label": "forwards miss"},
+      {"source": "last-level-cache", "target": "memory-controller", "kind": "signal", "label": "requests fill"},
+      {"source": "memory-controller", "target": "main-memory", "kind": "signal", "label": "reads address"},
+      {"source": "main-memory", "target": "last-level-cache", "kind": "flow", "label": "returns line"},
+      {"source": "last-level-cache", "target": "l2-cache", "kind": "flow", "label": "fills line"},
+      {"source": "l2-cache", "target": "l1-cache", "kind": "flow", "label": "fills line"},
+      {"source": "l1-cache", "target": "processor", "kind": "flow", "label": "supplies data"}
+    ]
+  },
+  {
+    "id": "stream-processing",
+    "name": "Stream processing",
+    "category": "technology",
+    "description": "A stream is grouped into time windows before results reach subscribers.",
+    "layout": "flow",
+    "groups": [],
+    "nodes": [
+      {"id": "sensor-feed", "name": "Sensor feed", "symbol": "waveform.path.ecg", "kind": "sensor", "concept": "telemetry"},
+      {"id": "input-topic", "name": "Input topic", "symbol": "square.stack.3d.up", "kind": "store", "concept": "queue"},
+      {"id": "partitioner", "name": "Partitioner", "kind": "decision"},
+      {"id": "window-state", "name": "Window state", "kind": "store", "detail": "Retains the records needed for each interval."},
+      {"id": "aggregator", "name": "Aggregator", "kind": "process"},
+      {"id": "watermark", "name": "Watermark", "kind": "event", "detail": "Marks the event time a computation can close."},
+      {"id": "result-topic", "name": "Result topic", "kind": "store"}
+    ],
+    "edges": [
+      {"source": "sensor-feed", "target": "input-topic", "kind": "flow", "label": "emits samples"},
+      {"source": "input-topic", "target": "partitioner", "kind": "flow", "label": "supplies records"},
+      {"source": "partitioner", "target": "window-state", "kind": "flow", "label": "groups by key"},
+      {"source": "window-state", "target": "aggregator", "kind": "flow", "label": "supplies window"},
+      {"source": "watermark", "target": "aggregator", "kind": "signal", "label": "closes window"},
+      {"source": "aggregator", "target": "result-topic", "kind": "flow", "label": "publishes summary"}
+    ]
+  },
+  {
+    "id": "search-indexing",
+    "name": "Search indexing",
+    "category": "technology",
+    "description": "An indexer records term locations so queries can retrieve ranked documents.",
+    "layout": "grouped",
+    "groups": [
+      {"id": "collection", "name": "Collection"},
+      {"id": "indexing", "name": "Indexing"},
+      {"id": "retrieval", "name": "Retrieval"}
+    ],
+    "nodes": [
+      {"id": "document-set", "name": "Document set", "symbol": "square.grid.3x3", "kind": "store", "concept": "dataset", "group": "collection"},
+      {"id": "tokenizer", "name": "Tokenizer", "kind": "process", "group": "indexing"},
+      {"id": "term-dictionary", "name": "Term dictionary", "kind": "store", "group": "indexing"},
+      {"id": "posting-lists", "name": "Posting lists", "kind": "store", "detail": "Maps each term to documents and positions.", "group": "indexing"},
+      {"id": "query-parser", "name": "Query parser", "kind": "process", "group": "retrieval"},
+      {"id": "ranker", "name": "Ranker", "kind": "decision", "detail": "Scores candidate documents for a query.", "group": "retrieval"},
+      {"id": "results", "name": "Results", "kind": "entity", "group": "retrieval"}
+    ],
+    "edges": [
+      {"source": "document-set", "target": "tokenizer", "kind": "flow", "label": "supplies text"},
+      {"source": "tokenizer", "target": "term-dictionary", "kind": "flow", "label": "records terms"},
+      {"source": "tokenizer", "target": "posting-lists", "kind": "flow", "label": "records positions"},
+      {"source": "term-dictionary", "target": "query-parser", "kind": "signal", "label": "resolves terms"},
+      {"source": "query-parser", "target": "ranker", "kind": "signal", "label": "specifies query"},
+      {"source": "posting-lists", "target": "ranker", "kind": "flow", "label": "supplies candidates"},
+      {"source": "ranker", "target": "results", "kind": "flow", "label": "orders matches"}
+    ]
+  },
+  {
+    "id": "database-transactions",
+    "name": "Database transactions",
+    "category": "technology",
+    "description": "A durable log makes a committed update recoverable after interruption.",
+    "layout": "cycle",
+    "groups": [],
+    "nodes": [
+      {"id": "transaction", "name": "Transaction", "kind": "process"},
+      {"id": "buffer-pool", "name": "Buffer pool", "symbol": "cylinder", "kind": "store", "concept": "database"},
+      {"id": "dirty-page", "name": "Dirty page", "kind": "entity"},
+      {"id": "log-buffer", "name": "Log buffer", "symbol": "list.bullet.rectangle", "kind": "store", "concept": "log"},
+      {"id": "durable-log", "name": "Durable log", "kind": "store", "detail": "Persists changes before affected pages reach disk."},
+      {"id": "commit-record", "name": "Commit record", "kind": "event"},
+      {"id": "checkpointer", "name": "Checkpointer", "kind": "process", "detail": "Writes changed pages back to their data files."},
+      {"id": "data-file", "name": "Data file", "kind": "store"}
+    ],
+    "edges": [
+      {"source": "transaction", "target": "buffer-pool", "kind": "flow", "label": "edits row"},
+      {"source": "buffer-pool", "target": "dirty-page", "kind": "flow", "label": "holds change"},
+      {"source": "transaction", "target": "log-buffer", "kind": "flow", "label": "records change"},
+      {"source": "log-buffer", "target": "durable-log", "kind": "flow", "label": "flushes entries"},
+      {"source": "durable-log", "target": "commit-record", "kind": "flow", "label": "confirms durability"},
+      {"source": "commit-record", "target": "transaction", "kind": "signal", "label": "acknowledges commit"},
+      {"source": "dirty-page", "target": "checkpointer", "kind": "flow", "label": "supplies page"},
+      {"source": "durable-log", "target": "checkpointer", "kind": "signal", "label": "permits flush"},
+      {"source": "checkpointer", "target": "data-file", "kind": "flow", "label": "writes page"}
+    ]
+  },
+  {
+    "id": "digital-audio",
+    "name": "Digital audio",
+    "category": "technology",
+    "description": "Pressure variations become samples and return to sound through a loudspeaker.",
+    "layout": "flow",
+    "groups": [],
+    "nodes": [
+      {"id": "microphone", "name": "Microphone", "symbol": "waveform", "kind": "sensor", "detail": "Converts air pressure into a changing voltage.", "concept": "sound"},
+      {"id": "preamplifier", "name": "Preamplifier", "kind": "process"},
+      {"id": "converter", "name": "Converter", "kind": "process"},
+      {"id": "sample-buffer", "name": "Sample buffer", "kind": "store", "detail": "Holds a short sequence of digital samples."},
+      {"id": "signal-processor", "name": "Signal processor", "kind": "process"},
+      {"id": "output-converter", "name": "Output converter", "kind": "process"},
+      {"id": "loudspeaker", "name": "Loudspeaker", "symbol": "speaker.wave.2", "kind": "entity", "concept": "sound-output"}
+    ],
+    "edges": [
+      {"source": "microphone", "target": "preamplifier", "kind": "flow", "label": "sends voltage"},
+      {"source": "preamplifier", "target": "converter", "kind": "flow", "label": "conditions signal"},
+      {"source": "converter", "target": "sample-buffer", "kind": "flow", "label": "writes samples"},
+      {"source": "sample-buffer", "target": "signal-processor", "kind": "flow", "label": "supplies frames"},
+      {"source": "signal-processor", "target": "output-converter", "kind": "flow", "label": "sends samples"},
+      {"source": "output-converter", "target": "loudspeaker", "kind": "flow", "label": "drives cone"}
+    ]
+  },
+  {
+    "id": "image-sensor-readout",
+    "name": "Image sensor readout",
+    "category": "technology",
+    "description": "Light is sampled by pixels and reconstructed into a colour image.",
+    "layout": "vertical",
+    "groups": [],
+    "nodes": [
+      {"id": "lens", "name": "Lens", "symbol": "camera.aperture", "kind": "entity", "concept": "optics"},
+      {"id": "photodiodes", "name": "Photodiodes", "kind": "sensor", "detail": "Convert incoming photons into electric charge."},
+      {"id": "charge-wells", "name": "Charge wells", "kind": "store"},
+      {"id": "readout-circuit", "name": "Readout circuit", "kind": "process"},
+      {"id": "digitiser", "name": "Digitiser", "kind": "process"},
+      {"id": "colour-processor", "name": "Colour processor", "kind": "process", "detail": "Reconstructs colour from neighbouring samples."},
+      {"id": "image-frame", "name": "Image frame", "kind": "store"}
+    ],
+    "edges": [
+      {"source": "lens", "target": "photodiodes", "kind": "flow", "label": "focuses light"},
+      {"source": "photodiodes", "target": "charge-wells", "kind": "flow", "label": "accumulates charge"},
+      {"source": "charge-wells", "target": "readout-circuit", "kind": "flow", "label": "releases charge"},
+      {"source": "readout-circuit", "target": "digitiser", "kind": "flow", "label": "supplies voltage"},
+      {"source": "digitiser", "target": "colour-processor", "kind": "flow", "label": "supplies samples"},
+      {"source": "colour-processor", "target": "image-frame", "kind": "flow", "label": "reconstructs colour"}
+    ]
+  },
+  {
+    "id": "satellite-navigation",
+    "name": "Satellite navigation",
+    "category": "technology",
+    "description": "A receiver compares several timed broadcasts to estimate position and clock offset.",
+    "layout": "radial",
+    "groups": [],
+    "nodes": [
+      {"id": "receiver", "name": "Receiver", "symbol": "location", "kind": "hub", "concept": "position"},
+      {"id": "satellite-clock", "name": "Satellite clock", "symbol": "clock", "kind": "sensor", "concept": "clock"},
+      {"id": "orbit-message", "name": "Orbit message", "kind": "entity"},
+      {"id": "timed-signal", "name": "Timed signal", "kind": "event"},
+      {"id": "range-estimate", "name": "Range estimate", "kind": "sensor", "detail": "Estimates distance from signal travel time."},
+      {"id": "position-solver", "name": "Position solver", "kind": "process", "detail": "Solves for receiver position and clock offset."},
+      {"id": "fix", "name": "Fix", "kind": "entity"}
+    ],
+    "edges": [
+      {"source": "satellite-clock", "target": "timed-signal", "kind": "signal", "label": "timestamps code"},
+      {"source": "orbit-message", "target": "timed-signal", "kind": "flow", "label": "encodes ephemeris"},
+      {"source": "timed-signal", "target": "receiver", "kind": "flow", "label": "broadcasts"},
+      {"source": "receiver", "target": "range-estimate", "kind": "flow", "label": "measures delay"},
+      {"source": "range-estimate", "target": "position-solver", "kind": "flow", "label": "constrains location"},
+      {"source": "orbit-message", "target": "position-solver", "kind": "flow", "label": "supplies orbit"},
+      {"source": "position-solver", "target": "fix", "kind": "flow", "label": "estimates position"},
+      {"source": "position-solver", "target": "receiver", "kind": "feedback", "label": "corrects clock bias"}
+    ]
+  },
+  {
+    "id": "clock-synchronisation",
+    "name": "Clock synchronisation",
+    "category": "technology",
+    "description": "A client estimates offset and gradually steers its local clock.",
+    "layout": "cycle",
+    "groups": [],
+    "nodes": [
+      {"id": "reference-clock", "name": "Reference clock", "symbol": "clock", "kind": "sensor", "concept": "clock"},
+      {"id": "time-server", "name": "Time server", "kind": "hub"},
+      {"id": "exchange", "name": "Exchange", "kind": "event"},
+      {"id": "offset-estimate", "name": "Offset estimate", "kind": "sensor", "detail": "Estimates how far local time differs from reference."},
+      {"id": "clock-filter", "name": "Clock filter", "symbol": "waveform", "kind": "process", "detail": "Weighs timing samples before steering the clock."},
+      {"id": "local-oscillator", "name": "Local oscillator", "kind": "entity"},
+      {"id": "client-clock", "name": "Client clock", "kind": "sensor"}
+    ],
+    "edges": [
+      {"source": "reference-clock", "target": "time-server", "kind": "signal", "label": "disciplines time"},
+      {"source": "time-server", "target": "exchange", "kind": "flow", "label": "returns timestamp"},
+      {"source": "client-clock", "target": "exchange", "kind": "flow", "label": "timestamps exchange"},
+      {"source": "exchange", "target": "offset-estimate", "kind": "flow", "label": "bounds offset"},
+      {"source": "offset-estimate", "target": "clock-filter", "kind": "flow", "label": "supplies sample"},
+      {"source": "clock-filter", "target": "local-oscillator", "kind": "signal", "label": "adjusts rate"},
+      {"source": "local-oscillator", "target": "client-clock", "kind": "flow", "label": "drives clock"},
+      {"source": "client-clock", "target": "offset-estimate", "kind": "feedback", "label": "supplies local time"}
+    ]
+  },
+  {
+    "id": "garbage-collection",
+    "name": "Garbage collection",
+    "category": "technology",
+    "description": "A tracing collector follows reachable references before reclaiming unused space.",
+    "layout": "tree",
+    "groups": [],
+    "nodes": [
+      {"id": "root-set", "name": "Root set", "kind": "entity", "detail": "Contains references known to be in use."},
+      {"id": "mark-stack", "name": "Mark stack", "symbol": "square.stack.3d.up", "kind": "store", "concept": "queue"},
+      {"id": "tracer", "name": "Tracer", "kind": "process"},
+      {"id": "live-object", "name": "Live object", "kind": "entity"},
+      {"id": "heap", "name": "Heap", "kind": "store"},
+      {"id": "sweeper", "name": "Sweeper", "kind": "process"},
+      {"id": "free-list", "name": "Free list", "kind": "store", "detail": "Tracks memory available for another allocation."}
+    ],
+    "edges": [
+      {"source": "root-set", "target": "mark-stack", "kind": "flow", "label": "seeds references"},
+      {"source": "mark-stack", "target": "tracer", "kind": "flow", "label": "supplies object"},
+      {"source": "tracer", "target": "live-object", "kind": "signal", "label": "marks reachable"},
+      {"source": "live-object", "target": "mark-stack", "kind": "flow", "label": "adds references"},
+      {"source": "heap", "target": "sweeper", "kind": "flow", "label": "supplies pages"},
+      {"source": "live-object", "target": "sweeper", "kind": "inhibition", "label": "protects allocation"},
+      {"source": "sweeper", "target": "free-list", "kind": "flow", "label": "returns space"},
+      {"source": "free-list", "target": "heap", "kind": "flow", "label": "supports allocation"}
+    ]
+  },
+  {
+    "id": "continuous-integration",
+    "name": "Continuous integration",
+    "category": "technology",
+    "description": "A source change travels through reproducible builds, tests and artifact storage.",
+    "layout": "flow",
+    "groups": [],
+    "nodes": [
+      {"id": "source-commit", "name": "Source commit", "kind": "event"},
+      {"id": "job-queue", "name": "Job queue", "symbol": "square.stack.3d.up", "kind": "store", "detail": "Holds builds waiting for an available worker.", "concept": "queue"},
+      {"id": "build-worker", "name": "Build worker", "kind": "process"},
+      {"id": "compiler", "name": "Compiler", "kind": "process"},
+      {"id": "test-suite", "name": "Test suite", "kind": "sensor"},
+      {"id": "release-gate", "name": "Release gate", "kind": "decision", "detail": "Checks whether a tested build is ready for release."},
+      {"id": "artifact-store", "name": "Artifact store", "kind": "store"}
+    ],
+    "edges": [
+      {"source": "source-commit", "target": "job-queue", "kind": "flow", "label": "schedules build"},
+      {"source": "job-queue", "target": "build-worker", "kind": "flow", "label": "assigns job"},
+      {"source": "build-worker", "target": "compiler", "kind": "signal", "label": "compiles source"},
+      {"source": "compiler", "target": "test-suite", "kind": "flow", "label": "supplies build"},
+      {"source": "test-suite", "target": "release-gate", "kind": "signal", "label": "reports results"},
+      {"source": "compiler", "target": "artifact-store", "kind": "flow", "label": "archives binary"},
+      {"source": "release-gate", "target": "artifact-store", "kind": "signal", "label": "marks eligible artifact"}
+    ]
+  },
+  {
+    "id": "packet-congestion-control",
+    "name": "Packet congestion control",
+    "category": "technology",
+    "description": "Delivery acknowledgements let a sender adapt its sending window.",
+    "layout": "cycle",
+    "groups": [],
+    "nodes": [
+      {"id": "sender", "name": "Sender", "symbol": "network", "kind": "hub", "concept": "network"},
+      {"id": "send-window", "name": "Send window", "kind": "decision", "detail": "Bounds how much unacknowledged data can travel."},
+      {"id": "packet-stream", "name": "Packet stream", "kind": "entity"},
+      {"id": "network-queue", "name": "Network queue", "symbol": "square.stack.3d.up", "kind": "store", "concept": "queue"},
+      {"id": "receiver", "name": "Receiver", "kind": "entity"},
+      {"id": "acknowledgement", "name": "Acknowledgement", "kind": "event", "detail": "Reports which transmitted data arrived."},
+      {"id": "loss-signal", "name": "Loss signal", "kind": "sensor"}
+    ],
+    "edges": [
+      {"source": "sender", "target": "packet-stream", "kind": "flow", "label": "transmits data"},
+      {"source": "send-window", "target": "sender", "kind": "signal", "label": "limits flight size"},
+      {"source": "packet-stream", "target": "network-queue", "kind": "flow", "label": "enters queue"},
+      {"source": "network-queue", "target": "receiver", "kind": "flow", "label": "delivers packets"},
+      {"source": "receiver", "target": "acknowledgement", "kind": "flow", "label": "confirms receipt"},
+      {"source": "acknowledgement", "target": "send-window", "kind": "feedback", "label": "increases allowance"},
+      {"source": "network-queue", "target": "loss-signal", "kind": "flow", "label": "exposes congestion"},
+      {"source": "loss-signal", "target": "send-window", "kind": "inhibition", "label": "reduces allowance"}
+    ]
+  }
+]
