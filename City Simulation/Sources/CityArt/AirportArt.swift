@@ -41,7 +41,7 @@ extension Pixels {
         if airport.stage == .regional {
             surface(Airport.regionalApron, concrete)
             surface(Airport.serviceYard, c.asphalt.mix(c.sidewalk, 0.40))
-            line(dot(11.10, 2.04), dot(12.70, 2.04), c.paint)
+            line(dot(11.10, 2.04), dot(12.70, 2.04), c.taxiwayPaint)
         }
 
         if grassStrip {
@@ -144,18 +144,18 @@ extension Pixels {
             return
         }
         let taxi = pixel(Airport.taxiwayCenter)
-        stroke(pixel(Airport.taxiway.u.lowerBound) + 7, taxi, pixel(Airport.taxiway.u.upperBound) - 7, taxi, c.paint)
+        stroke(pixel(Airport.taxiway.u.lowerBound) + 7, taxi, pixel(Airport.taxiway.u.upperBound) - 7, taxi, c.taxiwayPaint)
         let hold = pixel(Airport.holdShort.x)
         let runway = pixel(Airport.runwayCenter)
         let holdingLine = pixel(Airport.runway.v.lowerBound) - 1
-        stroke(hold, taxi, hold, holdingLine, c.paint)
+        stroke(hold, taxi, hold, holdingLine, c.taxiwayPaint)
         let exit = pixel(Airport.runwayExit)
-        stroke(exit, taxi, exit, runway - 9, c.paint)
-        for v in [holdingLine, holdingLine + 2] { stroke(hold - 4, v, hold + 4, v, c.paint) }
+        stroke(exit, taxi, exit, runway - 9, c.taxiwayPaint)
+        for v in [holdingLine, holdingLine + 2] { stroke(hold - 4, v, hold + 4, v, c.taxiwayPaint) }
         for gate in airport.openGates {
             let u = pixel(gate.stop.x), v = pixel(gate.stop.y)
-            stroke(u, v - 4, u, taxi, c.paint)
-            stroke(u - 4, v, u + 4, v, c.paint)
+            stroke(u, v - 4, u, taxi, c.taxiwayPaint)
+            stroke(u - 4, v, u + 4, v, c.taxiwayPaint)
             for side in [gate.stand.u.lowerBound + 0.19, gate.stand.u.upperBound - 0.19] {
                 let edge = pixel(side)
                 stroke(edge, v + 4, edge, v + 8, c.curb)

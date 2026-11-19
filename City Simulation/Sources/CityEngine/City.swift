@@ -20,7 +20,7 @@ public struct City: Codable, Equatable {
     public static let ticksPerSecond = 30
     public static let dayLength = 8 * 60 * ticksPerSecond
     public static let defaultSeed: UInt64 = 0x7661_6C65_7269_6467
-    private static let checkpointVersion = 5
+    private static let checkpointVersion = 6
 
     public internal(set) var map: CityMap
     public internal(set) var vehicles: [Vehicle] = []
@@ -29,16 +29,24 @@ public struct City: Codable, Equatable {
     public private(set) var tick = 0
     public private(set) var revision = 0
     public private(set) var environmentSeed: UInt64
+    // Version 5 stored its journeys in right-hand traffic without a convention field.
+    private var savedTrafficConvention: TrafficConvention?
+    package var trafficConvention: TrafficConvention { savedTrafficConvention ?? .rightHand }
     var nextVehicle: UInt64 = 0
     private var nextProject = 270
     var random: CityRandom
 
     public init(seed: UInt64 = Self.defaultSeed) {
+        self.init(seed: seed, trafficConvention: .default)
+    }
+
+    package init(seed: UInt64 = Self.defaultSeed, trafficConvention: TrafficConvention) {
         var generator = CityRandom(state: seed)
         map = CityMap(random: &generator, generateLayout: seed != Self.defaultSeed)
         random = generator
         environmentSeed = seed ^ 0x656E_7669_726F_6E6D
         aviation = Aviation(seed: seed)
+        savedTrafficConvention = trafficConvention
         seedTraffic()
     }
 
@@ -155,8 +163,13 @@ public struct City: Codable, Equatable {
     public init?(checkpoint: Data) {
         guard checkpoint.count <= 2_000_000,
               let saved = try? PropertyListDecoder().decode(Checkpoint.self, from: checkpoint),
-              saved.version == Self.checkpointVersion, saved.city.isValid else { return nil }
+              saved.city.isValid else { return nil }
         self = saved.city
+        switch (saved.version, savedTrafficConvention) {
+        case (5, nil): savedTrafficConvention = .rightHand
+        case (Self.checkpointVersion, .some): break
+        default: return nil
+        }
     }
 
     private struct Checkpoint: Codable {

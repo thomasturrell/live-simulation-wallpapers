@@ -52,11 +52,11 @@ import Testing
 
     var car = Vehicle(id: 0, route: [Plot(6, 7), Plot(7, 7), Plot(7, 8), Plot(7, 9)],
                       color: 0, pace: 24, long: false, origin: Plot(6, 6), destination: Plot(8, 9), progress: 0)
-    var previous = car.pose
+    var previous = car.pose(in: city.trafficConvention)
     #expect(previous.visibility == 0)
     for progress in 1...72 {
         car.progress = progress
-        let next = car.pose
+        let next = car.pose(in: city.trafficConvention)
         #expect(hypot(next.x - previous.x, next.y - previous.y) < 0.18)
         previous = next
     }
@@ -96,8 +96,9 @@ import Testing
     }
 }
 
-@Test func checkpointRestoresConstructionTrafficAndRandomSequence() throws {
-    var city = City(seed: 99)
+@Test(arguments: TrafficConvention.allCases)
+func checkpointRestoresConstructionTrafficAndRandomSequence(convention: TrafficConvention) throws {
+    var city = City(seed: 99, trafficConvention: convention)
     for _ in 0..<City.ticksPerSecond * 13 { city.step() }
     #expect(city.construction != nil)
     let data = try city.checkpoint()
@@ -110,6 +111,30 @@ import Testing
     let obsolete = try PropertyListSerialization.data(fromPropertyList: previousVersion, format: .binary, options: 0)
     #expect(City(checkpoint: obsolete) == nil)
     for _ in 0..<920 {
+        city.step()
+        restored.step()
+    }
+    #expect(city == restored)
+}
+
+@Test func versionFiveCheckpointsKeepTheirRightHandJourneys() throws {
+    #expect(City().trafficConvention == .uk)
+    var city = City(seed: 42, trafficConvention: .rightHand)
+    for _ in 0..<180 { city.step() }
+    #expect(!city.vehicles.isEmpty)
+    let data = try city.checkpoint()
+    var plist = try #require(PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any])
+    var fields = try #require(plist["city"] as? [String: Any])
+    fields.removeValue(forKey: "savedTrafficConvention")
+    plist["city"] = fields
+    let incomplete = try PropertyListSerialization.data(fromPropertyList: plist, format: .binary, options: 0)
+    #expect(City(checkpoint: incomplete) == nil)
+    plist["version"] = 5
+    let legacy = try PropertyListSerialization.data(fromPropertyList: plist, format: .binary, options: 0)
+    var restored = try #require(City(checkpoint: legacy))
+    #expect(city == restored)
+    #expect(try City(checkpoint: restored.checkpoint()) == restored)
+    for _ in 0..<300 {
         city.step()
         restored.step()
     }

@@ -249,9 +249,9 @@ private func aircraftClearsAirfield(_ pose: Aircraft.Pose, kind: Aircraft.Kind, 
     #expect(quietTicks > 6_000)
 }
 
-@Test(arguments: [City.defaultSeed, 202])
-func airportJourneysAndEveryFlightPhaseSurviveCheckpointAndCityGrowth(seed: UInt64) throws {
-    var city = City(seed: seed)
+@Test(arguments: [City.defaultSeed, 202], [TrafficConvention.uk, .rightHand])
+func airportJourneysAndEveryFlightPhaseSurviveCheckpointAndCityGrowth(seed: UInt64, convention: TrafficConvention) throws {
+    var city = City(seed: seed, trafficConvention: convention)
     let airport = try #require(city.map.airport)
     let original = airport.plots.map { city.map[$0] }
     var phases: Set<Aircraft.Phase> = []
@@ -334,12 +334,14 @@ func airportDevelopmentSharesTheCityClockAndSurvivesWorksiteRestores(seed: UInt6
 }
 
 @Test func formatFiveAirportsWithoutDevelopmentRestoreAsMature() throws {
-    let city = City(seed: 215)
+    let city = City(seed: 215, trafficConvention: .rightHand)
     let original = try #require(city.map.airport)
     var plist = try #require(PropertyListSerialization.propertyList(from: city.checkpoint(), format: nil) as? [String: Any])
     var savedCity = try #require(plist["city"] as? [String: Any])
     var map = try #require(savedCity["map"] as? [String: Any])
     var airport = try #require(map["airport"] as? [String: Any])
+    plist["version"] = 5
+    savedCity.removeValue(forKey: "savedTrafficConvention")
     airport.removeValue(forKey: "stage")
     map["airport"] = airport
     savedCity["map"] = map
@@ -347,6 +349,7 @@ func airportDevelopmentSharesTheCityClockAndSurvivesWorksiteRestores(seed: UInt6
     let data = try PropertyListSerialization.data(fromPropertyList: plist, format: .binary, options: 0)
     let restored = try #require(City(checkpoint: data))
     #expect(restored.map.airport?.stage == .regional)
+    #expect(restored.trafficConvention == .rightHand)
     #expect(restored.map.airport?.entrance == original.entrance)
     #expect(restored.map.lots == city.map.lots)
     #expect(restored.vehicles == city.vehicles)

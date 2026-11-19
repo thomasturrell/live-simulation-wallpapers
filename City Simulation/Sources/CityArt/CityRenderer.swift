@@ -70,6 +70,7 @@ public final class CityRenderer {
         let environment: EnvironmentFrame
         let site: Construction?
         let stage: Int
+        let trafficConvention: TrafficConvention
     }
 
     private struct Background {
@@ -106,7 +107,7 @@ public final class CityRenderer {
     public func image(for city: City, viewport: CityViewport, environment: EnvironmentFrame? = nil) -> CGImage {
         let environment = (environment ?? Environment.frame(city: city)).quantized
         let key = BackgroundKey(viewport: viewport, map: city.map, environment: environment,
-                                site: city.construction, stage: city.constructionStage)
+                                site: city.construction, stage: city.constructionStage, trafficConvention: city.trafficConvention)
         let palette = Palette(night: environment.darkness, environment: environment)
         if lastKey != key {
             background = makeBackground(city, viewport, palette)
@@ -136,7 +137,8 @@ public final class CityRenderer {
 
         // Cars share the depth scale of the buildings. A car on the street
         // behind a roof disappears along the actual silhouette of that roof.
-        let vehicles = city.vehicles.map(\.renderPose).sorted { $0.pose.x + $0.pose.y < $1.pose.x + $1.pose.y }
+        let vehicles = city.vehicles.map { ($0, $0.pose(in: city.trafficConvention)) }
+            .sorted { $0.1.x + $0.1.y < $1.1.x + $1.1.y }
         for (vehicle, pose) in vehicles where pose.visibility > 0.18 {
             pixels.depth = depth(pose.x + pose.y)
             let dot = viewport.project(pose.x, pose.y)
@@ -187,7 +189,7 @@ public final class CityRenderer {
         var stacks: [(Dot, Plot, Int)] = []
         let plots = viewport.drawingOrder.map { ($0, viewport.project($0), city.map[$0]) }
         for (plot, p, lot) in plots {
-            pixels.ground(lot, at: p, plot: plot, map: city.map, palette: c)
+            pixels.ground(lot, at: p, plot: plot, map: city.map, convention: city.trafficConvention, palette: c)
             if lot.ground == .water, lot.detail % 3 == 0 { water.append((p, lot.detail)) }
         }
         if let airport = city.map.airport {
@@ -251,10 +253,6 @@ public final class CityRenderer {
         default: return false
         }
     }
-}
-
-private extension Vehicle {
-    var renderPose: (vehicle: Vehicle, pose: Pose) { (self, pose) }
 }
 
 private extension Pixels {

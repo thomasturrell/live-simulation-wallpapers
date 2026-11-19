@@ -16,6 +16,7 @@ final class PreviewModel: ObservableObject {
     @Published var weather = "live"
     @Published var inspectWind = false
     @Published var wind = 0.5
+    @Published var trafficConvention: TrafficConvention = .default
     @Published var paused = false
     @Published var status = ""
 
@@ -55,57 +56,73 @@ final class PreviewModel: ObservableObject {
 struct PreviewControls: View {
     @ObservedObject var model: PreviewModel
     var body: some View {
-        HStack(spacing: 0) {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    Text("City preview").font(.title2.bold())
+        GeometryReader { geometry in
+            let compact = geometry.size.width < 760
+            let layout = compact ? AnyLayout(VStackLayout(spacing: 0)) : AnyLayout(HStackLayout(spacing: 0))
+            layout {
+                controls
+                    .frame(width: compact ? nil : 300, height: compact ? min(280, geometry.size.height * 0.4) : nil)
+                Divider()
+                PreviewCanvas(model: model)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        }
+        .frame(minWidth: 360, minHeight: 320)
+    }
+
+    private var controls: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                Text("City preview").font(.title2.bold())
+                HStack {
+                    TextField("City seed", text: $model.seedText)
+                        .textFieldStyle(.roundedBorder)
+                        .font(.body.monospacedDigit())
+                        .onSubmit(model.loadSeed)
+                    Button("Load seed", action: model.loadSeed)
+                        .disabled(model.enteredSeed == nil || model.enteredSeed == model.seed)
+                }
+                Button("New seed", action: model.generateSeed)
+                Divider()
+                Picker("Environment", selection: $model.mode) {
+                    ForEach(EnvironmentMode.allCases, id: \.self) { Text($0.title).tag($0) }
+                }.onChange(of: model.mode) { previous, current in
+                    if previous.isSimulation != current.isSimulation { model.month = 1 }
+                }
+                Divider()
+                Toggle("Inspect calendar", isOn: $model.inspectCalendar)
+                if model.inspectCalendar {
+                    Slider(value: $model.month, in: 1...(model.mode.isSimulation ? 5 : 13), step: 0.01)
+                    Text(calendarDescription).font(.caption.monospacedDigit())
                     HStack {
-                        TextField("City seed", text: $model.seedText)
-                            .textFieldStyle(.roundedBorder)
-                            .font(.body.monospacedDigit())
-                            .onSubmit(model.loadSeed)
-                        Button("Load seed", action: model.loadSeed)
-                            .disabled(model.enteredSeed == nil || model.enteredSeed == model.seed)
+                        Button("Previous") { model.month = max(1, ceil(model.month) - 1) }
+                        Button("Next") { model.month = min(model.mode.isSimulation ? 5 : 13, floor(model.month) + 1) }
                     }
-                    Button("New seed", action: model.generateSeed)
-                    Divider()
-                    Picker("Environment", selection: $model.mode) {
-                        ForEach(EnvironmentMode.allCases, id: \.self) { Text($0.title).tag($0) }
-                    }.onChange(of: model.mode) { previous, current in
-                        if previous.isSimulation != current.isSimulation { model.month = 1 }
-                    }
-                    Divider()
-                    Toggle("Inspect calendar", isOn: $model.inspectCalendar)
-                    if model.inspectCalendar {
-                        Slider(value: $model.month, in: 1...(model.mode.isSimulation ? 5 : 13), step: 0.01)
-                        Text(calendarDescription).font(.caption.monospacedDigit())
-                        HStack {
-                            Button("Previous") { model.month = max(1, ceil(model.month) - 1) }
-                            Button("Next") { model.month = min(model.mode.isSimulation ? 5 : 13, floor(model.month) + 1) }
-                        }
-                    }
-                    Picker("Lighting", selection: $model.light) {
-                        Text("Live").tag("live"); Text("Day").tag("day"); Text("Night").tag("night")
-                    }
-                    Picker("Weather preview", selection: $model.weather) {
-                        Text("Live").tag("live")
-                        ForEach(WeatherKind.allCases, id: \.self) { Text($0.title).tag($0.rawValue) }
-                    }
-                    Toggle("Inspect wind", isOn: $model.inspectWind)
-                    if model.inspectWind {
-                        Slider(value: $model.wind, in: 0...1)
-                        Text("Wind · \(Int(model.wind * 100))%").font(.caption.monospacedDigit())
-                    }
-                    Toggle("Pause city", isOn: $model.paused)
-                    Text(model.status).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
-                    Spacer(minLength: 0)
-                    Text("Previews leave saved wallpaper cities untouched. Wallpaper settings are in System Settings → Wallpaper.")
-                        .font(.caption).foregroundStyle(.secondary)
-                }.padding(20)
-            }.frame(width: 300)
-            Divider()
-            PreviewCanvas(model: model)
-        }.frame(minWidth: 940, minHeight: 680)
+                }
+                Picker("Lighting", selection: $model.light) {
+                    Text("Live").tag("live"); Text("Day").tag("day"); Text("Night").tag("night")
+                }
+                Picker("Weather preview", selection: $model.weather) {
+                    Text("Live").tag("live")
+                    ForEach(WeatherKind.allCases, id: \.self) { Text($0.title).tag($0.rawValue) }
+                }
+                Toggle("Inspect wind", isOn: $model.inspectWind)
+                if model.inspectWind {
+                    Slider(value: $model.wind, in: 0...1)
+                    Text("Wind · \(Int(model.wind * 100))%").font(.caption.monospacedDigit())
+                }
+                Picker("Traffic", selection: $model.trafficConvention) {
+                    Text("Keep left").tag(TrafficConvention.uk)
+                    Text("Keep Right").tag(TrafficConvention.rightHand)
+                }
+                Text("Changing traffic restarts the preview city.").font(.caption).foregroundStyle(.secondary)
+                Toggle("Pause city", isOn: $model.paused)
+                Text(model.status).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: 0)
+                Text("Previews leave saved wallpaper cities untouched. Wallpaper settings are in System Settings → Wallpaper.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }.padding(20)
+        }
     }
 
     private var calendarDescription: String {
@@ -134,7 +151,7 @@ final class PreviewView: NSView {
     init(model: PreviewModel) {
         self.model = model
         seed = model.seed
-        playback = Playback(city: City(seed: model.seed))
+        playback = Playback(city: City(seed: seed, trafficConvention: model.trafficConvention))
         super.init(frame: .zero)
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
@@ -144,9 +161,9 @@ final class PreviewView: NSView {
         configure()
     }
     func configure() {
-        if seed != model.seed {
+        if seed != model.seed || playback.city.trafficConvention != model.trafficConvention {
             seed = model.seed
-            playback = Playback(city: City(seed: seed))
+            playback = Playback(city: City(seed: seed, trafficConvention: model.trafficConvention))
             timestamp = ProcessInfo.processInfo.systemUptime
         }
         let active = window != nil && !model.paused
@@ -196,6 +213,7 @@ func run() throws {
     var seed = City.defaultSeed
     var mode = EnvironmentMode.simulationWorld
     var preview = EnvironmentPreview()
+    var convention = TrafficConvention.default
     func option(_ name: String) throws -> String? {
         guard let index = args.firstIndex(of: name) else { return nil }
         guard index + 1 < args.count else { throw PreviewError.usage }
@@ -227,8 +245,12 @@ func run() throws {
         guard let wind = Double(value), wind.isFinite, (0...1).contains(wind) else { throw PreviewError.usage }
         preview.wind = wind
     }
+    if let value = try option("--traffic") {
+        guard let selected = TrafficConvention(rawValue: value) else { throw PreviewError.usage }
+        convention = selected
+    }
     if args.first == "--gallery", args.count == 2 {
-        try writeGallery(to: URL(fileURLWithPath: args[1], isDirectory: true), seed: seed)
+        try writeGallery(to: URL(fileURLWithPath: args[1], isDirectory: true), seed: seed, convention: convention)
         return
     }
     if args.first == "--icns", args.count == 2 {
@@ -242,7 +264,7 @@ func run() throws {
         let seconds = args.count > 4 ? Int(args[4]) : 0
         guard let width, let height, let seconds, (1...5120).contains(width), (1...5120).contains(height),
               (0...900).contains(seconds) else { throw PreviewError.usage }
-        var city = City(seed: seed)
+        var city = City(seed: seed, trafficConvention: convention)
         for _ in 0..<seconds * City.ticksPerSecond { city.step() }
         let viewport = CityViewport(pixelWidth: width, pixelHeight: height)
         let environment = Environment.frame(city: city, mode: mode,
@@ -257,11 +279,19 @@ func run() throws {
     guard args.isEmpty else { throw PreviewError.usage }
     let app = NSApplication.shared
     app.setActivationPolicy(.regular)
+    let mainMenu = NSMenu()
+    let appMenu = NSMenu()
+    appMenu.addItem(withTitle: "Quit City Simulation", action: #selector(NSApplication.terminate(_:)),
+                    keyEquivalent: "q").target = app
+    mainMenu.addItem(withTitle: "City Simulation", action: nil, keyEquivalent: "").submenu = appMenu
+    app.mainMenu = mainMenu
     let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1320, height: 780),
                           styleMask: [.titled, .closable, .resizable, .miniaturizable], backing: .buffered, defer: false)
     window.title = "City Simulation"
+    window.collectionBehavior = [.fullScreenPrimary, .fullScreenAllowsTiling]
     let model = PreviewModel(seed: seed)
     model.mode = mode
+    model.trafficConvention = convention
     model.inspectWind = preview.wind != nil; model.wind = preview.wind ?? 0.5
     model.inspectCalendar = preview.month != nil; model.month = preview.month ?? 1
     model.light = preview.darkness.map { $0 > 0.5 ? "night" : "day" } ?? "live"
@@ -293,9 +323,9 @@ private func savePNG(_ image: CGImage, to output: URL) throws {
 /// Reproducible contact sheets use the production renderer without advancing a
 /// city or touching wallpaper checkpoints, weather caches or network services.
 @MainActor
-private func writeGallery(to directory: URL, seed: UInt64) throws {
+private func writeGallery(to directory: URL, seed: UInt64, convention: TrafficConvention) throws {
     try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-    let city = City(seed: seed)
+    let city = City(seed: seed, trafficConvention: convention)
     let viewport = CityViewport(pixelWidth: 640, pixelHeight: 360)
     func sheet(_ filename: String, columns: Int, examples: [(String, EnvironmentMode, EnvironmentPreview)]) throws {
         let w = columns * 320, h = ((examples.count + columns - 1) / columns) * 202
@@ -392,6 +422,6 @@ final class PreviewDelegate: NSObject, NSApplicationDelegate {
 do {
     try MainActor.assumeIsolated { try run() }
 } catch {
-    fputs("Usage: CityPreview [--seed UINT64] [--png FILE [WIDTH HEIGHT [SIMULATED-SECONDS]]] [--environment simulation|northern|southern] [--month NUMBER] [--light day|night] [--weather clear|cloudy|rain|snow] [--wind 0...1] | --gallery DIRECTORY [--seed UINT64]\n\(error)\n", stderr)
+    fputs("Usage: CityPreview [--seed UINT64] [--png FILE [WIDTH HEIGHT [SIMULATED-SECONDS]]] [--traffic uk|right] [--environment simulation|northern|southern] [--month NUMBER] [--light day|night] [--weather clear|cloudy|rain|snow] [--wind 0...1] | --gallery DIRECTORY [--seed UINT64] [--traffic uk|right]\n\(error)\n", stderr)
     exit(1)
 }
