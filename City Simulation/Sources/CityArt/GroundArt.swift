@@ -7,7 +7,8 @@ func parkWalks(at plot: Plot) -> (across: Bool, down: Bool) {
 extension Pixels {
     mutating func ground(_ lot: Lot, at p: Dot, plot: Plot, map: CityMap, palette c: Palette) {
         if let airport = map.airport, airport.contains(plot) {
-            airportGround(at: p, plot: plot, airport: airport, palette: c)
+            let local = airport.local(plot)
+            tile(p, -8, -8, 16, 16, c.grass((local.u + local.v) % 6))
             return
         }
         let n = lot.detail
@@ -89,9 +90,10 @@ extension Pixels {
     }
 
     private mutating func road(at p: Dot, plot: Plot, map: CityMap, palette c: Palette, bridge: Bool) {
-        let east = map.isRoad(Plot(plot.x + 1, plot.y))
+        let entrance = map.airport.flatMap { $0.entrance == plot ? $0 : nil }
+        let east = map.isRoad(Plot(plot.x + 1, plot.y)) || entrance?.alongY == true
         let west = map.isRoad(Plot(plot.x - 1, plot.y))
-        let south = map.isRoad(Plot(plot.x, plot.y + 1))
+        let south = map.isRoad(Plot(plot.x, plot.y + 1)) || entrance?.alongY == false
         let north = map.isRoad(Plot(plot.x, plot.y - 1))
         if bridge {
             tile(p, -8, -8, 16, 16, c.water)

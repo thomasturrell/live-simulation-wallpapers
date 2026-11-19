@@ -152,8 +152,8 @@ public final class CityRenderer {
             }
         }
         if let airport = city.map.airport, palette.night > 0.3, city.tick % 60 < 6 {
-            let tower = airport.position(9, 0)
-            pixels.depth = depth(tower.x + tower.y) + 1
+            let tower = airport.position(Airport.towerCenter.x, Airport.towerCenter.y)
+            pixels.depth = depth(Double(airport.tower.x + airport.tower.y)) + 1
             let beacon = viewport.project(tower.x, tower.y, altitude: 32 * Airport.scale)
             pixels.span(beacon.x, beacon.x, beacon.y, palette.color(0xB96D58, 0xDF8B72))
         }
@@ -183,9 +183,12 @@ public final class CityRenderer {
             if lot.ground == .water, lot.detail % 3 == 0 { water.append((p, lot.detail)) }
         }
         if let airport = city.map.airport {
-            pixels.airportMarkings(at: viewport.project(airport.origin), airport: airport, palette: c)
+            let origin = viewport.project(airport.origin)
+            pixels.airportSurfaces(at: origin, airport: airport, palette: c)
+            pixels.airportMarkings(at: origin, airport: airport, palette: c)
         }
         for (plot, p, lot) in plots where lot.ground == .grass || lot.ground == .park {
+            if plot == city.map.airport?.terminal { continue }
             if lot.building != nil {
                 pixels.tile(p.offset(4, 1), -6, -5, 12, 13, c.shadow)
             } else if city.map.airport?.isApproach(plot) != true && hasTree(lot, at: plot) {
@@ -198,12 +201,7 @@ public final class CityRenderer {
         for (plot, p, lot) in plots {
             pixels.depth = depth(Double(plot.x + plot.y))
             if let airport = city.map.airport, airport.contains(plot) {
-                if plot == airport.terminal || plot == airport.tower || airport.hangars.contains(plot) {
-                    let local = airport.local(plot)
-                    let position = airport.position(Double(local.u), Double(local.v))
-                    pixels.depth = depth(position.x + position.y)
-                }
-                pixels.airportBuilding(at: p, plot: plot, airport: airport, palette: c)
+                pixels.airportBuilding(at: viewport.project(airport.origin), plot: plot, airport: airport, palette: c)
             } else if city.construction?.plot == plot {
                 pixels.site(at: p, stage: city.constructionStage, road: city.construction?.replacement == nil, palette: c)
             } else if let building = lot.building {

@@ -26,17 +26,17 @@ Blossom, summer greenery, autumn colours and bare winter branches give the city 
 
 ## Airports and aircraft
 
-A small regional airport and the aircraft that visit it. The flight cycle plays at 6× speed with a shortened stop at the terminal.
+A small regional airport with a terminal drop-off, two glazed concourses and short boarding piers. The flight cycle plays at 6× speed with a shortened stop at the gate.
 
 ![Passenger aircraft approaching, landing, taxiing to the terminal, pushing back and taking off from the compact airport](assets/airport-flight-cycle.webp)
 
 | Airport in daylight | Airport at night |
 | --- | --- |
-| ![Compact airport with runway 09/27, taxiways, apron, terminal, control tower, hangars and perimeter roads](assets/airport-day.webp) | ![Airport at night with illuminated runway edges, taxiway lights and terminal windows](assets/airport-night.webp) |
+| ![Compact airport with runway 09/27, two boarding stands, terminal forecourt, grassy margins, control tower and hangars](assets/airport-day.webp) | ![Airport at night with illuminated runway edges, taxiway lights and terminal windows](assets/airport-night.webp) |
 
 | Passenger terminal | Air traffic control tower | Hangar |
 | --- | --- | --- |
-| ![Glazed passenger terminal with a short boarding pier and rooftop equipment](assets/airport-terminal.webp) | ![Control tower with a glazed cabin, antenna and raised observation deck](assets/control-tower.webp) | ![Airport hangar with a broad aircraft door](assets/hangar.webp) |
+| ![Passenger terminal with a covered entrance, two glazed concourses and short boarding piers](assets/airport-terminal.webp) | ![Control tower with a glazed cabin, antenna and raised observation deck](assets/control-tower.webp) | ![Airport hangar with a broad aircraft door](assets/hangar.webp) |
 | **Passenger aircraft** | **Aircraft in flight** | **Aircraft at night** |
 | ![Small passenger aircraft with cabin windows, engines, landing gear and a coloured tail](assets/passenger-aircraft.webp) | ![Passenger aircraft in flight with retracted landing gear](assets/aircraft-in-flight.webp) | ![Passenger aircraft at night with lit cabin windows and navigation lights](assets/aircraft-at-night.webp) |
 

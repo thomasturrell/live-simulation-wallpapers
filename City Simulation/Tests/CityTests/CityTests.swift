@@ -208,7 +208,11 @@ func integerPixelsCoverTheDisplay(size: CGSize) throws {
     let night = renderer.image(for: city, viewport: viewport)
     let dayPixels = try #require(first.dataProvider?.data) as Data
     let nightPixels = try #require(night.dataProvider?.data) as Data
-    let sample = 4 * (viewport.width * 302 + 12)
-    let sum: (Data) -> Int = { $0[sample..<(sample + 3)].reduce(0) { $0 + Int($1) } }
+    // A site or a streetlight can change the brightness of any single pixel.
+    let sum: (Data) -> Int = { data in
+        stride(from: 0, to: data.count, by: 4).reduce(0) {
+            $0 + Int(data[$1]) + Int(data[$1 + 1]) + Int(data[$1 + 2])
+        }
+    }
     #expect(sum(nightPixels) < sum(dayPixels))
 }

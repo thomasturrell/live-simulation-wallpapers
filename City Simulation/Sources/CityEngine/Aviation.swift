@@ -104,38 +104,49 @@ public struct Aircraft: Codable, Equatable {
             }
             return sample(point, tangent, altitude: altitude, bend: first.x * second.y - first.y * second.x)
         }
+        let runway = Airport.runwayCenter
+        let taxiway = Airport.taxiwayCenter
+        let stand = Airport.boardingGate.stop
+        let exit = Airport.runwayExit
+        let hold = Airport.holdShort
         switch phase {
         case .approach:
-            return cubic(p(-30, 8), p(-19.6, 5), p(-9.2, 5), p(1.2, 5), t, altitude: 150 * (1 - t))
+            return cubic(p(-30, 8), p(-19.6, runway), p(-9.2, runway), p(Airport.touchdown, runway),
+                         t, altitude: 150 * (1 - t))
         case .landing:
             // Integrating a steadily falling speed avoids a stop or a jump at touchdown.
-            let u = 1.2 + 13 * (1.42 * t - 0.62 * t * t)
-            return sample(p(u, 5), p(1, 0))
+            let u = Airport.touchdown + (exit - Airport.touchdown) * t * (1.775 - 0.775 * t)
+            return sample(p(u, runway), p(1, 0))
         case .taxiIn:
             let seconds = t * 25
             if seconds < 7 {
-                return cubic(p(11.6, 5), p(12.02, 5), p(12.552, 3), p(11.6, 3), seconds / 7)
+                return cubic(p(exit, runway), p(exit + 0.42, runway), p(exit + 0.952, taxiway),
+                             p(exit, taxiway), seconds / 7)
             }
-            if seconds < 19 { return sample(p(11.6 - (seconds - 7) * 4.9 / 12, 3), p(-1, 0)) }
-            return cubic(p(6.7, 3), p(6, 3), p(6, 1.65), p(6, 1.65), (seconds - 19) / 6)
-        case .parked: return sample(p(6, 1.65), p(0, -1))
+            let turnIn = stand.x + 0.7
+            if seconds < 19 { return sample(p(exit - (seconds - 7) * (exit - turnIn) / 12, taxiway), p(-1, 0)) }
+            return cubic(p(turnIn, taxiway), p(stand.x, taxiway), stand, stand, (seconds - 19) / 6)
+        case .parked: return sample(stand, p(0, -1))
         case .pushback:
             let eased = t * t * (3 - 2 * t)
-            return cubic(p(6, 1.65), p(6, 2.5), p(6.6, 3), p(7, 3), eased)
+            return cubic(stand, p(stand.x, stand.y + 0.85), p(stand.x + 0.6, taxiway),
+                         p(stand.x + 1, taxiway), eased)
         case .taxiOut:
             let seconds = t * 19
             if seconds < 13 {
-                return cubic(p(7, 3), p(7, 3), p(4.38, 3), p(2.3, 3), seconds / 13)
+                let start = p(stand.x + 1, taxiway)
+                return cubic(start, start, p(4.38, taxiway), p(Airport.departureTurn, taxiway), seconds / 13)
             }
-            return cubic(p(2.3, 3), p(1.2, 3), p(1.2, 4.1), p(1.2, 4.1), (seconds - 13) / 6)
-        case .holdingShort: return sample(p(1.2, 4.1), p(0, 1))
+            return cubic(p(Airport.departureTurn, taxiway), p(hold.x, taxiway), hold, hold, (seconds - 13) / 6)
+        case .holdingShort: return sample(hold, p(0, 1))
         case .lineUp:
-            return cubic(p(1.2, 4.1), p(1.2, 4.15), p(1.8, 5), p(2, 5), t)
+            let start = Airport.takeoffStart
+            return cubic(hold, p(hold.x, hold.y + 0.05), p(start - 0.2, runway), p(start, runway), t)
         case .takeoff:
-            return sample(p(2 + 1.2 * t + 8.8 * t * t, 5), p(1, 0),
+            return sample(p(Airport.takeoffStart + 1.2 * t + 8.8 * t * t, runway), p(1, 0),
                           altitude: t > 0.65 ? 9 * pow((t - 0.65) / 0.35, 1.5) : 0)
         case .climb:
-            return cubic(p(12, 5), p(24.53, 5), p(37, 5), p(50, 9), t, altitude: 9 + 156 * t)
+            return cubic(p(12, runway), p(24.53, runway), p(37, runway), p(50, 9), t, altitude: 9 + 156 * t)
         case .overflight:
             let altitude = 86.0
             // Height moves the sprite up on screen. Shift both ground axes equally to

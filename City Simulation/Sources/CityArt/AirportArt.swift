@@ -1,44 +1,60 @@
 import CityEngine
 import Foundation
 
-private func airportDot(_ p: Dot, _ plot: Plot, _ airport: Airport, _ u: Double, _ v: Double, _ z: Double = 0) -> Dot {
+private func airportDot(_ origin: Dot, _ airport: Airport, _ u: Double, _ v: Double, _ z: Double = 0) -> Dot {
     let position = airport.position(u, v)
-    let x = (position.x - Double(plot.x)) * 16
-    let y = (position.y - Double(plot.y)) * 16
-    return p.offset(Int((x - y).rounded()), Int(((x + y) * 0.5 - z * Airport.scale).rounded()))
+    let x = (position.x - Double(airport.origin.x)) * 16
+    let y = (position.y - Double(airport.origin.y)) * 16
+    return origin.offset(Int((x - y).rounded()), Int(((x + y) * 0.5 - z * Airport.scale).rounded()))
 }
 
 extension Pixels {
-    mutating func airportGround(at p: Dot, plot: Plot, airport: Airport, palette c: Palette) {
-        let local = airport.local(plot)
-        let leftEdge = Double(local.u) / Airport.scale - 0.5
-        let rightEdge = Double(local.u + 1) / Airport.scale - 0.5
-        let topEdge = Double(local.v) / Airport.scale - 0.5
-        let bottomEdge = Double(local.v + 1) / Airport.scale - 0.5
-        tile(p, -8, -8, 16, 16, c.grass((local.u + local.v) % 6))
-        func point(_ a: Double, _ b: Double) -> Dot {
-            airportDot(p, plot, airport, a, b)
+    mutating func airportSurfaces(at p: Dot, airport: Airport, palette c: Palette) {
+        func dot(_ u: Double, _ v: Double, _ z: Double = 0) -> Dot {
+            airportDot(p, airport, u, v, z)
         }
-        // Clip long paved surfaces to each lot, preserving the renderer's terrain cache.
-        func rectangle(_ a: Double, _ b: Double, _ endU: Double, _ endV: Double, _ ink: Ink) {
-            let left = max(a, leftEdge), right = min(endU, rightEdge)
-            let top = max(b, topEdge), bottom = min(endV, bottomEdge)
-            guard left < right, top < bottom else { return }
-            polygon([point(left, top), point(right, top), point(right, bottom), point(left, bottom)], ink)
+        func surface(_ area: Airport.Surface, _ ink: Ink, inset: Double = 0) {
+            let u = area.u.lowerBound + inset, endU = area.u.upperBound - inset
+            let v = area.v.lowerBound + inset, endV = area.v.upperBound - inset
+            polygon([dot(u, v), dot(endU, v), dot(endU, endV), dot(u, endV)], ink)
         }
-        rectangle(0.1, 4.15, 13.4, 5.85, c.curb)
-        rectangle(0.1, 4.35, 13.4, 5.65, c.roadEdge)
-        rectangle(0.9, 2.6, 12.8, 3.4, c.asphalt)
-        rectangle(0.8, 3, 1.6, 5, c.asphalt)
-        rectangle(11.3, 3, 12.8, 5, c.asphalt)
-        rectangle(3.7, 0.5, 8.3, 3.1, c.sidewalk)
-        rectangle(0.8, 0.5, 3.3, 3.1, c.sidewalk)
-        rectangle(10, 0.5, 12.3, 3.1, c.sidewalk)
-        // Low perimeter posts, interrupted at the passenger entrance.
-        if local.v == 0 && !(5...7).contains(where: { airport.designPlot($0, 0) == plot }) {
-            let a = point(leftEdge, -0.4), b = point(rightEdge, -0.4)
-            line(a.offset(0, -1), b.offset(0, -1), c.curb)
-            line(a, a.offset(0, -3), c.outline)
+        for area in Airport.hangarPavement { surface(area, c.sidewalk.mix(c.asphalt, 0.5)) }
+        for gate in Airport.gates { surface(gate.stand, c.asphalt.mix(c.sidewalk, 0.26)) }
+        for link in Airport.runwayLinks { surface(link, c.asphalt) }
+        surface(Airport.taxiway, c.asphalt)
+        surface(Airport.runway, c.curb)
+        surface(Airport.runway, c.roadEdge, inset: 0.075)
+        surface(Airport.forecourt, c.sidewalk)
+        let entry = Airport.entranceCenter
+        polygon([dot(entry - 0.365, -0.5), dot(entry + 0.365, -0.5),
+                 dot(entry + 0.66, -0.27), dot(entry - 0.66, -0.27)], c.asphalt)
+        line(dot(entry - 0.76, -0.17), dot(entry + 0.76, -0.17), c.curb)
+        for u in [entry - 1.16, entry + 1.16] {
+            let bed = dot(u, -0.29)
+            tile(bed, -4, -2, 8, 4, c.paths)
+            line(bed.iso(-3, 0, 1), bed.iso(3, 0, 1), c.foliage)
+            span(bed.x - 1, bed.x + 1, bed.y - 1, c.gold.mix(c.foliage, 0.6))
+        }
+
+        // Low fencing on the runway side and beside the service yards.
+        for (start, end, v) in [(0.2, 13.3, 6.38), (0.2, 3.4, -0.34), (9.7, 13.3, -0.34)] {
+            let wire = c.foliage.mix(c.curb, 0.38)
+            line(dot(start, v, 1.5), dot(end, v, 1.5), wire)
+            for u in stride(from: start, through: end, by: 1.1) {
+                line(dot(u, v), dot(u, v, 2.5), wire)
+            }
+        }
+        if c.night > 0.3 {
+            for u in stride(from: 0.65, through: 13.1, by: 1.45) {
+                for v in [Airport.runway.v.lowerBound, Airport.runway.v.upperBound] {
+                    let light = dot(u, v)
+                    span(light.x, light.x, light.y, c.color(0xD5C395, 0xF2D7A1))
+                }
+                for v in [Airport.taxiway.v.lowerBound, Airport.taxiway.v.upperBound] {
+                    let light = dot(u, v)
+                    span(light.x, light.x, light.y, c.color(0x7E95AA, 0x7AA0C4))
+                }
+            }
         }
     }
 
@@ -55,18 +71,31 @@ extension Pixels {
             polygon([dot(u, v), dot(u + w, v), dot(u + w, v + d), dot(u, v + d)], ink)
         }
 
-        // A single ground pass keeps each guide line continuous across lot boundaries.
-        stroke(11, 40, 166, 40, c.paint)
-        stroke(15, 40, 15, 58, c.paint)
-        stroke(158, 40, 158, 58, c.paint)
-        stroke(81, 15, 81, 40, c.paint)
-        stroke(77, 21, 85, 21, c.paint)
-        for v in [53, 56] { stroke(11, v, 19, v, c.paint) }
+        func pixel(_ coordinate: Double) -> Int {
+            Int((((coordinate + 0.5) * Airport.scale - 0.5) * 16).rounded())
+        }
+        let taxi = pixel(Airport.taxiwayCenter)
+        stroke(pixel(Airport.taxiway.u.lowerBound) + 7, taxi, pixel(Airport.taxiway.u.upperBound) - 7, taxi, c.paint)
+        let hold = pixel(Airport.holdShort.x)
+        let runway = pixel(Airport.runwayCenter)
+        stroke(hold, taxi, hold, runway - 9, c.paint)
+        let exit = pixel(Airport.runwayExit)
+        stroke(exit, taxi, exit, runway - 9, c.paint)
+        for v in [53, 56] { stroke(hold - 4, v, hold + 4, v, c.paint) }
+        for gate in Airport.gates {
+            let u = pixel(gate.stop.x), v = pixel(gate.stop.y)
+            stroke(u, v - 4, u, taxi, c.paint)
+            stroke(u - 4, v, u + 4, v, c.paint)
+            for side in [gate.stand.u.lowerBound + 0.19, gate.stand.u.upperBound - 0.19] {
+                let edge = pixel(side)
+                stroke(edge, v + 4, edge, v + 8, c.curb)
+            }
+        }
 
         let white = c.color(0xD8D4BD, 0x92939A)
-        stroke(8, 59, 177, 59, white)
-        stroke(8, 75, 177, 75, white)
-        for u in [52, 78, 104, 130] { stroke(u - 4, 67, u + 4, 67, white) }
+        stroke(8, runway - 8, 177, runway - 8, white)
+        stroke(8, runway + 8, 177, runway + 8, white)
+        for u in [52, 78, 104, 130] { stroke(u - 4, runway, u + 4, runway, white) }
         for u in [12, 163] {
             for v in [61, 65, 69, 73] { stroke(u, v, u + 8, v, white) }
         }
@@ -97,63 +126,79 @@ extension Pixels {
     }
 
     mutating func airportBuilding(at p: Dot, plot: Plot, airport: Airport, palette c: Palette) {
-        let local = airport.local(plot)
-        func dot(_ u: Int, _ v: Int, _ z: Int = 0) -> Dot {
-            airportDot(p, plot, airport, Double(local.u) + Double(u) / 16,
-                       Double(local.v) + Double(v) / 16, Double(z))
+        func dot(_ u: Double, _ v: Double, _ z: Double = 0) -> Dot {
+            airportDot(p, airport, u, v, z)
         }
-        func prism(_ u: Int, _ v: Int, _ w: Int, _ d: Int, _ base: Int, _ top: Int, _ roof: Ink) {
-            let a = dot(u, v, top), b = dot(u + w, v, top)
-            let e = dot(u + w, v + d, top), f = dot(u, v + d, top)
-            polygon([f, e, dot(u + w, v + d, base), dot(u, v + d, base)], c.color(0xC0B8A1))
-            polygon([b, e, dot(u + w, v + d, base), dot(u + w, v, base)], c.color(0x878C86))
+        func prism(_ area: Airport.Surface, base: Double = 0, top: Double, roof: Ink) {
+            let u = area.u.lowerBound, endU = area.u.upperBound
+            let v = area.v.lowerBound, endV = area.v.upperBound
+            let a = dot(u, v, top), b = dot(endU, v, top), e = dot(endU, endV, top), f = dot(u, endV, top)
+            polygon([f, e, dot(endU, endV, base), dot(u, endV, base)], c.color(0xC0B8A1))
+            polygon([b, e, dot(endU, endV, base), dot(endU, v, base)], c.color(0x878C86))
             polygon([a, b, e, f], roof.mix(c.snow, c.weather.snowCover * 0.85))
             line(f, e, c.curb)
             line(b, e, c.outline)
         }
-        let glass = c.color(0x527F85, 0x637D87)
-        // Draw lights after every terrain tile, so both edges survive the ground pass.
-        if c.night > 0.3 {
-            for u in stride(from: 0, through: 12, by: 2) {
-                for v in [3, 5] where plot == airport.designPlot(u, v) {
-                    let margin = v == 5 ? 0.75 : 0.375
-                    let ink = v == 5 ? c.color(0xD5C395, 0xF2D7A1) : c.color(0x7E95AA, 0x7AA0C4)
-                    for edge in [-margin, margin] {
-                        let light = airportDot(p, plot, airport, Double(u), Double(v) + edge)
-                        span(light.x, light.x, light.y, ink)
-                    }
+        let glass = c.color(0x527F85, 0x677F8B)
+        func windows(_ area: Airport.Surface, bottom: Double, top: Double) {
+            let u = area.u.lowerBound + 0.09, endU = area.u.upperBound - 0.09
+            let v = area.v.upperBound, endV = area.v.lowerBound + 0.08
+            let wall = area.u.upperBound
+            polygon([dot(u, v, top), dot(endU, v, top), dot(endU, v, bottom), dot(u, v, bottom)], glass)
+            polygon([dot(wall, endV, top), dot(wall, v, top), dot(wall, v, bottom), dot(wall, endV, bottom)], glass)
+            for (index, pane) in stride(from: u + 0.18, to: endU, by: 0.24).enumerated() {
+                line(dot(pane, v, top), dot(pane, v, bottom), c.curb)
+                if c.night > 0.4, index % 3 != 1 {
+                    line(dot(pane + 0.06, v, bottom + 1), dot(min(endU, pane + 0.14), v, bottom + 1), c.gold)
                 }
             }
         }
+        for wing in Airport.concourses where plot == airport.anchor(for: wing) {
+            prism(wing, top: 8, roof: c.color(0x829E9C))
+            windows(wing, bottom: 2, top: 6)
+        }
+        for end in Airport.concourseEnds where plot == airport.anchor(for: end) {
+            prism(end, top: 9, roof: c.color(0x9CADA2))
+            windows(end, bottom: 2, top: 6)
+        }
         if plot == airport.terminal {
-            prism(-22, -6, 44, 13, 0, 9, c.color(0x79918C))
-            // A continuous glazed concourse, roof plant and a short boarding pier.
-            polygon([dot(-20, 7, 7), dot(20, 7, 7), dot(20, 7, 3), dot(-20, 7, 3)], glass)
-            for u in stride(from: -19, through: 20, by: 4) { line(dot(u, 7, 7), dot(u, 7, 3), c.curb) }
-            if c.night > 0.4 {
-                for u in [-17, -5, 7, 19] { line(dot(u, 7, 5), dot(u + 1, 7, 5), c.gold) }
+            prism(Airport.headhouse, top: 12, roof: c.color(0x9EB5B0))
+            windows(Airport.headhouse, bottom: 3, top: 8)
+            let entry = Airport.entranceCenter
+            prism(Airport.canopy, base: 5, top: 7, roof: c.color(0xBAC8BC))
+            for u in [entry - 0.55, entry + 0.55] {
+                line(dot(u, -0.26), dot(u, -0.26, 5), c.curb)
             }
-            prism(-4, 7, 8, 10, 2, 5, c.color(0xA6ABA0))
-            prism(-14, -3, 8, 5, 9, 11, c.color(0x8C9991))
-            line(dot(-21, -6, 10), dot(21, -6, 10), c.shore)
-            for u in [-12, 0, 12] {
-                line(dot(u - 2, -7, 4), dot(u + 2, -7, 4), c.night > 0.4 ? c.gold : glass)
-            }
-        } else if plot == airport.tower {
-            prism(-3, -3, 6, 6, 0, 19, c.curb)
-            prism(-6, -6, 12, 12, 19, 25, c.color(0x73918D))
-            polygon([dot(-5, 6, 24), dot(5, 6, 24), dot(5, 6, 21), dot(-5, 6, 21)], glass)
-            polygon([dot(6, -5, 24), dot(6, 5, 24), dot(6, 5, 21), dot(6, -5, 21)], glass)
-            line(dot(0, 0, 25), dot(0, 0, 32), c.outline)
-            line(dot(-4, 0, 30), dot(4, 0, 30), c.curb)
-        } else if airport.hangars.contains(plot) {
-            prism(-11, -6, 22, 14, 0, 9, c.color(0x9B9E91))
-            let ridgeA = dot(-11, 1, 13), ridgeB = dot(11, 1, 13)
-            polygon([dot(-11, -6, 9), dot(11, -6, 9), ridgeB, ridgeA], c.color(0x8A9791))
-            polygon([ridgeA, ridgeB, dot(11, 8, 9), dot(-11, 8, 9)], c.color(0xADB0A0))
+            line(dot(entry - 0.41, 0.09, 13), dot(entry + 0.42, 0.09, 13), c.shore)
+            prism(Airport.Surface(7.63...8.28, 0.32...0.58), base: 12, top: 14, roof: c.color(0x889C97))
+        }
+        for gate in Airport.gates where plot == airport.anchor(for: gate.pier) {
+            prism(gate.pier, base: 2, top: 5, roof: c.color(0xBCC2AA))
+            let u = gate.pier.u, v = gate.pier.v.upperBound
+            line(dot(u.lowerBound, v, 3), dot(u.upperBound, v, 3), c.night > 0.4 ? c.gold : glass)
+        }
+        if plot == airport.tower {
+            let u = Airport.towerCenter.x, v = Airport.towerCenter.y
+            let cab = Airport.Surface((u - 0.35)...(u + 0.35), (v - 0.35)...(v + 0.35))
+            prism(Airport.towerBase, top: 19, roof: c.curb)
+            prism(cab, base: 19, top: 25, roof: c.color(0x73918D))
+            windows(cab, bottom: 21, top: 24)
+            line(dot(u, v, 25), dot(u, v, 32), c.outline)
+            line(dot(u - 0.25, v, 30), dot(u + 0.25, v, 30), c.curb)
+        }
+        for hangar in Airport.hangarFootprints where plot == airport.anchor(for: hangar) {
+            let u = hangar.u, v = hangar.v
+            let middle = (v.lowerBound + v.upperBound) / 2
+            prism(hangar, top: 9, roof: c.color(0x9B9E91))
+            let ridgeA = dot(u.lowerBound, middle, 13), ridgeB = dot(u.upperBound, middle, 13)
+            polygon([dot(u.lowerBound, v.lowerBound, 9), dot(u.upperBound, v.lowerBound, 9), ridgeB, ridgeA], c.color(0x8A9791))
+            polygon([ridgeA, ridgeB, dot(u.upperBound, v.upperBound, 9), dot(u.lowerBound, v.upperBound, 9)], c.color(0xADB0A0))
             line(ridgeA, ridgeB, c.shore)
-            polygon([dot(-8, 8, 7), dot(8, 8, 7), dot(8, 8), dot(-8, 8)], c.roadEdge)
-            for u in [-7, -3, 1, 5] { line(dot(u, 8, 6), dot(u, 8, 1), c.sidewalk) }
+            let a = u.lowerBound + 0.17, b = u.upperBound - 0.17, front = v.upperBound
+            polygon([dot(a, front, 7), dot(b, front, 7), dot(b, front), dot(a, front)], c.roadEdge)
+            for panel in stride(from: a + 0.07, to: b, by: 0.25) {
+                line(dot(panel, front, 6), dot(panel, front, 1), c.sidewalk)
+            }
         }
     }
 
