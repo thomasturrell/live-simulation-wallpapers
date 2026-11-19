@@ -5,7 +5,7 @@ func parkWalks(at plot: Plot) -> (across: Bool, down: Bool) {
 }
 
 extension Pixels {
-    mutating func ground(_ lot: Lot, at p: Dot, plot: Plot, map: CityMap, palette c: Palette) {
+    mutating func ground(_ lot: Lot, at p: Dot, plot: Plot, map: CityMap, convention: TrafficConvention, palette c: Palette) {
         if let airport = map.airport, airport.contains(plot) {
             airportGround(at: p, plot: plot, airport: airport, palette: c)
             return
@@ -21,7 +21,7 @@ extension Pixels {
                 span(p.x - 7, p.x - 2 + n % 4, p.y + n % 5 - 2, c.waterLight)
             }
         } else if lot.ground.carriesTraffic {
-            road(at: p, plot: plot, map: map, palette: c, bridge: lot.ground == .bridge)
+            road(at: p, plot: plot, map: map, convention: convention, palette: c, bridge: lot.ground == .bridge)
         } else if lot.ground == .promenade {
             tile(p, -8, -8, 16, 16, c.grass(n))
             let eastBank = map.landscape(at: Plot(plot.x - 1, plot.y)).ground == .water
@@ -88,11 +88,12 @@ extension Pixels {
         }
     }
 
-    private mutating func road(at p: Dot, plot: Plot, map: CityMap, palette c: Palette, bridge: Bool) {
-        let east = map.isRoad(Plot(plot.x + 1, plot.y))
-        let west = map.isRoad(Plot(plot.x - 1, plot.y))
-        let south = map.isRoad(Plot(plot.x, plot.y + 1))
-        let north = map.isRoad(Plot(plot.x, plot.y - 1))
+    private mutating func road(at p: Dot, plot: Plot, map: CityMap, convention: TrafficConvention, palette c: Palette, bridge: Bool) {
+        let connections = plot.neighbors.filter(map.isRoad)
+        let east = connections.contains(Plot(plot.x + 1, plot.y))
+        let west = connections.contains(Plot(plot.x - 1, plot.y))
+        let south = connections.contains(Plot(plot.x, plot.y + 1))
+        let north = connections.contains(Plot(plot.x, plot.y - 1))
         if bridge {
             tile(p, -8, -8, 16, 16, c.water)
             tile(p.offset(0, 3), -8, -6, 16, 13, c.waterDark)
@@ -111,17 +112,7 @@ extension Pixels {
         tile(p, -6, top, 12, bottom - top, c.roadEdge)
         tile(p, left, -5, right - left, 10, c.asphalt)
         tile(p, -5, top, 10, bottom - top, c.asphalt)
-        if east { line(p.iso(6, 0), p.iso(7, 0), c.paint) }
-        if west { line(p.iso(-8, 0), p.iso(-7, 0), c.paint) }
-        if south { line(p.iso(0, 6), p.iso(0, 7), c.paint) }
-        if north { line(p.iso(0, -8), p.iso(0, -7), c.paint) }
-        let junction = [east, west, south, north].filter { $0 }.count > 2
-        if junction {
-            for mark in [-4, -2, 2, 4] {
-                if east { line(p.iso(5, mark), p.iso(6, mark), c.curb) }
-                if south { line(p.iso(mark, 5), p.iso(mark, 6), c.curb) }
-            }
-        }
+        roadMarkings(at: p, plot: plot, connections: connections, map: map, convention: convention, palette: c)
         if bridge {
             line(p.iso(-8, -6, 2), p.iso(8, -6, 2), c.curb)
             line(p.iso(-8, 6, 2), p.iso(8, 6, 2), c.curb)
@@ -129,6 +120,38 @@ extension Pixels {
                 line(p.iso(u, 6), p.iso(u, 6, 4), c.outline)
                 line(p.iso(u, -6), p.iso(u, -6, 4), c.curb)
             }
+        }
+    }
+
+    private mutating func roadMarkings(at p: Dot, plot: Plot, connections: [Plot], map: CityMap,
+                                      convention: TrafficConvention, palette c: Palette) {
+        let controlled = connections.filter { map.hasJunctionControl(at: $0) }
+        if connections.count == 2 {
+            // Each straight and bridge tile contributes one full dash, with an
+            // even gap at the seam. Bends carry the dash around the corner.
+            let first = SIMD2(connections[0].x - plot.x, connections[0].y - plot.y)
+            let second = SIMD2(connections[1].x - plot.x, connections[1].y - plot.y)
+            let ink = convention == .uk ? c.whiteRoadPaint : c.yellowRoadPaint
+            func dot(_ direction: SIMD2<Int>, _ distance: Int) -> Dot {
+                p.iso(direction.x * distance, direction.y * distance)
+            }
+            // Leave a gap between the end of the dash and the transverse paint.
+            let firstTrim = controlled.contains(connections[0]) ? 2 : 0
+            let secondTrim = controlled.contains(connections[1]) ? 2 : 0
+            if first.x == second.x || first.y == second.y {
+                line(dot(first, 4 - firstTrim), dot(second, 4 - secondTrim), ink)
+            } else {
+                line(dot(first, 5 - firstTrim), dot(first, 2), ink)
+                line(dot(first, 2), dot(second, 2), ink)
+                line(dot(second, 2), dot(second, 5 - secondTrim), ink)
+            }
+        }
+        for junction in controlled {
+            let dx = junction.x - plot.x, dy = junction.y - plot.y
+            let lane = convention.laneNormal(x: dx, y: dy)
+            let offset = RoadGeometry.tileSize - RoadGeometry.stopLineOffset
+            let x = dx * offset, y = dy * offset
+            line(p.iso(x + lane.x, y + lane.y), p.iso(x + 4 * lane.x, y + 4 * lane.y), c.whiteRoadPaint)
         }
     }
 

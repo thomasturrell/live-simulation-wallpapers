@@ -21,16 +21,22 @@ public struct Vehicle: Codable, Equatable {
     var distance: Double { Double(progress) / Double(pace) }
     var segment: Int { min(Int(distance), route.count - 2) }
 
-    public var pose: Pose {
+    package func pose(in convention: TrafficConvention) -> Pose { pose(at: distance, in: convention) }
+
+    func pose(at distance: Double, in convention: TrafficConvention) -> Pose {
         let end = Double(route.count - 1)
-        let center = position(at: distance)
-        let before = position(at: max(0, distance - 0.04))
-        let after = position(at: min(end, distance + 0.04))
+        let center = position(at: distance, in: convention)
+        let before = position(at: max(0, distance - 0.04), in: convention)
+        let after = position(at: min(end, distance + 0.04), in: convention)
         return Pose(x: center.x, y: center.y, dx: after.x - before.x, dy: after.y - before.y,
                     visibility: min(1, distance * 4, (end - distance) * 4))
     }
 
-    private func position(at distance: Double) -> SIMD2<Double> {
+    private func position(at distance: Double, in convention: TrafficConvention) -> SIMD2<Double> {
+        func lateral(_ direction: SIMD2<Double>) -> SIMD2<Double> {
+            let normal = convention.laneNormal(x: Int(direction.x), y: Int(direction.y))
+            return SIMD2(Double(normal.x), Double(normal.y)) * 0.20
+        }
         let segment = min(Int(distance), route.count - 2)
         let from = vector(route[segment]), to = vector(route[segment + 1])
         let direction = to - from
@@ -66,19 +72,10 @@ public struct Vehicle: Codable, Equatable {
     }
 
     private func vector(_ p: Plot) -> SIMD2<Double> { SIMD2(Double(p.x), Double(p.y)) }
-    private func lateral(_ direction: SIMD2<Double>) -> SIMD2<Double> {
-        SIMD2(-direction.y, direction.x) * 0.20
-    }
-
     private func curve(_ a: SIMD2<Double>, _ b: SIMD2<Double>, _ c: SIMD2<Double>, _ t: Double) -> SIMD2<Double> {
         let rest = 1 - t
         return a * (rest * rest) + b * (2 * rest * t) + c * (t * t)
     }
-}
-
-struct RoadEdge: Hashable {
-    let from: Plot
-    let to: Plot
 }
 
 extension City {
@@ -94,36 +91,69 @@ extension City {
     }
 
     mutating func moveTraffic() {
-        // Use previous positions so array ordering does not affect car following.
-        var traffic: [RoadEdge: [Double]] = [:]
-        for vehicle in vehicles {
-            let i = vehicle.segment
-            if vehicle.distance < Double(i) + 0.25, i > 0 {
-                let edge = RoadEdge(from: vehicle.route[i - 1], to: vehicle.route[i])
-                traffic[edge, default: []].append(vehicle.distance - Double(i) + 1)
-            }
-            let edge = RoadEdge(from: vehicle.route[i], to: vehicle.route[i + 1])
-            traffic[edge, default: []].append(vehicle.distance - Double(i))
+        // Stable priority lets cars in junctions clear first. Each move avoids
+        // both cars still waiting and positions already accepted this tick.
+        var footprints = Dictionary(uniqueKeysWithValues: vehicles.map { ($0.id, $0.footprint(in: trafficConvention)) })
+        var reservedPaths = Dictionary(uniqueKeysWithValues: vehicles.map { ($0.id, reservedPath(for: $0)) })
+        let currentJunctions = Dictionary(uniqueKeysWithValues: vehicles.map { ($0.id, junctions(occupiedBy: $0)) })
+        let order = vehicles.indices.sorted {
+            let firstInside = !currentJunctions[vehicles[$0].id, default: []].isEmpty
+            let secondInside = !currentJunctions[vehicles[$1].id, default: []].isEmpty
+            return firstInside == secondInside ? vehicles[$0].id < vehicles[$1].id : firstInside
         }
-
-        for index in vehicles.indices {
+        for index in order {
             let vehicle = vehicles[index]
-            let i = vehicle.segment
-            let edge = RoadEdge(from: vehicle.route[i], to: vehicle.route[i + 1])
-            let offset = vehicle.distance - Double(i)
-            if traffic[edge, default: []].contains(where: { $0 > offset && $0 - offset < 0.30 }) { continue }
-            let next = edge.to
-            // Stagger the two axes at larger junctions. Cars already in the
-            // turning area clear it before the next direction is admitted.
-            let previous = offset + 1 / Double(vehicle.pace)
-            if i + 2 < vehicle.route.count && offset < 0.72 && previous >= 0.72,
-               next.neighbors.filter(map.isRoad).count > 2 {
-                let phase = (tick / 18 + next.x * 11 + next.y * 5) % 10
-                let eastWest = edge.from.y == edge.to.y
-                let permitted = eastWest ? (0...3).contains(phase) : (5...8).contains(phase)
-                if !permitted { continue }
+            var next = vehicle
+            next.progress += 1
+            // Keep a length-aware following gap until the leader's rear has
+            // cleared its previous edge, including the rear swing of a truck.
+            guard vehicles.allSatisfy({ leader in
+                guard leader.id != vehicle.id, let gap = vehicle.gap(to: leader), gap > 0 else { return true }
+                return gap - 1 / Double(vehicle.pace) >= vehicle.halfLength + leader.halfLength + 0.06
+            }) else { continue }
+            let entering = junctions(occupiedBy: next).filter { !currentJunctions[vehicle.id, default: []].contains($0) }
+            guard entering.allSatisfy({ junction in
+                if !map.hasJunctionControl(at: junction) { return true }
+                let phase = (tick / 18 + junction.x * 11 + junction.y * 5) % 10
+                let eastWest = vehicle.route[vehicle.segment].y == vehicle.route[vehicle.segment + 1].y
+                guard eastWest ? (0...3).contains(phase) : (5...8).contains(phase) else { return false }
+                return true
+            }) else { continue }
+
+            let currentEnd = reservationEnd(for: vehicle) ?? vehicle.distance
+            if let nextEnd = reservationEnd(for: next), nextEnd > currentEnd + 0.000001 {
+                // Check a manoeuvre when claiming it. Rechecking a path already
+                // reserved can make its owner yield to cars waiting at its edge.
+                guard next.path(through: nextEnd, in: trafficConvention).allSatisfy({ space in
+                    footprints.allSatisfy { id, other in id == vehicle.id || !space.overlaps(other, clearance: 0.06) }
+                        && reservedPaths.allSatisfy { id, path in id == vehicle.id || !path.contains { space.overlaps($0, clearance: 0.06) } }
+                }) else { continue }
             }
-            vehicles[index].progress += 1
+            let current = footprints[vehicle.id]!
+            let middle = vehicle.footprint(at: vehicle.distance + 0.5 / Double(vehicle.pace), in: trafficConvention)
+            let destination = next.footprint(in: trafficConvention)
+            guard footprints.allSatisfy({ id, space in
+                if id == vehicle.id { return true }
+                // Old checkpoints may already contain an overlap. Allow a car
+                // to move out of it, but never further into it.
+                if current.overlaps(space) {
+                    let oldDistance = current.separationSquared(from: space)
+                    let newDistance = destination.separationSquared(from: space)
+                    return newDistance >= oldDistance
+                        && destination.centerDistanceSquared(from: space) > current.centerDistanceSquared(from: space) + 0.000001
+                }
+                return !middle.overlaps(space) && !destination.overlaps(space)
+            }), reservedPaths.allSatisfy({ id, path in
+                if id == vehicle.id { return true }
+                // More than one car may already occupy a junction in an old
+                // checkpoint. Physical checks still let those cars separate.
+                if !Set(currentJunctions[vehicle.id, default: []]).isDisjoint(with: currentJunctions[id, default: []]) { return true }
+                return !path.contains { middle.overlaps($0, clearance: 0.06) || destination.overlaps($0, clearance: 0.06) }
+            }) else { continue }
+            vehicles[index] = next
+            // Later cars also avoid the positions accepted earlier this tick.
+            footprints[vehicle.id] = destination
+            reservedPaths[vehicle.id] = reservedPath(for: next)
         }
         vehicles.removeAll { $0.progress >= ($0.route.count - 1) * $0.pace }
 
@@ -169,18 +199,67 @@ extension City {
 
     private mutating func dispatchJourney(from start: Address, to end: Address, freight: Bool, underway: Bool = false) {
         guard vehicles.count < 60 else { return }
-        guard let route = map.route(from: start.road, to: end.road), route.count > 3 else { return }
+        guard let route = map.route(from: start.road, to: end.road, origin: start.lot, destination: end.lot,
+                                    convention: trafficConvention), route.count > 3 else { return }
         let pace = 21 + random.pick(9)
         let color = random.pick(8)
         let progress = underway ? 4 + random.pick((route.count - 2) * pace) : 1
-        let segment = progress / pace
-        let offset = Double(progress) / Double(pace) - Double(segment)
-        guard !vehicles.contains(where: {
-            $0.route[$0.segment] == route[segment] && $0.route[$0.segment + 1] == route[segment + 1]
-                && abs($0.distance - Double($0.segment) - offset) < 0.38
+        let vehicle = Vehicle(id: nextVehicle, route: route, color: color, pace: pace, long: freight,
+                              origin: start.lot, destination: end.lot, progress: progress)
+        let reservation = reservedPath(for: vehicle)
+        let path = reservation.isEmpty ? [vehicle.footprint(in: trafficConvention)] : reservation
+        guard !vehicles.contains(where: { other in
+            path.contains { space in
+                space.overlaps(other.footprint(in: trafficConvention), clearance: 0.06)
+                    || reservedPath(for: other).contains { space.overlaps($0, clearance: 0.06) }
+            }
         }) else { return }
-        vehicles.append(Vehicle(id: nextVehicle, route: route, color: color, pace: pace, long: freight,
-                                origin: start.lot, destination: end.lot, progress: progress))
+        vehicles.append(vehicle)
         nextVehicle &+= 1
+    }
+
+    private func drivewayEnd(for vehicle: Vehicle) -> Double? {
+        if vehicle.distance < 0.28 { return 0.28 }
+        let end = Double(vehicle.route.count - 1)
+        // Include the curve and the heading sample on either side of it.
+        return vehicle.distance > end - 0.28 ? end : nil
+    }
+
+    private func reservedPath(for vehicle: Vehicle) -> [TrafficFootprint] {
+        reservationEnd(for: vehicle).map { vehicle.path(through: $0, in: trafficConvention) } ?? []
+    }
+
+    private func reservationEnd(for vehicle: Vehicle) -> Double? {
+        var end = drivewayEnd(for: vehicle)
+        var node = max(0, vehicle.segment - 1)
+        // Adjacent junctions share space, so reserve them together. Driveway
+        // turns start only after the vehicle's rear has cleared the crossing.
+        while node < vehicle.route.count {
+            let entry = Double(node) - vehicle.junctionClearance
+            if entry >= max(vehicle.distance, end ?? vehicle.distance) { break }
+            let exit = min(Double(vehicle.route.count - 1), Double(node) + vehicle.junctionExitClearance + 0.06 + 1 / Double(vehicle.pace))
+            if exit > vehicle.distance, isTrafficJunction(vehicle.route[node]) {
+                end = max(end ?? exit, exit)
+            }
+            node += 1
+        }
+        return end
+    }
+
+    private func isTrafficJunction(_ plot: Plot) -> Bool {
+        let roads = plot.neighbors.filter(map.isRoad)
+        return roads.count > 2 || (roads.count == 2 && roads[0].x != roads[1].x && roads[0].y != roads[1].y)
+    }
+
+    private func junctions(occupiedBy vehicle: Vehicle) -> [Plot] {
+        let start = max(0, vehicle.segment - 1)
+        let end = min(vehicle.route.count - 1, vehicle.segment + 2)
+        return (start...end).compactMap { node in
+            let junction = vehicle.route[node]
+            guard vehicle.distance > Double(node) - vehicle.junctionClearance,
+                  vehicle.distance < Double(node) + vehicle.junctionExitClearance,
+                  isTrafficJunction(junction) else { return nil }
+            return junction
+        }
     }
 }
