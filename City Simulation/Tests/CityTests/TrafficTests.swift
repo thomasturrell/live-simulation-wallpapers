@@ -26,6 +26,49 @@ private func car(_ id: UInt64, route: [Plot], pace: Int = 24, long: Bool = false
 private let across = (22...27).map { Plot($0, 19) }
 private let down = (17...22).map { Plot(24, $0) }
 
+@Test(arguments: [0.0, 0.06])
+func footprintBoundsPreserveExactCollisionChecks(clearance: Double) {
+    let margin = TrafficFootprint.radius * 2 + clearance
+    var footprints: [TrafficFootprint] = []
+    for center in [SIMD2(-4.0, -3), SIMD2(0, 0), SIMD2(margin, 0), SIMD2(margin - 0.000001, 0), SIMD2(0, margin)] {
+        for extent in [SIMD2(0.0, 0), SIMD2(0.22, 0), SIMD2(0, 0.34), SIMD2(0.24, -0.24)] {
+            for visible in [false, true] {
+                footprints.append(TrafficFootprint(front: center + extent, back: center - extent, visible: visible))
+            }
+        }
+    }
+    for first in footprints {
+        for second in footprints {
+            let expected = first.visible && second.visible && first.separationSquared(from: second) < margin * margin
+            #expect(first.overlaps(second, clearance: clearance) == expected)
+        }
+    }
+}
+
+@Test(arguments: [0.0, 0.06], TrafficConvention.allCases)
+func reservationBoundsPreserveEverySampledCollisionCheck(clearance: Double, convention: TrafficConvention) {
+    let turning = [Plot(22, 19), Plot(23, 19), Plot(24, 19), Plot(24, 20), Plot(24, 21), Plot(24, 22)]
+    let distant = across.map { Plot($0.x - 12, $0.y + 10) }
+    let samples = [across, down, turning, distant].enumerated().map { index, route in
+        car(UInt64(index), route: route, long: index.isMultiple(of: 2), distance: 0, convention: convention)
+            .path(through: 5, in: convention)
+    }
+    // Empty/invisible reservations, one-sample paths and gaps inside a path's
+    // bounds must agree with the exhaustive checks as well as real manoeuvres.
+    let paths = samples + [[], [samples[0][0]], [samples[0][20]], [samples[0][20], samples[0][160]]]
+    let reservations = paths.map(TrafficPath.init)
+    for (index, path) in paths.enumerated() {
+        for footprint in samples.flatMap({ $0 }) {
+            let expected = path.contains { $0.overlaps(footprint, clearance: clearance) }
+            #expect(reservations[index].overlaps(footprint, clearance: clearance) == expected)
+        }
+        for (otherIndex, other) in paths.enumerated() {
+            let expected = path.contains { first in other.contains { first.overlaps($0, clearance: clearance) } }
+            #expect(reservations[index].overlaps(reservations[otherIndex], clearance: clearance) == expected)
+        }
+    }
+}
+
 @Test(arguments: Array(21...29), [false, true])
 func vehiclesStopWithTheirWholeBodyBeforeTheCrossing(pace: Int, long: Bool) {
     for convention in TrafficConvention.allCases {
@@ -132,9 +175,12 @@ func seededTrafficRemainsSeparatedAndKeepsMoving(seed: UInt64, convention: Traff
     var idleTicks = 0
     var longestPause = 0
     for _ in 0..<5400 {
-        for (index, first) in city.vehicles.enumerated() {
-            for second in city.vehicles.dropFirst(index + 1) where first.footprint(in: city.trafficConvention).overlaps(second.footprint(in: city.trafficConvention)) {
-                overlap = overlap ?? "tick \(city.tick), cars \(first.id) and \(second.id)"
+        // Every pair is still checked on every tick; each body's geometry only
+        // needs to be sampled once while the city is unchanged.
+        let footprints = city.vehicles.map { $0.footprint(in: city.trafficConvention) }
+        for first in footprints.indices {
+            for second in footprints.indices.dropFirst(first + 1) where footprints[first].overlaps(footprints[second]) {
+                overlap = overlap ?? "tick \(city.tick), cars \(city.vehicles[first].id) and \(city.vehicles[second].id)"
             }
         }
         let previous = city.vehicles.map { ($0.id, $0.progress) }

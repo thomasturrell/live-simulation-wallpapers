@@ -39,14 +39,20 @@ struct TrafficFootprint {
     let front: SIMD2<Double>
     let back: SIMD2<Double>
     let visible: Bool
+    fileprivate let bounds: TrafficBounds
+
+    init(front: SIMD2<Double>, back: SIMD2<Double>, visible: Bool) {
+        self.front = front
+        self.back = back
+        self.visible = visible
+        bounds = TrafficBounds(minX: min(front.x, back.x), maxX: max(front.x, back.x),
+                               minY: min(front.y, back.y), maxY: max(front.y, back.y))
+    }
 
     func overlaps(_ other: Self, clearance: Double = 0) -> Bool {
         guard visible, other.visible else { return false }
         let margin = Self.radius * 2 + clearance
-        if min(front.x, back.x) > max(other.front.x, other.back.x) + margin
-            || min(other.front.x, other.back.x) > max(front.x, back.x) + margin
-            || min(front.y, back.y) > max(other.front.y, other.back.y) + margin
-            || min(other.front.y, other.back.y) > max(front.y, back.y) + margin { return false }
+        guard bounds.overlaps(other.bounds, margin: margin) else { return false }
         return separationSquared(from: other) < margin * margin
     }
 
@@ -77,4 +83,51 @@ struct TrafficFootprint {
     }
 
     private func cross(_ a: SIMD2<Double>, _ b: SIMD2<Double>) -> Double { a.x * b.y - a.y * b.x }
+}
+
+// The bounds only reject distant reservations. Nearby paths retain every
+// footprint sample and use the same rounded-body collision test.
+struct TrafficPath {
+    private let footprints: [TrafficFootprint]
+    private let bounds: TrafficBounds?
+
+    var isEmpty: Bool { footprints.isEmpty }
+
+    init(_ footprints: [TrafficFootprint]) {
+        self.footprints = footprints
+        var bounds: TrafficBounds?
+        for footprint in footprints where footprint.visible {
+            bounds = bounds.map { $0.union(footprint.bounds) } ?? footprint.bounds
+        }
+        self.bounds = bounds
+    }
+
+    func overlaps(_ footprint: TrafficFootprint, clearance: Double = 0) -> Bool {
+        guard footprint.visible, let bounds,
+              bounds.overlaps(footprint.bounds, margin: TrafficFootprint.radius * 2 + clearance) else { return false }
+        return footprints.contains { $0.overlaps(footprint, clearance: clearance) }
+    }
+
+    func overlaps(_ other: Self, clearance: Double = 0) -> Bool {
+        guard let bounds, let otherBounds = other.bounds,
+              bounds.overlaps(otherBounds, margin: TrafficFootprint.radius * 2 + clearance) else { return false }
+        return footprints.contains { other.overlaps($0, clearance: clearance) }
+    }
+}
+
+fileprivate struct TrafficBounds {
+    let minX: Double
+    let maxX: Double
+    let minY: Double
+    let maxY: Double
+
+    func overlaps(_ other: Self, margin: Double) -> Bool {
+        !(minX > other.maxX + margin || other.minX > maxX + margin
+            || minY > other.maxY + margin || other.minY > maxY + margin)
+    }
+
+    func union(_ other: Self) -> Self {
+        Self(minX: min(minX, other.minX), maxX: max(maxX, other.maxX),
+             minY: min(minY, other.minY), maxY: max(maxY, other.maxY))
+    }
 }
