@@ -3,13 +3,38 @@ import Foundation
 /// The 14 × 7 design is fitted into a compact 12 × 6 lot site.
 /// u follows the runway; v runs from the terminal to the airfield.
 public struct Airport: Codable, Equatable, Sendable {
+    public enum Stage: UInt8, Codable, CaseIterable, Sendable {
+        case airfield, local, regional
+
+        var next: Self? { Self(rawValue: rawValue + 1) }
+        var developmentTime: Int {
+            (self == .airfield ? 120 : 320) * City.ticksPerSecond
+        }
+    }
+
     public static let length = 12
     public static let width = 6
     public static let scale = 6.0 / 7.0
     public static let terminalStyle = 121
     public let origin: Plot
     public let alongY: Bool
+    public internal(set) var stage: Stage
     private static let entranceColumn = 6
+
+    init(origin: Plot, alongY: Bool, stage: Stage = .regional) {
+        self.origin = origin
+        self.alongY = alongY
+        self.stage = stage
+    }
+
+    private enum CodingKeys: String, CodingKey { case origin, alongY, stage }
+
+    public init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        origin = try values.decode(Plot.self, forKey: .origin)
+        alongY = try values.decode(Bool.self, forKey: .alongY)
+        stage = try values.decodeIfPresent(Stage.self, forKey: .stage) ?? .regional
+    }
 
     public func position(_ u: Double, _ v: Double) -> SIMD2<Double> {
         let x = (u + 0.5) * Self.scale - 0.5
@@ -37,14 +62,15 @@ public struct Airport: Codable, Equatable, Sendable {
     package static let entranceCenter = (Double(entranceColumn) + 0.5) / scale - 0.5
 
     public var tower: Plot { designPlot(Self.towerCenter.x, Self.towerCenter.y) }
-    public var hangars: [Plot] { Self.hangarCenters.map { designPlot($0.x, $0.y) } }
+    package var hangarPlot: Plot { anchor(for: Self.hangar) }
+    package var servicePlot: Plot { anchor(for: Self.workshop) }
 
     package func anchor(for surface: Surface) -> Plot {
         designPlot((surface.u.lowerBound + surface.u.upperBound) / 2,
                    (surface.v.lowerBound + surface.v.upperBound) / 2)
     }
 
-    private func designPlot(_ u: Double, _ v: Double) -> Plot {
+    package func designPlot(_ u: Double, _ v: Double) -> Plot {
         let point = position(u, v)
         return Plot(Int(point.x.rounded()), Int(point.y.rounded()))
     }
@@ -80,7 +106,7 @@ extension CityMap {
         for alongY in [false, true] {
             for y in 5...43 {
                 for x in 5...43 {
-                    let candidate = Airport(origin: Plot(x, y), alongY: alongY)
+                    let candidate = Airport(origin: Plot(x, y), alongY: alongY, stage: .airfield)
                     guard candidate.isValid else { continue }
                     let middle = candidate.plot(Airport.length / 2, Airport.width / 2)
                     guard middle.distance(to: downtown) >= 20 else { continue }
@@ -109,6 +135,7 @@ extension CityMap {
         guard let best else { return }
         let selected = best.airport
         airport = selected
+        let displaced = selected.plots.filter(isRoad)
         for point in best.newRoads {
             var lot = self[point]
             lot.ground = .road
@@ -120,10 +147,31 @@ extension CityMap {
             lot.zone = .civic
             self[point] = lot
         }
+        trimAirportRoadEnds(nextTo: displaced, at: selected, access: best.newRoads)
         var terminal = self[selected.terminal]
         terminal.ground = .grass
         terminal.building = Building(level: 1, style: Airport.terminalStyle)
         self[selected.terminal] = terminal
+    }
+
+    private mutating func trimAirportRoadEnds(nextTo displaced: [Plot], at airport: Airport, access: [Plot]) {
+        let column = airport.local(airport.entrance).u
+        let connection = airport.plot(column, -1 - access.count)
+        // Where a clipped street leaves just an unused tile beside a junction,
+        // let the grass verge reach the junction instead of drawing a stub.
+        let ends = Set(displaced.flatMap(\.neighbors)).filter {
+            contains($0) && $0 != connection && !access.contains($0) &&
+                self[$0].ground == .road && landscape(at: $0).ground == .grass
+        }
+        let stubs = ends.filter { point in
+            let neighbors = point.neighbors.filter(isRoad)
+            return neighbors.count == 1 && neighbors[0].neighbors.filter(isRoad).count >= 3
+        }
+        for point in stubs {
+            var lot = self[point]
+            lot.ground = .grass
+            self[point] = lot
+        }
     }
 
     /// At most two new lots in a straight spur. An existing street at the entrance

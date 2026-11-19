@@ -79,17 +79,18 @@ func accessReusesExistingStreetsAndRejectsParallelSpurs(alongY: Bool) {
     #expect(map.airportAccessRoad(for: airport) == nil)
 }
 
-@Test(arguments: [false, true])
-func placementTrimsLocalStreetsButRejectsSitesThatWouldSeverThem(alongY: Bool) {
+@Test(arguments: [false, true], [false, true])
+func placementTrimsLocalStreetsButRejectsSitesThatWouldSeverThem(alongY: Bool, atJunction: Bool) {
     var map = City().map
     map.airport = nil
-    let airport = Airport(origin: Plot(7, 7), alongY: alongY)
+    let airport = Airport(origin: Plot(7, 7), alongY: alongY, stage: .airfield)
     let column = airport.local(airport.entrance).u
     for point in CityMap.plots { map[point] = Lot(ground: airport.contains(point) ? .grass : .park) }
     for v in -3...3 { map[airport.plot(-2, v)] = Lot(ground: .road) }
     for u in -2...column { map[airport.plot(u, -3)] = Lot(ground: .road) }
     for v in [-2, -1] { map[airport.plot(column, v)] = Lot() }
     for u in -2...Airport.length { map[airport.plot(u, 3)] = Lot(ground: .road) }
+    if atJunction { map[airport.plot(-3, 3)] = Lot(ground: .road) }
     let severed = map
     var random = CityRandom(state: 42)
     map.planAirport(random: &random, optional: false)
@@ -97,11 +98,12 @@ func placementTrimsLocalStreetsButRejectsSitesThatWouldSeverThem(alongY: Bool) {
 
     // If that street ends within the site, trimming it leaves every surviving road connected.
     map[airport.plot(Airport.length, 3)] = Lot(ground: .park)
-    let roads = Set(CityMap.plots.filter(map.isRoad).filter { !airport.contains($0) })
+    var roads = Set(CityMap.plots.filter(map.isRoad).filter { !airport.contains($0) })
+    if atJunction { roads.remove(airport.plot(-1, 3)) }
     map.planAirport(random: &random, optional: false)
     #expect(map.airport == airport)
     #expect(Set(CityMap.plots.filter(map.isRoad)) == roads.union([airport.entrance, airport.plot(column, -2)]))
-    #expect(map.route(from: airport.entrance, to: airport.plot(-1, 3)) != nil)
+    #expect(map.route(from: airport.entrance, to: airport.plot(-2, 3)) != nil)
 }
 
 @Test func airportsAreOptionalAndDoNotDisplaceProtectedLandWhenSpaceIsTight() {
@@ -117,9 +119,9 @@ func placementTrimsLocalStreetsButRejectsSitesThatWouldSeverThem(alongY: Bool) {
     #expect(map == before)
 }
 
-@Test(arguments: [false, true])
-func flightsCompleteAContinuousCycleWithParkingAndQuietPeriods(alongY: Bool) throws {
-    let airport = Airport(origin: Plot(10, 10), alongY: alongY)
+@Test(arguments: [false, true], Aircraft.Kind.allCases)
+func flightsCompleteAContinuousCycleWithParkingAndQuietPeriods(alongY: Bool, kind: Aircraft.Kind) throws {
+    let airport = Airport(origin: Plot(10, 10), alongY: alongY, stage: kind == .lightProp ? .airfield : .regional)
     var aviation = Aviation(seed: 42)
     aviation.nextArrival = 1
     aviation.nextOverflight = 100_000
@@ -130,6 +132,10 @@ func flightsCompleteAContinuousCycleWithParkingAndQuietPeriods(alongY: Bool) thr
     var departureTick = 0
     for tick in 1..<9_000 {
         _ = aviation.step(tick: tick, darkness: 0, airport: airport)
+        if tick == 1, kind == .turboprop {
+            aviation.aircraft[0].airframe = kind
+            aviation.aircraft[0].gate = 1
+        }
         guard let flight = aviation.aircraft.first else {
             if previous != nil { departureTick = tick; break }
             continue
@@ -151,11 +157,12 @@ func flightsCompleteAContinuousCycleWithParkingAndQuietPeriods(alongY: Bool) thr
         }
         if flight.phase == .parked {
             parkedTicks += 1
-            let stop = Airport.boardingGate.stop
+            let stop = Airport.gates[flight.standIndex].stop
             #expect(SIMD2(pose.x, pose.y) == airport.position(stop.x, stop.y))
         }
         if pose.altitude == 0 {
-            #expect(aircraftClearsAirfield(pose, airport: airport), "Clearance at \(flight.phase), tick \(flight.elapsed)")
+            #expect(aircraftClearsAirfield(pose, kind: kind, airport: airport, holding: flight.phase == .holdingShort),
+                    "Clearance at \(flight.phase), tick \(flight.elapsed)")
         }
         previous = pose
     }
@@ -176,12 +183,21 @@ func flightsCompleteAContinuousCycleWithParkingAndQuietPeriods(alongY: Bool) thr
     #expect(aviation.aircraft.first?.phase == .approach)
 }
 
-private func aircraftClearsAirfield(_ pose: Aircraft.Pose, airport: Airport) -> Bool {
-    // Sample the convex envelope around the nose, swept wings and tailplane in sprite pixels.
-    let outline: [SIMD2<Double>] = [
-        SIMD2(11, 0), SIMD2(8, 1.5), SIMD2(-4, 11), SIMD2(-6, 11), SIMD2(-11, 5),
-        SIMD2(-11, -5), SIMD2(-6, -11), SIMD2(-4, -11), SIMD2(8, -1.5),
-    ]
+private func aircraftClearsAirfield(_ pose: Aircraft.Pose, kind: Aircraft.Kind, airport: Airport, holding: Bool) -> Bool {
+    // Sample an envelope around the nose, wings and tailplane in sprite pixels.
+    let outline: [SIMD2<Double>]
+    if kind == .jet {
+        outline = [SIMD2(11, 0), SIMD2(8, 1.5), SIMD2(-4, 11), SIMD2(-6, 11), SIMD2(-11, 5),
+                   SIMD2(-11, -5), SIMD2(-6, -11), SIMD2(-4, -11), SIMD2(8, -1.5)]
+    } else {
+        let nose = kind == .turboprop ? 8.8 : 6.2
+        let wing = kind == .turboprop ? 9.5 : 6.6
+        outline = [SIMD2(nose, 0), SIMD2(0.4, wing), SIMD2(-1.8, wing), SIMD2(-nose, 3.1),
+                   SIMD2(-nose, -3.1), SIMD2(-1.8, -wing), SIMD2(0.4, -wing)]
+    }
+    let obstacles = airport.structures + [Airport.forecourt, Airport.parking,
+                                          Airport.Surface(1.32...2.12, 1.24...2.08)] + (holding ? [Airport.runway] : [])
+    let operations = airport.operations
     let center = airport.designPosition(SIMD2(pose.x, pose.y))
     let forward = (airport.alongY ? SIMD2(pose.dy, pose.dx) : SIMD2(pose.dx, pose.dy)) / 16
     let side = SIMD2(-forward.y, forward.x)
@@ -191,9 +207,8 @@ private func aircraftClearsAirfield(_ pose: Aircraft.Pose, airport: Airport) -> 
             let tip = forward * edge.x + side * edge.y
             for radius in [0.25, 0.5, 0.75, 1.0] {
                 let point = center + tip * radius
-                if !Airport.operations.contains(where: { $0.contains(point) }) ||
-                    Airport.structures.contains(where: { $0.contains(point) }) ||
-                    Airport.forecourt.contains(point) { return false }
+                if !operations.contains(where: { $0.contains(point) }) ||
+                    obstacles.contains(where: { $0.contains(point) }) { return false }
             }
         }
     }
@@ -261,9 +276,80 @@ func airportJourneysAndEveryFlightPhaseSurviveCheckpointAndCityGrowth(seed: UInt
     #expect(phases == Set(Aircraft.Phase.allCases))
     #expect(inboundPassengers && outboundPassengers)
     #expect(city.revision > 5)
-    #expect(city.map.airport == airport)
+    #expect(city.map.airport?.origin == airport.origin)
+    #expect(city.map.airport?.alongY == airport.alongY)
     #expect(airport.plots.map { city.map[$0] } == original)
     for point in CityMap.plots where airport.isApproach(point) { #expect(city.map[point].building == nil) }
+}
+
+@Test(arguments: [215, 202] as [UInt64])
+func airportDevelopmentSharesTheCityClockAndSurvivesWorksiteRestores(seed: UInt64) throws {
+    var city = City(seed: seed)
+    let airport = try #require(city.map.airport)
+    #expect(airport.stage == .airfield)
+    let reserved = airport.plots.map { city.map[$0] }
+    let street = try #require(airport.entrance.neighbors.first(where: city.map.isRoad))
+    let access = try #require(city.map.route(from: airport.entrance, to: street))
+    var projects: [Construction] = []
+    var stages: [Airport.Stage] = [.airfield]
+    var visits: Set<Aircraft.Kind> = []
+    for _ in 0..<27_000 {
+        city.step()
+        let current = try #require(city.map.airport)
+        if current.stage != stages.last { stages.append(current.stage) }
+        for flight in city.aviation.aircraft where flight.phase == .parked {
+            visits.insert(flight.kind)
+        }
+        if let project = city.construction, project.airportUpgrade != nil {
+            #expect(city.aviation.runwayFree)
+            if projects.last != project {
+                projects.append(project)
+                var restored = try #require(City(checkpoint: city.checkpoint()))
+                var uninterrupted = city
+                for _ in city.tick...project.finish { restored.step(); uninterrupted.step() }
+                #expect(restored == uninterrupted)
+                #expect(restored.map.airport?.stage == project.airportUpgrade)
+            }
+        }
+        if current.stage == .regional { break }
+    }
+    #expect(stages == [.airfield, .local, .regional])
+    #expect(visits == [.lightProp, .turboprop])
+    #expect(projects.compactMap(\.airportUpgrade) == [.local, .regional])
+    #expect(city.map.roadAccess(at: airport.terminal) == airport.entrance)
+    #expect(city.map.route(from: airport.entrance, to: street) == access)
+    #expect(airport.plots.map { city.map[$0] } == reserved)
+}
+
+@Test func serviceCartStaysInTheServiceYardAndReturnsBetweenFlights() {
+    let airport = Airport(origin: Plot(10, 10), alongY: true)
+    let rest = airport.serviceCart(parkedFor: nil)
+    #expect(airport.serviceCart(parkedFor: 20 * City.ticksPerSecond) != rest)
+    #expect(airport.serviceCart(parkedFor: 42 * City.ticksPerSecond) == rest)
+    for second in 0...45 {
+        let point = airport.designPosition(airport.serviceCart(parkedFor: second * City.ticksPerSecond))
+        #expect(Airport.serviceYard.contains(point))
+        #expect(!Airport.taxiway.contains(point))
+    }
+}
+
+@Test func formatFiveAirportsWithoutDevelopmentRestoreAsMature() throws {
+    let city = City(seed: 215)
+    let original = try #require(city.map.airport)
+    var plist = try #require(PropertyListSerialization.propertyList(from: city.checkpoint(), format: nil) as? [String: Any])
+    var savedCity = try #require(plist["city"] as? [String: Any])
+    var map = try #require(savedCity["map"] as? [String: Any])
+    var airport = try #require(map["airport"] as? [String: Any])
+    airport.removeValue(forKey: "stage")
+    map["airport"] = airport
+    savedCity["map"] = map
+    plist["city"] = savedCity
+    let data = try PropertyListSerialization.data(fromPropertyList: plist, format: .binary, options: 0)
+    let restored = try #require(City(checkpoint: data))
+    #expect(restored.map.airport?.stage == .regional)
+    #expect(restored.map.airport?.entrance == original.entrance)
+    #expect(restored.map.lots == city.map.lots)
+    #expect(restored.vehicles == city.vehicles)
 }
 
 @Test func checkpointsRejectInvalidAircraftAndAirportGeometry() throws {

@@ -26,17 +26,19 @@ Blossom, summer greenery, autumn colours and bare winter branches give the city 
 
 ## Airports and aircraft
 
-A small regional airport with a terminal drop-off, two glazed concourses and short boarding piers. The flight cycle plays at 6× speed with a shortened stop at the gate.
+A grass airfield grows into a paved local airport, then adds a second boarding stand and a maintenance yard. The flight cycle plays at 6× speed with a shortened stop at the gate.
+
+![The same site as a grass airfield, a local airport and a mature regional airport](assets/airport-development.webp)
 
 ![Passenger aircraft approaching, landing, taxiing to the terminal, pushing back and taking off from the compact airport](assets/airport-flight-cycle.webp)
 
 | Airport in daylight | Airport at night |
 | --- | --- |
-| ![Compact airport with runway 09/27, two boarding stands, terminal forecourt, grassy margins, control tower and hangars](assets/airport-day.webp) | ![Airport at night with illuminated runway edges, taxiway lights and terminal windows](assets/airport-night.webp) |
+| ![Regional airport with a folded-roof terminal, two boarding stands, a public car park and a light aircraft outside its hangar](assets/airport-day.webp) | ![Airport at night with illuminated thresholds, blue taxiway lights and warm windows around the apron](assets/airport-night.webp) |
 
 | Passenger terminal | Air traffic control tower | Hangar |
 | --- | --- | --- |
-| ![Passenger terminal with a covered entrance, two glazed concourses and short boarding piers](assets/airport-terminal.webp) | ![Control tower with a glazed cabin, antenna and raised observation deck](assets/control-tower.webp) | ![Airport hangar with a broad aircraft door](assets/hangar.webp) |
+| ![Passenger terminal with folded roofs, glazed concourses and boarding piers](assets/airport-terminal.webp) | ![Control tower with a glazed observation room and a brick shaft](assets/control-tower.webp) | ![Airport hangar with a broad open entrance](assets/hangar.webp) |
 | **Passenger aircraft** | **Aircraft in flight** | **Aircraft at night** |
 | ![Small passenger aircraft with cabin windows, engines, landing gear and a coloured tail](assets/passenger-aircraft.webp) | ![Passenger aircraft in flight with retracted landing gear](assets/aircraft-in-flight.webp) | ![Passenger aircraft at night with lit cabin windows and navigation lights](assets/aircraft-at-night.webp) |
 

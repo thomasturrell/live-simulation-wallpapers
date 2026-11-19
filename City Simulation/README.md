@@ -14,7 +14,7 @@ Start with a bustling city and watch its neighbourhoods develop. Cranes overlook
 
 Cars travel between homes, shops, offices and factories, crossing bridges and queuing at busy junctions. Look closer for fountains, glinting water and chimney smoke.
 
-Some cities have a small regional airport on the outskirts. Cars reach the terminal drop-off from the city streets, while passenger aircraft taxi to a boarding pier before heading out for take-off. Watch for illuminated gates and runway lights after dark. Even without an airport, you may spot a plane passing overhead.
+Some cities start with a grass airfield on the outskirts. Over time it grows into a regional airport with a folded-roof terminal, a car park and two boarding stands. Watch light aircraft give way to turboprops and regional jets, and look for a baggage tug and warm apron lights after dark. Even without an airport, you may spot a plane passing overhead.
 
 ## Day, night, seasons and weather
 

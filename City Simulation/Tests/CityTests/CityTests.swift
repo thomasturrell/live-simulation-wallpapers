@@ -81,7 +81,7 @@ import Testing
     var roadProject: Plot?
     while city.tick < City.ticksPerSecond * 240 && roadProject == nil {
         city.step()
-        if let job = city.construction, job.replacement == nil {
+        if let job = city.construction, job.replacement == nil, job.airportUpgrade == nil {
             #expect(city.map.roadAccess(at: job.plot) != nil)
             #expect(city.map[job.plot].building == nil)
             for _ in city.tick..<job.finish { city.step() }

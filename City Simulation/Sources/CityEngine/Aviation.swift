@@ -1,6 +1,10 @@
 import Foundation
 
 public struct Aircraft: Codable, Equatable {
+    public enum Kind: UInt8, Codable, CaseIterable {
+        case jet, turboprop, lightProp
+    }
+
     public enum Phase: UInt8, Codable, CaseIterable {
         case approach, landing, taxiIn, parked, pushback, taxiOut, holdingShort, lineUp, takeoff, climb, overflight
     }
@@ -13,6 +17,11 @@ public struct Aircraft: Codable, Equatable {
     let lane: Int
     let reverse: Bool
     let alongY: Bool
+    var airframe: Kind?
+    var gate: Int?
+
+    public var kind: Kind { airframe ?? .jet }
+    var standIndex: Int { gate ?? 0 }
 
     public var duration: Int {
         let seconds: Int
@@ -106,7 +115,7 @@ public struct Aircraft: Codable, Equatable {
         }
         let runway = Airport.runwayCenter
         let taxiway = Airport.taxiwayCenter
-        let stand = Airport.boardingGate.stop
+        let stand = Airport.gates[standIndex].stop
         let exit = Airport.runwayExit
         let hold = Airport.holdShort
         switch phase {
@@ -141,7 +150,7 @@ public struct Aircraft: Codable, Equatable {
         case .holdingShort: return sample(hold, p(0, 1))
         case .lineUp:
             let start = Airport.takeoffStart
-            return cubic(hold, p(hold.x, hold.y + 0.05), p(start - 0.2, runway), p(start, runway), t)
+            return cubic(hold, p(hold.x, hold.y + 0.46), p(start - 0.2, runway), p(start, runway), t)
         case .takeoff:
             return sample(p(Airport.takeoffStart + 1.2 * t + 8.8 * t * t, runway), p(1, 0),
                           altitude: t > 0.65 ? 9 * pow((t - 0.65) / 0.35, 1.5) : 0)
@@ -162,7 +171,7 @@ public struct Aircraft: Codable, Equatable {
 
     var isValid: Bool {
         (0..<4).contains(livery) && (45 * City.ticksPerSecond...95 * City.ticksPerSecond).contains(standTime) &&
-        (-8...8).contains(lane) && (0..<duration).contains(elapsed)
+        (-8...8).contains(lane) && (0..<duration).contains(elapsed) && Airport.gates.indices.contains(standIndex)
     }
 }
 
@@ -171,6 +180,7 @@ public struct Aviation: Codable, Equatable {
     public internal(set) var aircraft: [Aircraft] = []
     var nextArrival: Int
     var nextOverflight: Int
+    private(set) var completedAirportStage: Airport.Stage?
     private var nextID: UInt64 = 0
     private var random: CityRandom
 
@@ -183,13 +193,16 @@ public struct Aviation: Codable, Equatable {
 
     enum Event { case passengersArrive, passengersLeave }
 
-    mutating func step(tick: Int, darkness: Double, airport: Airport?) -> [Event] {
+    var runwayFree: Bool { aircraft.allSatisfy { $0.phase == .overflight } }
+
+    mutating func step(tick: Int, darkness: Double, airport: Airport?, runwayClosed: Bool = false) -> [Event] {
         var events: [Event] = []
         for i in aircraft.indices {
             aircraft[i].elapsed += 1
             guard aircraft[i].elapsed >= aircraft[i].duration else { continue }
             switch aircraft[i].phase {
             case .climb:
+                completedAirportStage = airport?.stage
                 nextArrival = tick + (45 + random.pick(65) + (darkness > 0.65 ? 75 : 0)) * City.ticksPerSecond
             case .overflight:
                 nextOverflight = tick + (85 + random.pick(95)) * City.ticksPerSecond
@@ -201,8 +214,18 @@ public struct Aviation: Codable, Equatable {
             }
         }
         aircraft.removeAll { $0.elapsed >= $0.duration }
-        if airport != nil, tick >= nextArrival, !aircraft.contains(where: { $0.phase != .overflight }) {
-            aircraft.append(makeAircraft(phase: .approach))
+        if let airport, !runwayClosed, tick >= nextArrival, runwayFree {
+            var arrival = makeAircraft(phase: .approach)
+            switch airport.stage {
+            case .airfield: arrival.airframe = .lightProp
+            case .local: arrival.airframe = .turboprop
+            case .regional:
+                if !arrival.id.isMultiple(of: 3) {
+                    arrival.airframe = .turboprop
+                    arrival.gate = 1
+                }
+            }
+            aircraft.append(arrival)
         }
         if tick >= nextOverflight, !aircraft.contains(where: { $0.phase == .overflight }) {
             aircraft.append(makeAircraft(phase: .overflight))
@@ -223,6 +246,10 @@ public struct Aviation: Codable, Equatable {
         Set(aircraft.map(\.id)).count == aircraft.count &&
         aircraft.filter { $0.phase == .overflight }.count <= 1 &&
         aircraft.filter { $0.phase != .overflight }.count <= (airport == nil ? 0 : 1) &&
+        aircraft.allSatisfy { aircraft in
+            aircraft.standIndex == 0 ||
+                (airport?.stage == .regional && aircraft.kind == .turboprop && aircraft.phase != .overflight)
+        } &&
         (0...tick + 200 * City.ticksPerSecond).contains(nextArrival) &&
         (0...tick + 200 * City.ticksPerSecond).contains(nextOverflight)
     }
