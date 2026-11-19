@@ -81,7 +81,7 @@ import Testing
     var roadProject: Plot?
     while city.tick < City.ticksPerSecond * 240 && roadProject == nil {
         city.step()
-        if let job = city.construction, job.replacement == nil {
+        if let job = city.construction, job.replacement == nil, job.airportUpgrade == nil {
             #expect(city.map.roadAccess(at: job.plot) != nil)
             #expect(city.map[job.plot].building == nil)
             for _ in city.tick..<job.finish { city.step() }
@@ -233,7 +233,11 @@ func integerPixelsCoverTheDisplay(size: CGSize) throws {
     let night = renderer.image(for: city, viewport: viewport)
     let dayPixels = try #require(first.dataProvider?.data) as Data
     let nightPixels = try #require(night.dataProvider?.data) as Data
-    let sample = 4 * (viewport.width * 302 + 12)
-    let sum: (Data) -> Int = { $0[sample..<(sample + 3)].reduce(0) { $0 + Int($1) } }
+    // A site or a streetlight can change the brightness of any single pixel.
+    let sum: (Data) -> Int = { data in
+        stride(from: 0, to: data.count, by: 4).reduce(0) {
+            $0 + Int(data[$1]) + Int(data[$1 + 1]) + Int(data[$1 + 2])
+        }
+    }
     #expect(sum(nightPixels) < sum(dayPixels))
 }

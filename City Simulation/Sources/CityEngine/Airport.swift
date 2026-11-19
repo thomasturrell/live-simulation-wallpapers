@@ -3,12 +3,38 @@ import Foundation
 /// The 14 × 7 design is fitted into a compact 12 × 6 lot site.
 /// u follows the runway; v runs from the terminal to the airfield.
 public struct Airport: Codable, Equatable, Sendable {
+    public enum Stage: UInt8, Codable, CaseIterable, Sendable {
+        case airfield, local, regional
+
+        var next: Self? { Self(rawValue: rawValue + 1) }
+        var developmentTime: Int {
+            (self == .airfield ? 120 : 320) * City.ticksPerSecond
+        }
+    }
+
     public static let length = 12
     public static let width = 6
     public static let scale = 6.0 / 7.0
     public static let terminalStyle = 121
     public let origin: Plot
     public let alongY: Bool
+    public internal(set) var stage: Stage
+    private static let entranceColumn = 6
+
+    init(origin: Plot, alongY: Bool, stage: Stage = .regional) {
+        self.origin = origin
+        self.alongY = alongY
+        self.stage = stage
+    }
+
+    private enum CodingKeys: String, CodingKey { case origin, alongY, stage }
+
+    public init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        origin = try values.decode(Plot.self, forKey: .origin)
+        alongY = try values.decode(Bool.self, forKey: .alongY)
+        stage = try values.decodeIfPresent(Stage.self, forKey: .stage) ?? .regional
+    }
 
     public func position(_ u: Double, _ v: Double) -> SIMD2<Double> {
         let x = (u + 0.5) * Self.scale - 0.5
@@ -16,9 +42,10 @@ public struct Airport: Codable, Equatable, Sendable {
         return SIMD2(Double(origin.x) + (alongY ? y : x), Double(origin.y) + (alongY ? x : y))
     }
 
-    public func designPlot(_ u: Int, _ v: Int) -> Plot {
-        let point = position(Double(u), Double(v))
-        return Plot(Int(point.x.rounded()), Int(point.y.rounded()))
+    func designPosition(_ point: SIMD2<Double>) -> SIMD2<Double> {
+        let x = point.x - Double(origin.x), y = point.y - Double(origin.y)
+        let local = alongY ? SIMD2(y, x) : SIMD2(x, y)
+        return (local + 0.5) / Self.scale - 0.5
     }
 
     public func plot(_ u: Int, _ v: Int) -> Plot {
@@ -30,9 +57,23 @@ public struct Airport: Codable, Equatable, Sendable {
         return alongY ? (y, x) : (x, y)
     }
 
-    public var terminal: Plot { plot(6, 0) }
-    public var tower: Plot { plot(9, 0) }
-    public var hangars: [Plot] { [plot(2, 0), plot(11, 0)] }
+    public var terminal: Plot { plot(Self.entranceColumn, 0) }
+    public var entrance: Plot { plot(Self.entranceColumn, -1) }
+    package static let entranceCenter = (Double(entranceColumn) + 0.5) / scale - 0.5
+
+    public var tower: Plot { designPlot(Self.towerCenter.x, Self.towerCenter.y) }
+    package var hangarPlot: Plot { anchor(for: Self.hangar) }
+    package var servicePlot: Plot { anchor(for: Self.workshop) }
+
+    package func anchor(for surface: Surface) -> Plot {
+        designPlot((surface.u.lowerBound + surface.u.upperBound) / 2,
+                   (surface.v.lowerBound + surface.v.upperBound) / 2)
+    }
+
+    package func designPlot(_ u: Double, _ v: Double) -> Plot {
+        let point = position(u, v)
+        return Plot(Int(point.x.rounded()), Int(point.y.rounded()))
+    }
 
     public func contains(_ point: Plot) -> Bool {
         let p = local(point)
@@ -42,20 +83,12 @@ public struct Airport: Codable, Equatable, Sendable {
     public func isApproach(_ point: Plot) -> Bool {
         let p = local(point)
         let u = (Double(p.u) + 0.5) / Self.scale - 0.5
-        let runway = 5.5 * Self.scale - 0.5
+        let runway = (Self.runwayCenter + 0.5) * Self.scale - 0.5
         return abs(Double(p.v) - runway) <= 1 && ((u >= -12 && u < 0) || (u >= 14 && u <= 26))
     }
 
     var plots: [Plot] {
         (0..<Self.length).flatMap { u in (0..<Self.width).map { plot(u, $0) } }
-    }
-
-    var perimeter: [Plot] {
-        (-1...Self.length).flatMap { u in
-            (-1...Self.width).compactMap { v in
-                u == -1 || u == Self.length || v == -1 || v == Self.width ? plot(u, v) : nil
-            }
-        }
     }
 
     var isValid: Bool {
@@ -65,37 +98,45 @@ public struct Airport: Codable, Equatable, Sendable {
 }
 
 extension CityMap {
-    /// Reserve land before buildings are populated. A perimeter road reconnects every street
-    /// reaching the site, rather than leaving severed roads or cars crossing the runway.
+    /// Reserve land before buildings are populated. Prefer sites that can reuse a street
+    /// at the forecourt and keep the rest of the city connected through existing streets.
     mutating func planAirport(random: inout CityRandom, optional: Bool) {
         if optional && random.pick(4) != 0 { return }
-        var best: (airport: Airport, score: Int)?
+        var best: (airport: Airport, newRoads: [Plot], score: Int)?
         for alongY in [false, true] {
-            for y in stride(from: 5, through: 43, by: 2) {
-                for x in stride(from: 5, through: 43, by: 2) {
-                    let candidate = Airport(origin: Plot(x, y), alongY: alongY)
+            for y in 5...43 {
+                for x in 5...43 {
+                    let candidate = Airport(origin: Plot(x, y), alongY: alongY, stage: .airfield)
                     guard candidate.isValid else { continue }
                     let middle = candidate.plot(Airport.length / 2, Airport.width / 2)
                     guard middle.distance(to: downtown) >= 20 else { continue }
-                    let footprint = candidate.plots + candidate.perimeter
-                    guard footprint.allSatisfy({
-                        contains($0) && [.grass, .road].contains(self[$0].ground) &&
-                        $0.distance(to: downtown) >= 11
-                    }), candidate.perimeter.contains(where: isRoad) else { continue }
+                    guard let newRoads = airportAccessRoad(for: candidate) else { continue }
+                    let footprint = candidate.plots
+                    guard footprint.allSatisfy({ point in
+                        let lot = self[point]
+                        return [.grass, .road].contains(lot.ground) && lot.building == nil &&
+                            landscape(at: point).ground == .grass && point.distance(to: downtown) >= 11
+                    }) else { continue }
+                    let displaced = footprint.filter(isRoad)
                     // Prefer the outskirts within the wallpaper crop, without sacrificing riverbanks or parks.
-                    let visible = candidate.plots.filter {
+                    let visible = footprint.filter {
                         let x = 320 + ($0.x - $0.y - Self.center.x + Self.center.y) * 16
                         let y = 210 + ($0.x + $0.y - Self.center.x - Self.center.y) * 8
                         return (16..<624).contains(x) && (16..<344).contains(y)
                     }.count
-                    let score = -visible * 4 + abs(middle.distance(to: downtown) - 24) + random.pick(12)
-                    if best == nil || score < best!.score { best = (candidate, score) }
+                    let score = -visible * 4 + abs(middle.distance(to: downtown) - 24) +
+                        displaced.count * 5 + newRoads.count * 16 + random.pick(12)
+                    guard best == nil || score < best!.score,
+                          keepsRoadsConnected(around: candidate, removing: displaced) else { continue }
+                    best = (candidate, newRoads, score)
                 }
             }
         }
-        guard let selected = best?.airport else { return }
+        guard let best else { return }
+        let selected = best.airport
         airport = selected
-        for point in selected.perimeter {
+        let displaced = selected.plots.filter(isRoad)
+        for point in best.newRoads {
             var lot = self[point]
             lot.ground = .road
             self[point] = lot
@@ -106,10 +147,66 @@ extension CityMap {
             lot.zone = .civic
             self[point] = lot
         }
+        trimAirportRoadEnds(nextTo: displaced, at: selected, access: best.newRoads)
         var terminal = self[selected.terminal]
         terminal.ground = .grass
         terminal.building = Building(level: 1, style: Airport.terminalStyle)
         self[selected.terminal] = terminal
     }
 
+    private mutating func trimAirportRoadEnds(nextTo displaced: [Plot], at airport: Airport, access: [Plot]) {
+        let column = airport.local(airport.entrance).u
+        let connection = airport.plot(column, -1 - access.count)
+        // Where a clipped street leaves just an unused tile beside a junction,
+        // let the grass verge reach the junction instead of drawing a stub.
+        let ends = Set(displaced.flatMap(\.neighbors)).filter {
+            contains($0) && $0 != connection && !access.contains($0) &&
+                self[$0].ground == .road && landscape(at: $0).ground == .grass
+        }
+        let stubs = ends.filter { point in
+            let neighbors = point.neighbors.filter(isRoad)
+            return neighbors.count == 1 && neighbors[0].neighbors.filter(isRoad).count >= 3
+        }
+        for point in stubs {
+            var lot = self[point]
+            lot.ground = .grass
+            self[point] = lot
+        }
+    }
+
+    /// At most two new lots in a straight spur. An existing street at the entrance
+    /// is already a connection. Adjacent streets along a new spur would form extra
+    /// junctions or a parallel strip of pavement, so leave those sites to the city.
+    func airportAccessRoad(for airport: Airport) -> [Plot]? {
+        let column = airport.local(airport.entrance).u
+        var newRoads: [Plot] = []
+        for v in [-1, -2, -3] {
+            let point = airport.plot(column, v)
+            guard contains(point), landscape(at: point).ground == .grass else { return nil }
+            if self[point].ground == .road { return newRoads }
+            guard v != -3, self[point].ground == .grass, self[point].building == nil,
+                  !isRoad(airport.plot(column - 1, v)), !isRoad(airport.plot(column + 1, v)) else { return nil }
+            newRoads.append(point)
+        }
+        return nil
+    }
+
+    private func keepsRoadsConnected(around airport: Airport, removing roads: [Plot]) -> Bool {
+        // Every component split by the removal must touch a displaced street.
+        // Check the surviving neighbours without using the footprint or the new spur.
+        var remaining = Set(roads.flatMap(\.neighbors).filter { !airport.contains($0) && isRoad($0) })
+        guard let start = remaining.popFirst() else { return true }
+        var visited: Set<Plot> = [start]
+        var queue = [start]
+        var cursor = 0
+        while !remaining.isEmpty && cursor < queue.count {
+            let point = queue[cursor]
+            cursor += 1
+            for next in point.neighbors where !airport.contains(next) && isRoad(next) && visited.insert(next).inserted {
+                remaining.remove(next)
+                queue.append(next)
+            }
+        }
+        return remaining.isEmpty
+    }
 }

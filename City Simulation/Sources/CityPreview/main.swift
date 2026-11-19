@@ -7,6 +7,8 @@ import SwiftUI
 
 @MainActor
 final class PreviewModel: ObservableObject {
+    @Published private(set) var seed: UInt64
+    @Published var seedText: String
     @Published var mode: EnvironmentMode = .simulationWorld
     @Published var inspectCalendar = false
     @Published var month = 1.0
@@ -17,6 +19,29 @@ final class PreviewModel: ObservableObject {
     @Published var trafficConvention: TrafficConvention = .default
     @Published var paused = false
     @Published var status = ""
+
+    init(seed: UInt64) {
+        self.seed = seed
+        seedText = String(seed)
+    }
+
+    var enteredSeed: UInt64? { UInt64(seedText.trimmingCharacters(in: .whitespacesAndNewlines)) }
+
+    func loadSeed() {
+        if let enteredSeed { selectSeed(enteredSeed) }
+    }
+
+    func generateSeed() {
+        var candidate = UInt64.random(in: .min ... .max)
+        while candidate == seed { candidate = UInt64.random(in: .min ... .max) }
+        selectSeed(candidate)
+    }
+
+    private func selectSeed(_ seed: UInt64) {
+        seedText = String(seed)
+        if self.seed != seed { self.seed = seed }
+    }
+
     var preview: EnvironmentPreview {
         var value = EnvironmentPreview()
         value.month = inspectCalendar ? month : nil
@@ -49,6 +74,16 @@ struct PreviewControls: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 Text("City preview").font(.title2.bold())
+                HStack {
+                    TextField("City seed", text: $model.seedText)
+                        .textFieldStyle(.roundedBorder)
+                        .font(.body.monospacedDigit())
+                        .onSubmit(model.loadSeed)
+                    Button("Load seed", action: model.loadSeed)
+                        .disabled(model.enteredSeed == nil || model.enteredSeed == model.seed)
+                }
+                Button("New seed", action: model.generateSeed)
+                Divider()
                 Picker("Environment", selection: $model.mode) {
                     ForEach(EnvironmentMode.allCases, id: \.self) { Text($0.title).tag($0) }
                 }.onChange(of: model.mode) { previous, current in
@@ -108,13 +143,15 @@ struct PreviewCanvas: NSViewRepresentable {
 @MainActor
 final class PreviewView: NSView {
     private let model: PreviewModel
+    private var seed: UInt64
     private var playback: Playback
     private let renderer = CityRenderer()
     private var timer: Timer?
     private var timestamp = ProcessInfo.processInfo.systemUptime
     init(model: PreviewModel) {
         self.model = model
-        playback = Playback(city: City(trafficConvention: model.trafficConvention))
+        seed = model.seed
+        playback = Playback(city: City(seed: seed, trafficConvention: model.trafficConvention))
         super.init(frame: .zero)
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
@@ -124,8 +161,9 @@ final class PreviewView: NSView {
         configure()
     }
     func configure() {
-        if playback.city.trafficConvention != model.trafficConvention {
-            playback = Playback(city: City(trafficConvention: model.trafficConvention))
+        if seed != model.seed || playback.city.trafficConvention != model.trafficConvention {
+            seed = model.seed
+            playback = Playback(city: City(seed: seed, trafficConvention: model.trafficConvention))
             timestamp = ProcessInfo.processInfo.systemUptime
         }
         let active = window != nil && !model.paused
@@ -172,6 +210,7 @@ enum PreviewError: Error { case usage, write }
 @MainActor
 func run() throws {
     var args = Array(CommandLine.arguments.dropFirst())
+    var seed = City.defaultSeed
     var mode = EnvironmentMode.simulationWorld
     var preview = EnvironmentPreview()
     var convention = TrafficConvention.default
@@ -181,6 +220,10 @@ func run() throws {
         let value = args[index + 1]
         args.removeSubrange(index...index + 1)
         return value
+    }
+    if let value = try option("--seed") {
+        guard let selected = UInt64(value) else { throw PreviewError.usage }
+        seed = selected
     }
     if let value = try option("--environment") {
         guard let value = ["simulation": EnvironmentMode.simulationWorld, "northern": .realWorldNorthern, "southern": .realWorldSouthern][value] else { throw PreviewError.usage }
@@ -207,7 +250,7 @@ func run() throws {
         convention = selected
     }
     if args.first == "--gallery", args.count == 2 {
-        try writeGallery(to: URL(fileURLWithPath: args[1], isDirectory: true), convention: convention)
+        try writeGallery(to: URL(fileURLWithPath: args[1], isDirectory: true), seed: seed, convention: convention)
         return
     }
     if args.first == "--icns", args.count == 2 {
@@ -221,7 +264,7 @@ func run() throws {
         let seconds = args.count > 4 ? Int(args[4]) : 0
         guard let width, let height, let seconds, (1...5120).contains(width), (1...5120).contains(height),
               (0...900).contains(seconds) else { throw PreviewError.usage }
-        var city = City(trafficConvention: convention)
+        var city = City(seed: seed, trafficConvention: convention)
         for _ in 0..<seconds * City.ticksPerSecond { city.step() }
         let viewport = CityViewport(pixelWidth: width, pixelHeight: height)
         let environment = Environment.frame(city: city, mode: mode,
@@ -246,7 +289,7 @@ func run() throws {
                           styleMask: [.titled, .closable, .resizable, .miniaturizable], backing: .buffered, defer: false)
     window.title = "City Simulation"
     window.collectionBehavior = [.fullScreenPrimary, .fullScreenAllowsTiling]
-    let model = PreviewModel()
+    let model = PreviewModel(seed: seed)
     model.mode = mode
     model.trafficConvention = convention
     model.inspectWind = preview.wind != nil; model.wind = preview.wind ?? 0.5
@@ -280,9 +323,9 @@ private func savePNG(_ image: CGImage, to output: URL) throws {
 /// Reproducible contact sheets use the production renderer without advancing a
 /// city or touching wallpaper checkpoints, weather caches or network services.
 @MainActor
-private func writeGallery(to directory: URL, convention: TrafficConvention) throws {
+private func writeGallery(to directory: URL, seed: UInt64, convention: TrafficConvention) throws {
     try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-    let city = City(trafficConvention: convention)
+    let city = City(seed: seed, trafficConvention: convention)
     let viewport = CityViewport(pixelWidth: 640, pixelHeight: 360)
     func sheet(_ filename: String, columns: Int, examples: [(String, EnvironmentMode, EnvironmentPreview)]) throws {
         let w = columns * 320, h = ((examples.count + columns - 1) / columns) * 202
@@ -379,6 +422,6 @@ final class PreviewDelegate: NSObject, NSApplicationDelegate {
 do {
     try MainActor.assumeIsolated { try run() }
 } catch {
-    fputs("Usage: CityPreview [--png FILE [WIDTH HEIGHT [SIMULATED-SECONDS]]] [--traffic uk|right] [--environment simulation|northern|southern] [--month NUMBER] [--light day|night] [--weather clear|cloudy|rain|snow] [--wind 0...1] | --gallery DIRECTORY\n\(error)\n", stderr)
+    fputs("Usage: CityPreview [--seed UINT64] [--png FILE [WIDTH HEIGHT [SIMULATED-SECONDS]]] [--traffic uk|right] [--environment simulation|northern|southern] [--month NUMBER] [--light day|night] [--weather clear|cloudy|rain|snow] [--wind 0...1] | --gallery DIRECTORY [--seed UINT64] [--traffic uk|right]\n\(error)\n", stderr)
     exit(1)
 }

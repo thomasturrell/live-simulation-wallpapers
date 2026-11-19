@@ -12,7 +12,7 @@ Use a Swift 6 toolchain with the macOS 26 SDK or newer. From this directory:
 swift run -c release CityPreview
 swift run -c release CityPreview --png /tmp/city-5k.png 5120 2880
 swift run -c release CityPreview --png /tmp/city-at-night.png 1280 720 270
-swift run -c release CityPreview --png /tmp/city-airport.png 1280 720 100
+swift run -c release CityPreview --seed 215 --png /tmp/city-airport.png 1280 720 750
 ```
 
 The first command produces the app and ZIP in `dist/`. Pass an output directory as the first argument to write them elsewhere, or set `CITY_NATIVE_ARCHS` to limit the architecture slices. The resizable preview window animates immediately without installing the extension. PNG export takes an optional width, height and time in simulated seconds. At the default seed, the first construction site opens after nine seconds and completes after fifteen.
@@ -47,9 +47,11 @@ The probe exercises the real wallpaper settings and request types, remote Core A
 
 Each display starts with its own river, bridges and street grids, generated from its display UUID. Cars commute between homes, shops, offices and factories, and queue at larger junctions. Buildings go up in stages and lights come on across the city at dusk. All of the pixel art is drawn by the renderer and covered by the repository’s MIT licence.
 
-Generated cities have a 25% chance of a small regional airport on the outskirts when suitable land is available. Its compact 12 × 6 lot site includes a marked runway, taxiways, apron, passenger terminal, control tower, hangars and connected access roads. The site and low approach corridors stay clear of new development; rivers, parks and promenades are preserved. The fixed default preview city includes an airport.
+Generated cities have a 25% chance of reserving a 12 × 6 lot airport site on the outskirts when suitable land is available. The public forecourt and car park reuse an existing street where possible. A straight spur can extend access by up to two lots. Placement checks that the surviving streets stay connected and trims any one-tile stubs left at nearby junctions. Rivers, bridges, parks, promenades and low approach corridors stay protected. The fixed default preview city includes an airport.
 
-Occasional passenger aircraft approach, descend, land, slow down and taxi to the terminal. After a 45–95 second stop they push back, taxi out, hold short, line up and accelerate into a climbing departure. The single stand and runway serve one flight at a time, with quiet intervals of 45–109 seconds between visits and longer intervals at night. Passenger trips add a few cars to the terminal roads. Independent overflights occasionally cross cities with or without an airport. Aircraft share the city's simulation clock, lighting and depth rendering, including small shadows, cabin windows, engines, landing gear and navigation lights.
+The airfield starts with a grass runway, a flying clubhouse, a windsock and a hangar. It gains a paved runway, a glazed terminal and a control tower as a local airport. The mature regional layout adds a second boarding stand, taller folded roofs and a maintenance yard. The two upgrades use the city's construction schedule after a flight has completed at each stage. New arrivals wait until the work finishes. The fixed footprint and access street serve all three stages.
+
+Light aircraft visit the grass airfield, turboprops visit the local airport, and turboprops and regional jets use the mature apron. One airport flight operates at a time, with longer quiet intervals at night. Passenger cars use the forecourt in both directions. During a stop at the gate, a baggage tug briefly moves around the maintenance yard. Independent overflights occasionally cross the wider city. All activity uses the existing simulation clock and renderer.
 
 ## Environment and configuration
 
@@ -86,8 +88,10 @@ The standalone development preview has the same Environment choices plus a fract
 
 Use the green window button to place the preview in macOS Split View. In a narrow tile, the controls move above the city and scroll independently. Press **⌘Q** to quit City Simulation.
 
+Choose **New seed** to start a randomly generated city, or enter a decimal seed and choose **Load seed** to revisit a layout. The preview starts each new city at the beginning and retains your environment controls and pause setting. Pass `--seed` to start the live preview or make a PNG or gallery export with the same layout. Seed 215 shows the full airport at the default preview size.
+
 ```sh
-swift run -c release CityPreview
+swift run -c release CityPreview --seed 215
 swift run -c release CityPreview --environment northern --month 10.5 --light day --weather rain --wind 0.7
 swift run -c release CityPreview --png /tmp/winter-snow.png 1280 720 \
   --environment simulation --month 4 --light night --weather snow --wind 0.3
@@ -108,7 +112,7 @@ Build with `CITY_BUILD_ABI_PROBE=1 ./NativeWallpaper/build.sh`, then run the pro
 
 - **CityEngine** owns a seedable 56 × 56 city and advances it at 30 fixed ticks per second. The internal traffic convention defaults to UK left-hand traffic and controls lane geometry and driveway routing. Traffic stops before junctions with room for the whole vehicle, waits for a clear crossing and exit, and keeps space between cars through turns and driveway manoeuvres. Trips approach and leave buildings from the matching side of the road. It routes trips on a connected road graph, balances development between housing and jobs, and enforces frontage and density limits. New road segments open frontage for future projects. Parks and riverbanks stay protected.
 - **CityArt** draws original pixel art onto a virtual canvas. UK streets and bridges use white centre dashes. At controlled junctions, the renderer uses the city's convention and the simulation's stopping distance to paint a white line across each incoming lane. It caches terrain, airport facilities, buildings and their occlusion data, then adds road traffic, aircraft, water glints and chimney smoke. Playback samples the simulation up to 20 times per second. The desktop, snapshots and development preview use the same renderer and integer scaling.
-- **NativeWallpaper** atomically checkpoints each identified display to the extension's Application Support directory about every 15 seconds of active simulation and at lifecycle transitions. A checkpoint includes the city clock, lots, construction, vehicle trips, traffic convention, flight phases/schedules, city random state and an independent environmental seed. Version 5 checkpoints restore as right-hand cities so existing routes and positions carry over. New cities use the internal default. System Settings preview surfaces use disposable city state. Settling stops the timer and retains the final frame. Environmental cache keys include the hemisphere-adjusted seasonal phase, lighting and weather, so changes redraw correctly even at the same city tick. Quantized palettes retain the terrain/building cache for most frames.
+- **NativeWallpaper** atomically checkpoints each identified display to the extension's Application Support directory about every 15 seconds of active simulation and at lifecycle transitions. A checkpoint includes the city clock, lots, construction, vehicle trips, traffic convention, airport development and flight schedules, city random state and an independent environmental seed. Version 5 checkpoints restore as right-hand cities so existing routes and positions carry over. Airports saved before development was introduced resume at the mature stage. New cities use the internal traffic default. System Settings preview surfaces use disposable city state. Settling stops the timer and retains the final frame. Environmental cache keys include the hemisphere-adjusted seasonal phase, lighting and weather, so changes redraw correctly even at the same city tick. Quantized palettes retain the terrain/building cache for most frames.
 
 The private integration follows the [Game of Life native extension](../Game%20of%20Life/NativeWallpaper/INSTALL.md) and [Aerial’s wallpaper extension](https://github.com/AerialScreensaver/Aerial/tree/main/WallpaperExtension).
 

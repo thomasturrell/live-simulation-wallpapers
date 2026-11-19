@@ -126,11 +126,13 @@ public final class CityRenderer {
             pixels.span(p.x - 7 + n, p.x - 6 + n, p.y + detail % 5 + 2, palette.waterDark)
         }
 
-        let aircraft = city.aviation.aircraft.map { ($0, $0.pose(at: city.map.airport)) }
+        let airport = city.map.airport
+        let aircraft = city.aviation.aircraft.map { ($0, $0.pose(at: airport)) }
         for (plane, pose) in aircraft where pose.altitude < 60 {
             pixels.depth = depth(pose.x + pose.y) - 1
             let shadow = viewport.project(pose.x, pose.y, offset: SIMD2(4 + pose.altitude * 0.25, 2))
-            pixels.aircraft(at: shadow, pose: pose, livery: plane.livery, shadow: true, blink: false, palette: palette)
+            pixels.aircraft(at: shadow, pose: pose, livery: plane.livery, kind: plane.kind,
+                            shadow: true, blink: false, palette: palette)
         }
 
         // Cars share the depth scale of the buildings. A car on the street
@@ -153,17 +155,23 @@ public final class CityRenderer {
                 if age < 31 { pixels.span(puff.x, puff.x + 1, puff.y - 1, tone) }
             }
         }
-        if let airport = city.map.airport, palette.night > 0.3, city.tick % 60 < 6 {
-            let tower = airport.position(9, 0)
-            pixels.depth = depth(tower.x + tower.y) + 1
-            let beacon = viewport.project(tower.x, tower.y, altitude: 32 * Airport.scale)
+        if let airport, airport.stage == .regional {
+            let parked = city.aviation.aircraft.first { $0.phase == .parked }
+            let cart = airport.serviceCart(parkedFor: parked?.elapsed)
+            pixels.depth = depth(cart.x + cart.y)
+            pixels.airportServiceCart(at: viewport.project(cart.x, cart.y), alongX: !airport.alongY, palette: palette)
+        }
+        if let airport, airport.stage != .airfield, palette.night > 0.3, city.tick % 106 < 6 {
+            let tower = airport.position(Airport.towerCenter.x, Airport.towerCenter.y)
+            pixels.depth = depth(Double(airport.tower.x + airport.tower.y)) + 1
+            let beacon = viewport.project(tower.x, tower.y, altitude: 31 * Airport.scale)
             pixels.span(beacon.x, beacon.x, beacon.y, palette.color(0xB96D58, 0xDF8B72))
         }
         for (plane, pose) in aircraft.sorted(by: { $0.1.x + $0.1.y + $0.1.altitude / 8 < $1.1.x + $1.1.y + $1.1.altitude / 8 }) {
             pixels.depth = depth(pose.x + pose.y + pose.altitude / 8)
             let dot = viewport.project(pose.x, pose.y, altitude: pose.altitude)
             guard (-40...pixels.width + 40).contains(dot.x), (-40...pixels.height + 40).contains(dot.y) else { continue }
-            pixels.aircraft(at: dot, pose: pose, livery: plane.livery, shadow: false,
+            pixels.aircraft(at: dot, pose: pose, livery: plane.livery, kind: plane.kind, shadow: false,
                             blink: (city.tick + Int(plane.id % 30)) % 45 < 4, palette: palette)
         }
         pixels.weatherEffects(tick: city.tick, palette: palette)
@@ -185,9 +193,12 @@ public final class CityRenderer {
             if lot.ground == .water, lot.detail % 3 == 0 { water.append((p, lot.detail)) }
         }
         if let airport = city.map.airport {
-            pixels.airportMarkings(at: viewport.project(airport.origin), airport: airport, palette: c)
+            let origin = viewport.project(airport.origin)
+            pixels.airportSurfaces(at: origin, airport: airport, palette: c)
+            pixels.airportMarkings(at: origin, airport: airport, palette: c)
         }
         for (plot, p, lot) in plots where lot.ground == .grass || lot.ground == .park {
+            if plot == city.map.airport?.terminal { continue }
             if lot.building != nil {
                 pixels.tile(p.offset(4, 1), -6, -5, 12, 13, c.shadow)
             } else if city.map.airport?.isApproach(plot) != true && hasTree(lot, at: plot) {
@@ -200,12 +211,12 @@ public final class CityRenderer {
         for (plot, p, lot) in plots {
             pixels.depth = depth(Double(plot.x + plot.y))
             if let airport = city.map.airport, airport.contains(plot) {
-                if plot == airport.terminal || plot == airport.tower || airport.hangars.contains(plot) {
-                    let local = airport.local(plot)
-                    let position = airport.position(Double(local.u), Double(local.v))
-                    pixels.depth = depth(position.x + position.y)
+                let origin = viewport.project(airport.origin)
+                pixels.airportBuilding(at: origin, plot: plot, airport: airport, palette: c)
+                if let construction = city.construction, construction.plot == plot, let upgrade = construction.airportUpgrade {
+                    pixels.airportWorksite(at: origin, airport: airport, upgrade: upgrade,
+                                           progress: city.constructionStage, palette: c)
                 }
-                pixels.airportBuilding(at: p, plot: plot, airport: airport, palette: c)
             } else if city.construction?.plot == plot {
                 pixels.site(at: p, stage: city.constructionStage, road: city.construction?.replacement == nil, palette: c)
             } else if let building = lot.building {

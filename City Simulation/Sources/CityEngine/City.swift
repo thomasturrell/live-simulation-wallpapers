@@ -5,6 +5,15 @@ public struct Construction: Codable, Equatable {
     public let replacement: Building?
     public let start: Int
     public let finish: Int
+    public let airportUpgrade: Airport.Stage?
+
+    init(plot: Plot, replacement: Building?, start: Int, finish: Int, airportUpgrade: Airport.Stage? = nil) {
+        self.plot = plot
+        self.replacement = replacement
+        self.start = start
+        self.finish = finish
+        self.airportUpgrade = airportUpgrade
+    }
 }
 
 public struct City: Codable, Equatable {
@@ -65,10 +74,14 @@ public struct City: Codable, Equatable {
     public mutating func step() {
         tick += 1
         if let project = construction, tick >= project.finish {
-            var lot = map[project.plot]
-            if let building = project.replacement { lot.building = building }
-            else { lot.ground = .road }
-            map[project.plot] = lot
+            if let upgrade = project.airportUpgrade {
+                map.airport?.stage = upgrade
+            } else {
+                var lot = map[project.plot]
+                if let building = project.replacement { lot.building = building }
+                else { lot.ground = .road }
+                map[project.plot] = lot
+            }
             construction = nil
             revision += 1
         } else if construction == nil, tick >= nextProject {
@@ -76,12 +89,19 @@ public struct City: Codable, Equatable {
             nextProject = tick + 570 + random.pick(360)
         }
         moveTraffic()
-        for event in aviation.step(tick: tick, darkness: darkness, airport: map.airport) {
+        for event in aviation.step(tick: tick, darkness: darkness, airport: map.airport,
+                                   runwayClosed: construction?.airportUpgrade != nil) {
             dispatchAirportTraffic(toAirport: event == .passengersArrive)
         }
     }
 
     private mutating func planDevelopment() {
+        if let airport = map.airport, let upgrade = airport.stage.next,
+           tick >= airport.stage.developmentTime, aviation.runwayFree, aviation.completedAirportStage == airport.stage {
+            construction = Construction(plot: airport.anchor(for: Airport.worksite(for: upgrade)),
+                                        replacement: nil, start: tick, finish: tick + 210, airportUpgrade: upgrade)
+            return
+        }
         if revision > 0, revision.isMultiple(of: 5) {
             let connections = CityMap.plots.filter { p in
                 let lot = map[p]
@@ -172,19 +192,26 @@ public struct City: Codable, Equatable {
             }
         }
         if let construction {
-            guard map.contains(construction.plot), map[construction.plot].ground == .grass,
-                  map.airport?.contains(construction.plot) != true,
-                  map.airport?.isApproach(construction.plot) != true,
+            guard map.contains(construction.plot),
                   (0...tick).contains(construction.start),
                   (tick + 1...tick + 210).contains(construction.finish),
                   (180...210).contains(construction.finish - construction.start) else { return false }
-            if let replacement = construction.replacement {
-                guard map.roadAccess(at: construction.plot) != nil,
-                      (1...map.capacity(at: construction.plot)).contains(replacement.level),
-                      (0..<120).contains(replacement.style),
-                      replacement.level == (map[construction.plot].building?.level ?? 0) + 1 else { return false }
-            } else if map[construction.plot].building != nil || map.roadAccess(at: construction.plot) == nil {
-                return false
+            if let upgrade = construction.airportUpgrade {
+                guard let airport = map.airport, airport.stage.next == upgrade, aviation.runwayFree,
+                      aviation.completedAirportStage == airport.stage, construction.start >= airport.stage.developmentTime,
+                      construction.replacement == nil,
+                      construction.plot == airport.anchor(for: Airport.worksite(for: upgrade)) else { return false }
+            } else {
+                guard map[construction.plot].ground == .grass, map.airport?.contains(construction.plot) != true,
+                      map.airport?.isApproach(construction.plot) != true,
+                      map.roadAccess(at: construction.plot) != nil else { return false }
+                if let replacement = construction.replacement {
+                    guard (1...map.capacity(at: construction.plot)).contains(replacement.level),
+                          (0..<120).contains(replacement.style),
+                          replacement.level == (map[construction.plot].building?.level ?? 0) + 1 else { return false }
+                } else if map[construction.plot].building != nil {
+                    return false
+                }
             }
         }
         return Set(vehicles.map(\.id)).count == vehicles.count && vehicles.allSatisfy { vehicle in

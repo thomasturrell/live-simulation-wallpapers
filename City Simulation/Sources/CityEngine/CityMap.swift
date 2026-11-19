@@ -127,7 +127,8 @@ public struct CityMap: Codable, Equatable {
     var isValid: Bool {
         guard lots.count == Self.side * Self.side, contains(downtown), river.isValid else { return false }
         if let airport {
-            guard airport.isValid, roadAccess(at: airport.terminal) != nil,
+            guard airport.isValid, self[airport.entrance].ground == .road,
+                  airport.entrance.neighbors.contains(where: isRoad),
                   self[airport.terminal].building == Building(level: 1, style: Airport.terminalStyle),
                   self[airport.terminal].ground == .grass,
                   self[airport.terminal].zone == .civic else { return false }
@@ -158,7 +159,10 @@ public struct CityMap: Codable, Equatable {
         point.neighbors.filter(isRoad).count > 2
     }
     public func roadAccess(at point: Plot) -> Plot? {
-        point.neighbors.first { contains($0) && self[$0].ground == .road }
+        if let airport, point == airport.terminal {
+            return contains(airport.entrance) && self[airport.entrance].ground == .road ? airport.entrance : nil
+        }
+        return point.neighbors.first { contains($0) && self[$0].ground == .road }
     }
 
     public func capacity(at point: Plot) -> Int {
