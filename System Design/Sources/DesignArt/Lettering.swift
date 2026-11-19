@@ -51,46 +51,11 @@ func wrapped(_ string: String, width: CGFloat, type: NSFont) -> [String] {
     return lines
 }
 
-private func silhouette(_ r: CGRect, kind: NodeKind) -> CGPath {
-    switch kind {
-    case .entity, .process: return rounded(r, kind == .entity ? 4 : 16)
-    case .event: return rounded(r, r.height / 2)
-    case .sensor: return CGPath(ellipseIn: r, transform: nil)
-    case .hub, .decision:
-        let d = kind == .decision ? r.width * 0.5 : 19
-        return line([CGPoint(x: r.minX, y: r.midY), CGPoint(x: r.minX + d, y: r.maxY),
-                     CGPoint(x: r.maxX - d, y: r.maxY), CGPoint(x: r.maxX, y: r.midY),
-                     CGPoint(x: r.maxX - d, y: r.minY), CGPoint(x: r.minX + d, y: r.minY)], closed: true)
-    case .store:
-        let p = CGMutablePath()
-        let cap: CGFloat = 12
-        p.move(to: CGPoint(x: r.minX, y: r.maxY - cap))
-        p.addCurve(to: CGPoint(x: r.maxX, y: r.maxY - cap), control1: CGPoint(x: r.minX, y: r.maxY + cap / 3),
-                   control2: CGPoint(x: r.maxX, y: r.maxY + cap / 3))
-        p.addLine(to: CGPoint(x: r.maxX, y: r.minY + cap))
-        p.addCurve(to: CGPoint(x: r.minX, y: r.minY + cap), control1: CGPoint(x: r.maxX, y: r.minY - cap / 3),
-                   control2: CGPoint(x: r.minX, y: r.minY - cap / 3))
-        p.closeSubpath()
-        return p
-    }
-}
-
 @MainActor
-func componentLayer(_ node: Component, rect: CGRect, ink: Ink, principal: Bool, descriptions: Bool) -> (body: CALayer, focus: CAShapeLayer) {
+func componentContent(_ node: Component, size: CGSize, text: CGColor, descriptions: Bool) -> CALayer {
     let layer = CALayer()
-    layer.frame = rect
+    layer.bounds = CGRect(origin: .zero, size: size)
     let r = layer.bounds
-    let path = silhouette(r.insetBy(dx: 1, dy: 1), kind: node.kind)
-    let shadow = shape(path, fill: ink.line.copy(alpha: 0.23))
-    shadow.position = CGPoint(x: 3, y: -4)
-    layer.addSublayer(shadow)
-    let fill = principal ? ink.accent : ink.wash
-    let text = principal ? ink.reverse : ink.text
-    layer.addSublayer(shape(path, fill: fill, stroke: principal ? ink.text : ink.line, width: principal ? 2 : 1.6))
-    if node.kind == .store {
-        let rim = CGRect(x: 1, y: r.maxY - 24, width: r.width - 2, height: 22)
-        layer.addSublayer(shape(CGPath(ellipseIn: rim, transform: nil), stroke: text.copy(alpha: 0.65), width: 1.3))
-    }
     let detail = descriptions ? node.detail : nil
     let typeSize: CGFloat = 10
     let bodyType = font(13.5)
@@ -120,7 +85,5 @@ func componentLayer(_ node: Component, rect: CGRect, ink: Ink, principal: Bool, 
     for (i, value) in lines.enumerated() {
         lettering(layer, value, bodyType, text, CGRect(x: 0, y: titleY - 17 * CGFloat(i + 1), width: r.width, height: 18))
     }
-    let focus = shape(path, stroke: ink.text, width: 3.2)
-    layer.addSublayer(focus)
-    return (layer, focus)
+    return layer
 }

@@ -8,7 +8,8 @@ package struct Visit: Codable, Equatable {
 }
 
 private struct Cursor: Codable {
-    var version = 1
+    static let currentVersion = 2
+    var version = Self.currentVersion
     let paletteSeed: UInt64
     var scope: String
     var visit: Visit
@@ -37,13 +38,16 @@ package struct Chapter {
     package let exit: String
     package let next: Visit
     package static let revealEnd = 0.27
+    package static let handoffEnd = 0.82
     package static let pulseStart = 0.48
     package static let pulseEnd = 0.75
     package let beatTicks: Int
     package let firstCount: Int
+    package let nodeRevealBeats: [String: Int]
+    package let edgeRevealBeats: [Int]
     package var lastBeat: Int { order.count - firstCount + 4 }
 
-    init(_ cursor: Visit, recent: [String], scope: String, catalogue: Catalogue) {
+    init(_ cursor: Visit, recent: [String], scope: String, catalogue: Catalogue, legacyOpening: Bool = false) {
         visit = cursor
         let graph = catalogue[cursor.system]!
         self.graph = graph
@@ -57,7 +61,21 @@ package struct Chapter {
             frontier.subtract(order)
         }
         self.order = order
-        firstCount = min(order.count, max(4, (order.count + 1) / 2))
+        let firstCount = legacyOpening ? min(order.count, max(4, (order.count + 1) / 2)) : 2
+        self.firstCount = firstCount
+        let nodeBeats = Dictionary(uniqueKeysWithValues: order.enumerated().map { index, node in
+            (node, max(0, index + 1 - firstCount))
+        })
+        nodeRevealBeats = nodeBeats
+        var hasOpeningEdge = false
+        edgeRevealBeats = graph.edges.map { edge in
+            let beat = max(nodeBeats[edge.source]!, nodeBeats[edge.target]!)
+            guard beat == 0, !legacyOpening else { return beat }
+            // A pair can have several relationships. Introduce the others on the next beat.
+            if hasOpeningEdge { return 1 }
+            hasOpeningEdge = true
+            return 0
+        }
         beatTicks = 70 + Int(variation.next() % 26)
         let allowed = catalogue.candidates(scope)
         let permitted = Set(allowed.map(\.id))
@@ -120,12 +138,13 @@ package struct Exploration {
     private init(cursor: Cursor, catalogue: Catalogue) {
         self.cursor = cursor
         self.catalogue = catalogue
-        chapter = Chapter(cursor.visit, recent: cursor.recent, scope: cursor.scope, catalogue: catalogue)
+        chapter = Chapter(cursor.visit, recent: cursor.recent, scope: cursor.scope, catalogue: catalogue,
+                          legacyOpening: cursor.version == 1)
     }
 
     package init?(checkpoint: Data, catalogue: Catalogue = .bundled) {
         guard let cursor = try? PropertyListDecoder().decode(Cursor.self, from: checkpoint),
-              cursor.version == 1, cursor.age >= 0, cursor.age < Int.max / 2,
+              (1...Cursor.currentVersion).contains(cursor.version), cursor.age >= 0, cursor.age < Int.max / 2,
               let graph = catalogue[cursor.visit.system], graph.nodes.contains(where: { $0.id == cursor.visit.entry }),
               cursor.scope == "all" || Subject(rawValue: cursor.scope) != nil || catalogue[cursor.scope] != nil,
               catalogue.candidates(cursor.scope).contains(where: { $0.id == graph.id }),
@@ -144,6 +163,8 @@ package struct Exploration {
                 if withinBeat { return }
                 if beat == chapter.lastBeat {
                     let next = chapter.next
+                    // Keep a restored v1 visit at its original beat until the handoff.
+                    cursor.version = Cursor.currentVersion
                     cursor.visit = next
                     cursor.recent = history(entering: next)
                     chapter = Chapter(next, recent: cursor.recent, scope: scope, catalogue: catalogue)
@@ -169,7 +190,10 @@ package struct Exploration {
 
     var restingTick: Int {
         let endpoint: Double
-        if tick > 0, progress < Chapter.revealEnd { endpoint = Chapter.revealEnd }
+        if beat == chapter.lastBeat {
+            guard tick > 0, progress < Chapter.handoffEnd else { return tick }
+            endpoint = Chapter.handoffEnd
+        } else if tick > 0, progress < Chapter.revealEnd { endpoint = Chapter.revealEnd }
         else if progress > Chapter.pulseStart, progress < Chapter.pulseEnd { endpoint = Chapter.pulseEnd }
         else { return tick }
         return Int(ceil(endpoint * Double(chapter.beatTicks)))

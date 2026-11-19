@@ -3,9 +3,66 @@ import Testing
 @testable import DesignArt
 @testable import DesignEngine
 
+@Test @MainActor func connectionsAppearOnlyAsTheDiagramBuilds() throws {
+    let graph = try #require(Catalogue.bundled["flywheel-storage"])
+    // Both directions of the initial power exchange share the same two endpoints.
+    let visit = Visit(system: graph.id, entry: "grid-connection", seed: 42, linkedEntry: false)
+    let chapter = Chapter(visit, recent: [graph.id], scope: graph.id, catalogue: .bundled)
+    let style = DesignStyle()
+    let size = CGSize(width: 960, height: 600)
+    let camera = DiagramCamera(size: size, style: style, displaySeed: 42)
+    let layout = DiagramLayout(chapter: chapter, style: style, camera: camera)
+    let scene = DiagramScene(chapter: chapter, layout: layout, style: style,
+                             ink: Ink(style: style, dark: false, generation: 0, seed: 42))
+    let canvas = try #require(scene.layer.sublayers?.first)
+    let strokes = (canvas.sublayers ?? []).compactMap { $0 as? CAShapeLayer }.filter { layer in
+        layout.routes.contains { $0.path == layer.path }
+    }
+    scene.display(camera: camera, beat: 0, progress: 0)
+    #expect(strokes.filter { $0.strokeEnd > 0 }.count == 1)
+    scene.display(camera: camera, beat: 1, progress: Chapter.revealEnd / 2)
+    #expect(strokes.filter { $0.strokeEnd == 1 }.count == 1)
+    #expect(strokes.filter { $0.strokeEnd > 0 && $0.strokeEnd < 1 }.count >= 2)
+    scene.display(camera: camera, beat: chapter.lastBeat - 1, progress: 1)
+    #expect(strokes.filter { $0.strokeEnd == 1 }.count == graph.edges.count)
+}
+
+@Test @MainActor func systemLabelIsOptInOnBothSidesOfAHandoff() throws {
+    var world = Exploration(seed: 136)
+    world.advance(world.chapter.lastBeat * (world.chapter.beatTicks + 1) + world.chapter.beatTicks / 8)
+    let checkpoint = try world.checkpoint()
+    let graphs = [world.chapter.graph, world.incomingChapter().graph]
+    let renderer = DesignRenderer()
+    var style = DesignStyle()
+    func text(in layer: CALayer) -> [String] {
+        let string = ((layer as? CATextLayer)?.string as? NSAttributedString)?.string
+        return [string].compactMap { $0 } + (layer.sublayers ?? []).flatMap(text)
+    }
+    func check(_ visible: Bool) throws {
+        renderer.draw(world, size: CGSize(width: 960, height: 600), scale: 1, style: style, systemDark: false)
+        let sheets = try #require(renderer.artwork.sublayers)
+        #expect(sheets.count == graphs.count)
+        for (sheet, graph) in zip(sheets, graphs) {
+            let labels = text(in: sheet)
+            #expect(labels.contains(graph.name) == visible)
+            #expect(labels.contains(graph.category.title.uppercased()) == visible)
+            #expect(graph.nodes.allSatisfy { labels.contains($0.name) })
+        }
+    }
+    try check(false)
+    style.apply(["systemLabel": "show"])
+    style.apply(["colour": "blue"])
+    try check(true)
+    style.apply(["systemLabel": "hide"])
+    try check(false)
+    #expect(try world.checkpoint() == checkpoint)
+}
+
 @Test @MainActor func boundsRoutesAndLabelsRespectComponentGeometry() {
     for graph in Catalogue.bundled.graphs {
-        let layout = DiagramLayout(graph: graph, style: DesignStyle(), seed: 42)
+        let chapter = Exploration(seed: 42, scope: graph.id).chapter
+        let camera = DiagramCamera(size: CGSize(width: 960, height: 600), style: DesignStyle(), displaySeed: 42)
+        let layout = DiagramLayout(chapter: chapter, style: DesignStyle(), camera: camera)
         let nodeBounds = Array(layout.nodes.values)
         for (i, rect) in nodeBounds.enumerated() {
             #expect(!nodeBounds.dropFirst(i + 1).contains { $0.intersects(rect) }, "\(graph.id) node collision")
@@ -40,16 +97,16 @@ import Testing
     var style = DesignStyle()
     let size = CGSize(width: 720, height: 480)
     renderer.draw(world, size: size, scale: 1, style: style, systemDark: false)
-    let sheet = try #require(renderer.root.sublayers?.first)
+    let sheet = try #require(renderer.artwork.sublayers?.first)
     let light = try #require(renderer.image(size: size))
     renderer.draw(world, size: size, scale: 1, style: style, systemDark: false)
-    #expect(renderer.root.sublayers?.first === sheet)
+    #expect(renderer.artwork.sublayers?.first === sheet)
     style.apply(["colour": "original", "descriptions": "hide", "tilt": "right", "relationships": "hide", "groups": "hide"])
     #expect(!style.descriptions && !style.relationships && !style.groupNames && style.tilt == .right)
     renderer.draw(world, size: size, scale: 2, style: style, systemDark: true)
     let dark = try #require(renderer.image(size: size, scale: 2))
     #expect(dark.width == 1440 && dark.height == 960)
-    #expect(renderer.root.sublayers?.first !== sheet)
+    #expect(renderer.artwork.sublayers?.first !== sheet)
     #expect(light.dataProvider!.data! as Data != dark.dataProvider!.data! as Data)
     #expect(try world.checkpoint() == state)
 }
@@ -57,12 +114,13 @@ import Testing
 @Test @MainActor func clippingAndTiltLeaveTheFocusVisibleAcrossDisplayShapes() throws {
     let graph = try #require(Catalogue.bundled["water-cycle"])
     let world = Exploration(seed: 42, scope: graph.id)
-    let layout = DiagramLayout(graph: graph, style: DesignStyle(), seed: world.chapter.visit.seed)
     let style = DesignStyle()
-    let scene = DiagramScene(chapter: world.chapter, layout: layout, style: style,
-                             ink: Ink(style: style, dark: false, generation: 0, seed: 42))
     for size in [CGSize(width: 1440, height: 900), CGSize(width: 550, height: 1100), CGSize(width: 2560, height: 900)] {
-        scene.display(size: size, beat: 0, progress: 0)
+        let camera = DiagramCamera(size: size, style: style, displaySeed: 42)
+        let layout = DiagramLayout(chapter: world.chapter, style: style, camera: camera)
+        let scene = DiagramScene(chapter: world.chapter, layout: layout, style: style,
+                                 ink: Ink(style: style, dark: false, generation: 0, seed: 42))
+        scene.display(camera: camera, beat: 0, progress: 0)
         let canvas = try #require(scene.layer.sublayers?.first)
         let angle = abs(atan2(canvas.affineTransform().b, canvas.affineTransform().a)) * 180 / .pi
         #expect((14.9...20.1).contains(angle))
@@ -103,7 +161,7 @@ import Testing
     func pixels(_ sample: Exploration) throws -> Data {
         let renderer = DesignRenderer()
         renderer.draw(sample, size: size, scale: 1, style: DesignStyle(), systemDark: false)
-        #expect(renderer.root.sublayers?.count == 2)
+        #expect(renderer.artwork.sublayers?.count == 2)
         return try #require(renderer.image(size: size)?.dataProvider?.data) as Data
     }
     #expect(try pixels(resumed) == pixels(world))

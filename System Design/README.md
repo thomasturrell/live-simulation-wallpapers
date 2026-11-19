@@ -14,13 +14,17 @@ Requires macOS 26 or later. The native build supports Apple silicon and Intel Ma
 
 ## Exploring a system
 
-The first frame opens on a connected neighbourhood. As the screen saver plays, components appear, subsystems open and pulses follow the direction of a relationship. After exploring a region, the view moves on. A shared component can lead to another diagram, such as a battery leading from domestic solar power to battery management. When the next subject has no shared concept, the artwork dissolves into its new setting.
+Each system opens with two components and one arrow between them. About every four to six seconds, another component appears and its connections draw into place until the diagram is complete. As it grows, subsystems open and pulses follow the arrows.
+
+When two systems share a component, the camera settles on its card. The old branches fade, the card takes on its new name and shape, and a connection draws out to the first neighbour. For example, the **Battery bank** in domestic solar power can become the **Cell stack** in battery management. Unrelated systems dissolve into one another on the same dotted paper.
 
 On unlock, the current action has a brief moment to finish. The desktop then holds that frame. Each identifiable display keeps its own place across sessions, and Settings previews use separate, disposable state. Everything needed for playback is in the app.
 
 In the wallpaper options, **Explore** offers the entire catalogue, a subject area or a named system. A named system stays selected and explores different routes within it. There are 25 systems in each of computing and technology, energy and engineering, biology and natural systems, and human and organisational systems.
 
-Choose **Colour** for the Game of Life palettes, including Spectrum, Random and the Mac’s Accent colour. **Appearance** can follow the Mac or use Light or Dark. **Rotation** sets the tilt, and **Framing** changes how much of the graph you see. Node descriptions, relationship labels and group names can be switched individually. Component names stay visible.
+Choose **Colour** for the Game of Life palettes, including Spectrum, Random and the Mac’s Accent colour. **Appearance** can follow the Mac or use Light or Dark. **Rotation** offers a level view or a fixed 17° tilt. **Varied** picks a direction per display and keeps it as you move between systems or resume a session. **Framing** sets the zoom for the whole tour. Node descriptions, relationship labels and group names can be switched individually. Component names stay visible.
+
+The **System label** is off by default. Choose **Show** to add the system’s name, subject area and description in a corner of the artwork.
 
 ![Water vapour, clouds, rainfall and groundwater linked by curved arrows in the Original palette in Dark appearance](assets/water-cycle.png)
 
@@ -35,9 +39,9 @@ swift run DesignPreview
 swift run DesignPreview --png /tmp/solar.png 1600 1000 domestic-solar-power 12 green
 ```
 
-`swift run DesignPreview` opens an animated window. Use **System** to pick a diagram by subject, or choose **Entire catalogue** to explore automatically. **Palette** recolours the current diagram as it plays. The preview uses disposable state.
+`swift run DesignPreview` opens an animated window. Use **System** to pick a diagram by subject, or choose **Entire catalogue** to explore automatically. **Palette** recolours the current diagram as it plays. Tick **Show system label** to display the caption. The preview uses disposable state.
 
-The native build writes the carrier app and a ZIP to `dist/`. Use `--png` to export a deterministic frame. The optional positional arguments after the dimensions are a system or category ID, elapsed playing seconds, colour and appearance. For example, use `water-cycle 20 blue Dark`.
+The native build writes the carrier app and a ZIP to `dist/`. Use `--png` to export a deterministic frame. The optional positional arguments after the dimensions are a system or category ID, elapsed playing seconds, colour and appearance. For example, use `water-cycle 20 blue Dark`. Append `--show-system-label` to include the caption.
 
 ## Catalogue and playback
 

@@ -1,7 +1,7 @@
 import AppKit
 import DesignEngine
 
-/// Geometry is built once per visit. Reveals share the final layout so existing nodes stay put.
+/// Reveals share one layout at a given viewport and framing so existing nodes stay put.
 struct DiagramLayout {
     let nodes: [String: CGRect]
     let groups: [String: CGRect]
@@ -9,7 +9,8 @@ struct DiagramLayout {
     let labels: [CGRect?]
     let members: [String: [String]]
 
-    init(graph: SystemGraph, style: DesignStyle, seed: UInt64) {
+    init(chapter: Chapter, style: DesignStyle, camera: DiagramCamera) {
+        let graph = chapter.graph
         var memberships: [String: [String]] = [:]
         let parents = Dictionary(uniqueKeysWithValues: graph.groups.map { ($0.id, $0) })
         for node in graph.nodes {
@@ -33,12 +34,13 @@ struct DiagramLayout {
             default: return CGSize(width: width, height: detail ? 108 : 72)
             }
         }
-        let positions = Self.positions(graph, memberships, seed: seed, sizes: sizes)
+        let positions = Self.positions(graph, memberships, seed: chapter.visit.seed, sizes: sizes)
         var rects: [String: CGRect] = [:]
         for (index, node) in graph.nodes.enumerated() {
             let p = positions[index], s = sizes[index]
             rects[node.id] = CGRect(x: p.x - s.width / 2, y: p.y - s.height / 2, width: s.width, height: s.height)
         }
+        Self.fitOpening(chapter: chapter, rects: &rects, camera: camera)
         nodes = rects
         var boundaries: [String: CGRect] = [:]
         func boundary(_ group: Subsystem) -> CGRect {
@@ -86,6 +88,58 @@ struct DiagramLayout {
                 }
             }
             return nil
+        }
+    }
+
+    private static func fitOpening(chapter: Chapter, rects: inout [String: CGRect], camera: DiagramCamera) {
+        let entry = chapter.visit.entry, neighbour = chapter.order[1]
+        let anchor = rects[entry]!, original = rects[neighbour]!
+        let viewport = CGRect(origin: .zero, size: camera.size).insetBy(dx: 8, dy: 8)
+        func screenRect(_ rect: CGRect) -> CGRect {
+            rect.offsetBy(dx: -anchor.midX, dy: -anchor.midY).applying(camera.transform)
+                .offsetBy(dx: camera.focusPoint.x, dy: camera.focusPoint.y)
+        }
+        guard chapter.firstCount == 2, !viewport.contains(screenRect(original)) else { return }
+
+        // Long connections can run off the sheet. Reserve a visible position for the
+        // opening neighbour before measuring the groups, routing edges or placing labels.
+        let others = chapter.order.dropFirst(2)
+        let dx = (anchor.width + original.width) / 2 + 48
+        let dy = (anchor.height + original.height) / 2 + 48
+        var best = original
+        var bestCost = (CGFloat.infinity, Int.max, CGFloat.infinity)
+        func consider(_ proposed: CGRect) {
+            let screen = screenRect(proposed)
+            let shift = CGPoint(x: max(0, viewport.minX - screen.minX) + min(0, viewport.maxX - screen.maxX),
+                                y: max(0, viewport.minY - screen.minY) + min(0, viewport.maxY - screen.maxY))
+                .applying(camera.transform.inverted())
+            let fitted = proposed.offsetBy(dx: shift.x, dy: shift.y)
+            let candidate = fitted.intersects(anchor.insetBy(dx: -12, dy: -12)) ? proposed : fitted
+            let projected = screenRect(candidate)
+            let visible = projected.intersection(viewport)
+            let clipped = max(0, projected.width * projected.height - visible.width * visible.height)
+            let collisions = others.filter { rects[$0]!.intersects(candidate.insetBy(dx: -12, dy: -12)) }.count
+            let cost = (clipped.rounded(), collisions, hypot(candidate.midX - original.midX, candidate.midY - original.midY))
+            if cost < bestCost {
+                best = candidate
+                bestCost = cost
+            }
+        }
+        consider(original)
+        for row in -1...1 {
+            for column in -1...1 where row != 0 || column != 0 {
+                consider(original.offsetBy(dx: anchor.midX + CGFloat(column) * dx - original.midX,
+                                           dy: anchor.midY + CGFloat(row) * dy - original.midY))
+            }
+        }
+        rects[neighbour] = best
+        for id in others where rects[id]!.intersects(best.insetBy(dx: -12, dy: -12)) {
+            let displaced = rects[id]!
+            var slot = displaced.offsetBy(dx: original.midX - displaced.midX, dy: original.midY - displaced.midY)
+            while rects.contains(where: { $0.key != id && $0.value.intersects(slot.insetBy(dx: -12, dy: -12)) }) {
+                slot.origin.y -= slot.height + 48
+            }
+            rects[id] = slot
         }
     }
 

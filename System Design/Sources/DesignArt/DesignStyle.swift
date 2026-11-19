@@ -11,6 +11,7 @@ package struct DesignStyle: Equatable {
     package var appearance: Appearance = .system
     package var tilt: Tilt = .varied
     package var framing: Framing = .balanced
+    package var systemLabel = false
     package var descriptions = true
     package var relationships = true
     package var groupNames = true
@@ -21,6 +22,7 @@ package struct DesignStyle: Equatable {
         if let value = options["appearance"].flatMap(Appearance.init) { appearance = value }
         if let value = options["tilt"].flatMap(Tilt.init) { tilt = value }
         if let value = options["framing"].flatMap(Framing.init) { framing = value }
+        if let value = options["systemLabel"] { systemLabel = value == "show" }
         if let value = options["descriptions"] { descriptions = value == "show" }
         if let value = options["relationships"] { relationships = value == "show" }
         if let value = options["groups"] { groupNames = value == "show" }

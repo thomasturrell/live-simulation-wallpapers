@@ -36,10 +36,17 @@ import Testing
     for _ in Catalogue.bundled.graphs.indices {
         let chapter = world.chapter
         #expect(visits.insert(chapter.graph.id).inserted)
+        #expect(chapter.nodeRevealBeats.values.filter { $0 == 0 }.count == 2)
+        #expect(chapter.edgeRevealBeats.filter { $0 == 0 }.count == 1)
         var revealed: Set<String> = [chapter.visit.entry]
-        for id in chapter.order.dropFirst() {
+        for (index, id) in chapter.order.enumerated().dropFirst() {
+            #expect(chapter.nodeRevealBeats[id] == index - 1)
             #expect(!chapter.graph.neighbours(of: id).isDisjoint(with: revealed))
             revealed.insert(id)
+        }
+        for (edge, beat) in zip(chapter.graph.edges, chapter.edgeRevealBeats) {
+            let ready = max(chapter.nodeRevealBeats[edge.source]!, chapter.nodeRevealBeats[edge.target]!)
+            #expect(beat == ready || (ready == 0 && beat == 1))
         }
         #expect(revealed.count == chapter.graph.nodes.count)
         let incoming = world.incomingChapter()

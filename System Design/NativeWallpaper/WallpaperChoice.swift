@@ -19,7 +19,8 @@ let wallpaperChoice = WallpaperChoice(
         picker("colour", "Colour", Colour.green.id, Colour.allCases.map { ($0.id, $0.title) }),
         picker("tilt", "Rotation", "varied", DesignStyle.Tilt.allCases.map { ($0.rawValue, $0.rawValue.capitalized) }),
         picker("framing", "Framing", "balanced", DesignStyle.Framing.allCases.map { ($0.rawValue, $0.rawValue.capitalized) })
-    ] + [("descriptions", "Node descriptions"), ("relationships", "Relationship labels"), ("groups", "Group names")].map {
-        picker($0.0, $0.1, "show", [("show", "Show"), ("hide", "Hide")])
+    ] + [("systemLabel", "System label", "hide"), ("descriptions", "Node descriptions", "show"),
+         ("relationships", "Relationship labels", "show"), ("groups", "Group names", "show")].map {
+        picker($0.0, $0.1, $0.2, [("show", "Show"), ("hide", "Hide")])
     }
 )

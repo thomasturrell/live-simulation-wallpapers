@@ -36,9 +36,12 @@ final class LivePreview: NSObject, NSApplicationDelegate, NSWindowDelegate {
         window.isReleasedWhenClosed = false
 
         configurePickers()
+        let systemLabel = NSButton(checkboxWithTitle: "Show system label", target: self, action: #selector(toggleSystemLabel(_:)))
+        systemLabel.state = style.systemLabel ? .on : .off
         let controls = NSStackView(views: [NSTextField(labelWithString: "System"), systems,
-                                           NSTextField(labelWithString: "Palette"), palettes])
+                                           NSTextField(labelWithString: "Palette"), palettes, systemLabel])
         controls.setCustomSpacing(20, after: systems)
+        controls.setCustomSpacing(20, after: palettes)
         let content = NSView()
         window.contentView = content
         canvas.wantsLayer = true
@@ -117,6 +120,11 @@ final class LivePreview: NSObject, NSApplicationDelegate, NSWindowDelegate {
     @objc private func selectPalette(_ sender: NSPopUpButton) {
         guard let id = sender.selectedItem?.representedObject as? String, let colour = Colour(rawValue: id) else { return }
         style.colour = colour
+        render()
+    }
+
+    @objc private func toggleSystemLabel(_ sender: NSButton) {
+        style.systemLabel = sender.state == .on
         render()
     }
 

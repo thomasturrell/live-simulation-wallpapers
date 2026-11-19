@@ -28,6 +28,8 @@ enum VerifyWallpaper {
                   let group = groups.first, let items = Mirror(reflecting: group).descendant("items") as? [Any],
                   let item = items.first, Mirror(reflecting: item).descendant("id", "id") as? String == wallpaperChoice.id,
                   let options = Mirror(reflecting: item).descendant("choice", "options") as? [Any],
+                  let label = options.first(where: { Mirror(reflecting: $0).descendant("picker", "id") as? String == "systemLabel" }),
+                  Mirror(reflecting: label).descendant("picker", "defaultValueID") as? String == "hide",
                   let explore = options.first, let choices = Mirror(reflecting: explore).descendant("picker", "items") as? [Any],
                   choices.count == 1 + Subject.allCases.count + Catalogue.bundled.graphs.count,
                   options.count == wallpaperChoice.options.count else { throw BridgeError.incompatible }

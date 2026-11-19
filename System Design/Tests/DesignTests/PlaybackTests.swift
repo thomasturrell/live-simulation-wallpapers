@@ -2,6 +2,32 @@ import Foundation
 import Testing
 @testable import DesignEngine
 
+@Test func olderCheckpointsKeepTheirCurrentRevealAndUseTheNewOpeningAtHandoff() throws {
+    let fresh = Exploration(seed: 42, scope: "domestic-solar-power")
+    let count = fresh.chapter.order.count
+    let oldOpening = max(4, (count + 1) / 2)
+    let oldLastBeat = count - oldOpening + 4
+    let beatTicks = fresh.chapter.beatTicks
+    var plist = try #require(PropertyListSerialization.propertyList(from: fresh.checkpoint(), format: nil) as? [String: Any])
+    plist["version"] = 1
+    plist["beat"] = oldLastBeat
+    plist["tick"] = beatTicks / 8
+    plist["age"] = oldLastBeat * (beatTicks + 1) + beatTicks / 8
+    let data = try PropertyListSerialization.data(fromPropertyList: plist, format: .binary, options: 0)
+    let saved = try #require(Exploration(checkpoint: data))
+    var resumed = try #require(Exploration(checkpoint: try saved.checkpoint()))
+    #expect(resumed.beat == resumed.chapter.lastBeat && resumed.tick == beatTicks / 8)
+    #expect(resumed.chapter.firstCount == oldOpening)
+    let incoming = resumed.incomingChapter()
+    #expect(incoming.firstCount == 2)
+    resumed.advance(beatTicks + 1 - resumed.tick)
+    #expect(resumed.beat == 0 && resumed.tick == 0)
+    #expect(resumed.chapter.visit == incoming.visit)
+    let next = try #require(Exploration(checkpoint: try resumed.checkpoint()))
+    #expect(next.chapter.nodeRevealBeats == incoming.nodeRevealBeats)
+    #expect(next.chapter.edgeRevealBeats == incoming.edgeRevealBeats)
+}
+
 @Test func drawingCadenceDoesNotAffectPlayback() throws {
     var a = Playback(Exploration(seed: 12)), b = a
     a.present(visible: true, animated: true)
