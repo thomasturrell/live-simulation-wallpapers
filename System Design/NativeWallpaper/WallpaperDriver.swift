@@ -65,7 +65,7 @@ final class WallpaperDriver {
         displays[key] = playback
         owners[id] = playback
         playback.views[id] = view
-        playback.onSettled = { [weak self] in self?.invalidateSnapshots?() }
+        playback.invalidateSnapshots = { [weak self] in self?.invalidateSnapshots?() }
         let changed = playback.select(request.optionIDs["explore"])
         playback.refresh(hint: hint)
         if changed { playback.drawAll() } else { view.draw(playback.exploration) }
@@ -95,7 +95,10 @@ final class WallpaperDriver {
     }
 
     func snapshot(_ id: UUID) throws -> Any {
-        guard let playback = owners[id], let view = playback.views[id], let snapshot = view.snapshot(playback.exploration) else {
+        guard let playback = owners[id], let view = playback.views[id] else { throw BridgeError.noSurface }
+        let desktop = !view.preview && (!view.isSaver || hint == false)
+        let frame = desktop ? playback.desktopSnapshotFrame() : playback.exploration
+        guard let snapshot = view.snapshot(frame) else {
             throw BridgeError.noSurface
         }
         return snapshot
@@ -122,16 +125,19 @@ final class WallpaperDriver {
 @MainActor
 final class DisplayPlayback {
     var views: [UUID: RemoteView] = [:]
-    var onSettled: (() -> Void)?
+    var invalidateSnapshots: (() -> Void)?
     private let path: URL?
     private let seed: UInt64
     private var playback: Playback
     private var timer: DispatchSourceTimer?
     private var timestamp = 0.0
-    private var lastSaved: Int
+    private var refreshDesktopSnapshot = false
+    private var lastSnapshotRefresh = 0.0
+    private var lastSaved: (Int, Double)
     private var lastAttempt: Int
     var exploration: Exploration { playback.exploration }
     var hasTimer: Bool { timer != nil }
+    private var frame: (Int, Double) { (exploration.age, exploration.elevation) }
 
     init(displayUUID: UUID?, storage: URL? = nil) {
         var path: URL?
@@ -146,17 +152,22 @@ final class DisplayPlayback {
         seed = displayUUID?.uuidString.utf8.reduce(42) { ($0 ^ UInt64($1)) &* 1_099_511_628_211 } ?? 42
         let restored = path.flatMap { try? Data(contentsOf: $0) }.flatMap { Exploration(checkpoint: $0) }
         playback = Playback(restored ?? Exploration(seed: seed))
-        lastSaved = playback.exploration.age
-        lastAttempt = lastSaved
+        lastSaved = (playback.exploration.age, playback.exploration.elevation)
+        lastAttempt = playback.exploration.age
     }
 
     deinit { timer?.cancel() }
+
+    func desktopSnapshotFrame() -> Exploration {
+        if playback.mode == .settling { refreshDesktopSnapshot = true }
+        return playback.mode == .suspended ? exploration.restingFrame : exploration
+    }
 
     func select(_ scope: String?) -> Bool {
         guard let scope, exploration.scope != scope,
               scope == "all" || Subject(rawValue: scope) != nil || Catalogue.bundled[scope] != nil else { return false }
         playback = Playback(Exploration(seed: seed, scope: scope))
-        lastSaved = -1
+        lastSaved = (-1, 0)
         save()
         return true
     }
@@ -164,9 +175,12 @@ final class DisplayPlayback {
     func refresh(hint: Bool?) {
         let visible = views.values.filter { !$0.suspended }
         let animated = visible.contains { $0.preview } || (hint ?? visible.contains { $0.isSaver })
-        let previous = playback.mode, before = exploration.age
+        let previous = playback.mode
         playback.present(visible: !visible.isEmpty, animated: animated)
-        if before != exploration.age { drawAll() }
+        if previous != .settling && playback.mode == .settling {
+            refreshDesktopSnapshot = true
+            lastSnapshotRefresh = ProcessInfo.processInfo.systemUptime
+        }
         if playback.needsTimer && timer == nil {
             timestamp = ProcessInfo.processInfo.systemUptime
             let timer = DispatchSource.makeTimerSource(queue: .main)
@@ -177,7 +191,7 @@ final class DisplayPlayback {
         } else if !playback.needsTimer { stop() }
         if previous != playback.mode && playback.mode != .playing { save() }
         if previous == .playing && playback.mode == .still && visible.contains(where: { !$0.preview }) {
-            onSettled?()
+            invalidateSnapshots?()
         }
     }
 
@@ -185,28 +199,35 @@ final class DisplayPlayback {
 
     private func advance() {
         let now = ProcessInfo.processInfo.systemUptime
-        let before = exploration.age
+        let before = frame
         playback.advance(elapsed: now - timestamp)
         timestamp = now
-        if before != exploration.age {
+        if before != frame {
             for view in views.values where !view.suspended { view.draw(exploration) }
             if exploration.age - lastAttempt >= 15 * Exploration.ticksPerSecond { save() }
+            // Offer one intermediate image on unlock. Keep refreshing only while the
+            // host samples it, at most four times per second and only during settling.
+            if playback.mode == .settling, refreshDesktopSnapshot, now - lastSnapshotRefresh >= 0.25 {
+                refreshDesktopSnapshot = false
+                lastSnapshotRefresh = now
+                if views.values.contains(where: { !$0.preview }) { invalidateSnapshots?() }
+            }
         }
         if !playback.needsTimer {
             stop()
             save()
-            if views.values.contains(where: { !$0.preview }) { onSettled?() }
+            if views.values.contains(where: { !$0.preview }) { invalidateSnapshots?() }
         }
     }
 
     private func stop() { timer?.cancel(); timer = nil }
 
     private func save() {
-        guard let path, lastSaved != exploration.age else { return }
+        guard let path, lastSaved != frame else { return }
         lastAttempt = exploration.age
         do {
             try exploration.checkpoint().write(to: path, options: .atomic)
-            lastSaved = exploration.age
+            lastSaved = frame
         } catch { wallpaperLog.error("Checkpoint write failed: \(error.localizedDescription)") }
     }
 }
@@ -214,6 +235,7 @@ final class DisplayPlayback {
 @MainActor
 final class RemoteView {
     private let renderer = DesignRenderer()
+    private lazy var snapshotRenderer = DesignRenderer()
     var root: CALayer { renderer.root }
     private var context: AnyObject?
     private var size: CGSize
@@ -256,12 +278,15 @@ final class RemoteView {
     func refreshAccent(_ exploration: Exploration) -> Bool {
         guard style.colour == .accent else { return false }
         renderer.systemAccentChanged()
+        snapshotRenderer.systemAccentChanged()
         draw(exploration)
         return true
     }
 
     func snapshot(_ exploration: Exploration) -> Any? {
-        draw(exploration)
+        // WallpaperAgent may request the resting snapshot while the remote layer is
+        // still settling. Capturing it must not advance the live surface.
+        snapshotRenderer.draw(exploration, size: size, scale: scale, style: style, systemDark: dark)
         let factor = min(scale, 5120 / max(size.width, size.height))
         let width = Int(ceil(size.width * factor)), height = Int(ceil(size.height * factor))
         guard let surface = IOSurface(properties: [.width: width, .height: height, .bytesPerElement: 4,
@@ -273,7 +298,7 @@ final class RemoteView {
                                 bitmapInfo: CGImageAlphaInfo.premultipliedFirst.rawValue | CGBitmapInfo.byteOrder32Little.rawValue)
         else { return nil }
         c.scaleBy(x: CGFloat(width) / size.width, y: CGFloat(height) / size.height)
-        root.render(in: c)
+        snapshotRenderer.root.render(in: c)
         c.flush()
         return LifeWrapWallpaperSnapshot(surface)
     }

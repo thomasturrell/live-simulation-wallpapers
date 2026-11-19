@@ -74,7 +74,41 @@ import Testing
         #expect(playback.exploration.age == saved.age)
         playback = Playback(try #require(Exploration(checkpoint: try saved.checkpoint())))
         playback.present(visible: true, animated: false)
+        #expect(playback.mode == .settling && playback.exploration.tick == saved.tick)
+        #expect(playback.exploration.elevation == saved.elevation)
+        for _ in 0..<40 { playback.advance(elapsed: 0.0625) }
         #expect(playback.exploration.tick == saved.restingTick)
+        #expect(playback.exploration.elevation == 0 && !playback.needsTimer)
     }
     #expect(playback.exploration.age >= 60)
+}
+
+@Test func settlingBetweenActionsSurvivesSuspensionWithoutStartingTheNextBeat() throws {
+    var playback = Playback(Exploration(seed: 42))
+    playback.present(visible: true, animated: true)
+    let ticks = Int(Double(playback.exploration.chapter.beatTicks) * 0.40)
+    for _ in 0..<ticks { playback.advance(elapsed: 1.0 / 16) }
+    let locked = playback.exploration
+    #expect(locked.tick == locked.restingTick && locked.elevation == 1)
+    playback.present(visible: true, animated: false)
+    #expect(playback.needsTimer && playback.exploration.elevation == 1)
+    for _ in 0..<12 { playback.advance(elapsed: 1.0 / 16) }
+    let middle = playback.exploration
+    #expect(middle.elevation > 0 && middle.elevation < locked.elevation)
+    #expect(middle.age == locked.age)
+
+    playback.present(visible: false, animated: false)
+    #expect(!playback.needsTimer)
+    var replacement = Playback(try #require(Exploration(checkpoint: try middle.checkpoint())))
+    replacement.present(visible: true, animated: false)
+    #expect(replacement.exploration.elevation == middle.elevation)
+    for _ in 0..<40 {
+        replacement.present(visible: true, animated: false)
+        replacement.advance(elapsed: 1.0 / 16)
+    }
+    #expect(!replacement.needsTimer && replacement.exploration.elevation == 0)
+    #expect(try replacement.exploration.checkpoint() == locked.restingFrame.checkpoint())
+    var idle = Playback(try #require(Exploration(checkpoint: try replacement.exploration.checkpoint())))
+    idle.present(visible: true, animated: false)
+    #expect(idle.mode == .still && !idle.needsTimer)
 }

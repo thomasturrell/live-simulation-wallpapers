@@ -18,7 +18,7 @@ Each system opens with two components and one arrow between them. About every fo
 
 When two systems share a component, the camera settles on its card. The old branches fade, the card takes on its new name and shape, and a connection draws out to the first neighbour. For example, the **Battery bank** in domestic solar power can become the **Cell stack** in battery management. Unrelated systems dissolve into one another on the same dotted paper.
 
-On unlock, the current action has a brief moment to finish. The desktop then holds that frame. Each identifiable display keeps its own place across sessions, and Settings previews use separate, disposable state. Everything needed for playback is in the app.
+On unlock, the diagram eases down onto the dotted paper and the shadows beneath its cards shorten. This takes about two seconds after a full lock-screen session, even between reveals. Any arrow, pulse or transition already in motion finishes, then the desktop holds still. Each identifiable display keeps its own place across sessions, and Settings previews use separate, disposable state.
 
 In the wallpaper options, **Explore** offers the entire catalogue, a subject area or a named system. A named system stays selected and explores different routes within it. There are 25 systems in each of computing and technology, energy and engineering, biology and natural systems, and human and organisational systems.
 
@@ -58,7 +58,7 @@ Layouts include horizontal and vertical flows, hierarchies, clusters, rings, hub
 3. Unlock during a reveal or a dissolve. The desktop should come to rest within about three seconds. Compare its position on the next lock. Check Activity Monitor or Instruments for idle CPU use after settling.
 4. Try a second display or Space, switch the Mac’s appearance, and open and close Settings previews. Check that the displays resume independently and the preview leaves their histories intact.
 
-macOS owns the remote surfaces. It may suspend or replace one before the settling animation finishes. The extension saves on unlock, on suspension and periodically during playback. A display without a stable identifier has session-local state. macOS updates can change the private WallpaperAgent interface.
+macOS owns the remote surfaces. If it replaces a live surface, the next live desktop surface resumes the unfinished settle. A desktop that requests snapshots can sample the motion as it settles. Once the live surface is suspended, its desktop snapshot shows the resting position. The extension saves on unlock, on suspension and periodically during playback. A display without a stable identifier has session-local state. macOS updates can change the private WallpaperAgent interface.
 
 This probe exercises the native picker models, snapshots and timer lifecycle without registering the app.
 

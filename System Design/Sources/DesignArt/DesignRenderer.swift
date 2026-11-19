@@ -103,7 +103,7 @@ package final class DesignRenderer {
 
         let current = sheet(chapter)
         displayPaper(camera: camera, ink: current.scene.ink)
-        current.scene.display(camera: camera, beat: exploration.beat, progress: exploration.progress)
+        current.scene.display(camera: camera, beat: exploration.beat, progress: exploration.progress, elevation: exploration.elevation)
         current.scene.layer.opacity = 1
         var active = [current]
         if exploration.beat == chapter.lastBeat {
@@ -113,13 +113,13 @@ package final class DesignRenderer {
             if chapter.next.linkedEntry {
                 let source = current.scene.components[chapter.exit]!
                 let destination = next.scene.components[chapter.next.entry]!
-                next.scene.display(camera: camera, beat: 0, progress: 0, opening: handoff)
+                next.scene.display(camera: camera, beat: 0, progress: 0, elevation: exploration.elevation, opening: handoff)
                 source.body.isHidden = true
                 destination.morph(from: source, fraction: handoff.card)
                 current.scene.layer.opacity = Float(1 - handoff.branches)
                 next.scene.layer.opacity = 1
             } else {
-                next.scene.display(camera: camera, beat: 0, progress: 0)
+                next.scene.display(camera: camera, beat: 0, progress: 0, elevation: exploration.elevation)
                 current.scene.layer.opacity = Float(1 - handoff.dissolve)
                 next.scene.layer.opacity = Float(handoff.dissolve)
             }

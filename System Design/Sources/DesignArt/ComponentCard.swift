@@ -90,6 +90,10 @@ final class ComponentCard {
         CGPath(ellipseIn: CGRect(x: 1, y: bounds.maxY - 24, width: bounds.width - 2, height: 22), transform: nil)
     }
 
+    func setElevation(_ elevation: CGFloat) {
+        shadow.position = CGPoint(x: 3 + 6 * elevation, y: -4 - 10 * elevation)
+    }
+
     func morph(from source: ComponentCard, fraction t: CGFloat) {
         guard previous !== source || fraction != t else { return }
         if previous !== source {

@@ -123,7 +123,7 @@ final class DiagramScene {
         }
     }
 
-    func display(camera: DiagramCamera, beat: Int, progress: Double, opening: HandoffProgress? = nil) {
+    func display(camera: DiagramCamera, beat: Int, progress: Double, elevation: CGFloat = 0, opening: HandoffProgress? = nil) {
         let size = camera.size
         if opening == nil { components[chapter.visit.entry]!.finishMorph() }
         layer.bounds = CGRect(origin: .zero, size: size)
@@ -150,6 +150,7 @@ final class DiagramScene {
         }
         for (id, layers) in components {
             let component = layers.body
+            layers.setElevation(elevation)
             component.isHidden = false
             layers.focus.opacity = Float((previous == id ? 1 - t : 0) + (focus == id ? t : 0))
             let prominent: (String) -> CGFloat = { f in id == f || self.adjacency[f]!.contains(id) ? 1 : 0.66 }
@@ -179,6 +180,11 @@ final class DiagramScene {
             pulse.opacity = Float(smooth(u * 8) * smooth((1 - u) * 8))
         }
         frame(camera: camera, beat: beat, fraction: t)
+        // Move the cards and their connections together above the fixed paper.
+        // Keep the displacement within the opening pair's viewport margin.
+        let lift = min(8, 8 * camera.scale) * elevation
+        world.position.x -= lift * 0.5
+        world.position.y += lift
     }
 
     private func frame(camera: DiagramCamera, beat: Int, fraction: CGFloat) {

@@ -42,8 +42,8 @@ enum VerifyWallpaper {
         request.mode = "locked"
         request.size = CGSize(width: 800, height: 500)
         request.optionIDs = ["explore": "domestic-solar-power", "colour": "purple"]
-        let playback = DisplayPlayback(displayUUID: display, storage: base)
-        let view = RemoteView(size: request.size!, request: request)
+        var playback = DisplayPlayback(displayUUID: display, storage: base)
+        var view = RemoteView(size: request.size!, request: request)
         if !local {
             let driver = WallpaperDriver.shared
             _ = try driver.acquire(viewID, request)
@@ -53,16 +53,52 @@ enum VerifyWallpaper {
         precondition(playback.select(request.optionIDs["explore"]))
         playback.views[viewID] = view
         playback.refresh(hint: nil)
-        try await Task.sleep(for: .milliseconds(600))
-        precondition(playback.hasTimer && playback.exploration.age > 0)
-        let beat = playback.exploration.beat
+        let quietTick = Int(Double(playback.exploration.chapter.beatTicks) * 0.37)
+        let deadline = ContinuousClock.now + .seconds(6)
+        while playback.exploration.tick < quietTick && ContinuousClock.now < deadline {
+            try await Task.sleep(for: .milliseconds(50))
+        }
+        let locked = playback.exploration
+        precondition(playback.hasTimer && locked.elevation == 1 && locked.progress < Chapter.pulseStart)
+        let world = view.root.sublayers!.last!.sublayers!.first!.sublayers!.first!
+        let raised = world.position
+        var offers = 0
+        playback.invalidateSnapshots = { offers += 1 }
         playback.refresh(hint: false)
+        try await Task.sleep(for: .milliseconds(750))
+        let middle = playback.exploration
+        precondition(playback.hasTimer && middle.age == locked.age && middle.elevation < 1 && middle.elevation > 0)
+        let halfway = world.position
+        precondition(halfway != raised, "The remote layer must visibly settle even between diagram actions")
+        precondition(offers == 1, "A host that does not sample snapshots needs only one intermediate offer")
+        guard view.snapshot(middle.restingFrame) != nil else { throw BridgeError.noSurface }
+        precondition(world.position == halfway, "A desktop snapshot must not jump the live layer")
+
+        playback.views.removeAll()
+        playback.refresh(hint: false)
+        precondition(!playback.hasTimer)
+        playback = DisplayPlayback(displayUUID: display, storage: base)
+        request.mode = "default"
+        view = RemoteView(size: request.size!, request: request)
+        playback.views[viewID] = view
+        playback.refresh(hint: nil)
+        precondition(playback.hasTimer && playback.exploration.elevation == middle.elevation)
+        var snapshotElevations: [Double] = []
+        playback.invalidateSnapshots = {
+            let frame = playback.desktopSnapshotFrame()
+            snapshotElevations.append(frame.elevation)
+            precondition(view.snapshot(frame) != nil)
+        }
         try await Task.sleep(for: .seconds(Playback.settleDuration + 0.3))
         let settled = try playback.exploration.checkpoint()
-        precondition(!playback.hasTimer && playback.exploration.beat == beat)
+        precondition(!playback.hasTimer && playback.exploration.age == locked.age && playback.exploration.elevation == 0)
+        let samples = snapshotElevations
+        precondition((2...11).contains(samples.count) && samples.first! > 0 && samples.last == 0)
+        precondition(samples == samples.sorted(by: >))
         try await Task.sleep(for: .milliseconds(250))
         let still = try playback.exploration.checkpoint()
-        precondition(still == settled)
+        precondition(still == settled && snapshotElevations == samples)
+        playback.invalidateSnapshots = nil
         let restored = DisplayPlayback(displayUUID: display, storage: base)
         let saved = try restored.exploration.checkpoint()
         precondition(saved == settled)

@@ -3,6 +3,30 @@ import Testing
 @testable import DesignArt
 @testable import DesignEngine
 
+@Test @MainActor func quietBeatSettlesVisiblyThenHoldsTheSamePixels() throws {
+    var playback = Playback(Exploration(seed: 42, scope: "stream-processing"))
+    playback.present(visible: true, animated: true)
+    let quietTick = Int(Double(playback.exploration.chapter.beatTicks) * 0.40)
+    for _ in 0..<quietTick { playback.advance(elapsed: 1.0 / 16) }
+    let renderer = DesignRenderer()
+    let size = CGSize(width: 800, height: 500)
+    func pixels(_ frame: Exploration) throws -> Data {
+        renderer.draw(frame, size: size, scale: 1, style: DesignStyle(), systemDark: false)
+        return try #require(renderer.image(size: size)?.dataProvider?.data) as Data
+    }
+    let raised = try pixels(playback.exploration)
+    let target = try pixels(playback.exploration.restingFrame)
+    playback.present(visible: true, animated: false)
+    for _ in 0..<16 { playback.advance(elapsed: 1.0 / 16) }
+    let midway = try pixels(playback.exploration)
+    #expect(midway != raised && midway != target)
+    for _ in 0..<32 { playback.advance(elapsed: 1.0 / 16) }
+    #expect(playback.mode == .still && playback.exploration.tick == quietTick)
+    #expect(try pixels(playback.exploration) == target)
+    playback.advance(elapsed: 60)
+    #expect(try pixels(playback.exploration) == target)
+}
+
 @Test @MainActor func connectionsAppearOnlyAsTheDiagramBuilds() throws {
     let graph = try #require(Catalogue.bundled["flywheel-storage"])
     // Both directions of the initial power exchange share the same two endpoints.

@@ -17,6 +17,8 @@ private struct Cursor: Codable {
     var beat = 0
     var tick = 0
     var age = 0
+    // Optional so older per-display checkpoints still decode.
+    var liftTicks: Int?
 }
 
 struct Variation {
@@ -123,6 +125,14 @@ package struct Exploration {
     package var tick: Int { cursor.tick }
     package var age: Int { cursor.age }
     package var progress: Double { Double(tick) / Double(chapter.beatTicks) }
+    fileprivate var liftTicks: Int {
+        get { cursor.liftTicks ?? 0 }
+        set { cursor.liftTicks = newValue }
+    }
+    package var elevation: Double {
+        let t = Double(liftTicks) / Double(Playback.fullLift)
+        return t * t * (3 - 2 * t)
+    }
 
     package init(seed: UInt64, scope: String = "all", catalogue: Catalogue = .bundled) {
         let scope = catalogue[scope] != nil || Subject(rawValue: scope) != nil ? scope : "all"
@@ -152,7 +162,8 @@ package struct Exploration {
               Set(cursor.recent).count == cursor.recent.count, cursor.recent.allSatisfy({ catalogue[$0] != nil })
         else { return nil }
         self.init(cursor: cursor, catalogue: catalogue)
-        guard (0...chapter.lastBeat).contains(beat), (0...chapter.beatTicks).contains(tick) else { return nil }
+        guard (0...chapter.lastBeat).contains(beat), (0...chapter.beatTicks).contains(tick),
+              (0...Playback.fullLift).contains(liftTicks) else { return nil }
     }
 
     package func checkpoint() throws -> Data { try PropertyListEncoder().encode(cursor) }
@@ -198,11 +209,19 @@ package struct Exploration {
         else { return tick }
         return Int(ceil(endpoint * Double(chapter.beatTicks)))
     }
+
+    package var restingFrame: Self {
+        var frame = self
+        frame.advance(restingTick - tick, withinBeat: true)
+        frame.liftTicks = 0
+        return frame
+    }
 }
 
 package struct Playback {
     package enum Mode { case suspended, playing, settling, still }
     package static let settleDuration = 2.4
+    fileprivate static let fullLift = Int((settleDuration * Double(Exploration.ticksPerSecond)).rounded())
     package private(set) var exploration: Exploration
     package private(set) var mode: Mode = .suspended
     package var needsTimer: Bool { mode == .playing || mode == .settling }
@@ -210,6 +229,7 @@ package struct Playback {
     private var elapsedSettle = 0.0
     private var startTick = 0
     private var endTick = 0
+    private var startLift = 0
     private var duration = 0.0
 
     package init(_ exploration: Exploration) { self.exploration = exploration }
@@ -219,20 +239,17 @@ package struct Playback {
             mode = .suspended
         } else if animated {
             mode = .playing
-        } else if mode == .playing {
+        } else if mode == .playing || mode == .suspended {
+            // A replacement desktop surface picks up the saved elevation and action.
             startTick = exploration.tick
             endTick = exploration.restingTick
-            mode = startTick == endTick ? .still : .settling
-            duration = min(Self.settleDuration, 2 * Double(endTick - startTick) / Double(Exploration.ticksPerSecond))
+            startLift = exploration.liftTicks
+            let actionDuration = 2 * Double(endTick - startTick) / Double(Exploration.ticksPerSecond)
+            let liftDuration = Self.settleDuration * Double(startLift) / Double(Self.fullLift)
+            duration = min(Self.settleDuration, max(actionDuration, liftDuration))
+            mode = duration > 0 ? .settling : .still
             elapsedSettle = 0
             remainder = 0
-        } else if mode == .suspended {
-            // A host may discard the surface in mid-dissolve. Finish that same
-            // action before presenting its saved cursor as a static desktop.
-            if exploration.tick > 0 {
-                exploration.advance(exploration.restingTick - exploration.tick, withinBeat: true)
-            }
-            mode = .still
         }
     }
 
@@ -241,7 +258,9 @@ package struct Playback {
         let interval = min(0.25, elapsed)
         if mode == .settling {
             elapsedSettle = min(duration, elapsedSettle + interval)
-            let fraction = 1 - pow(1 - elapsedSettle / duration, 2)
+            let remaining = 1 - elapsedSettle / duration
+            let fraction = 1 - remaining * remaining
+            exploration.liftTicks = Int((Double(startLift) * remaining).rounded())
             let ticks = endTick - startTick
             let target = startTick + Int((Double(ticks) * fraction).rounded())
             exploration.advance(max(0, target - exploration.tick), withinBeat: true)
@@ -250,6 +269,7 @@ package struct Playback {
             remainder += interval * Double(Exploration.ticksPerSecond)
             let count = Int(remainder + 1e-9)
             remainder -= Double(count)
+            if count > 0 { exploration.liftTicks = min(Self.fullLift, exploration.liftTicks + count * 3) }
             exploration.advance(count)
         }
     }
