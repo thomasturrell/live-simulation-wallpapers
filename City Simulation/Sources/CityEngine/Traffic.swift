@@ -103,6 +103,7 @@ extension City {
         }
         for index in order {
             let vehicle = vehicles[index]
+            let occupiedJunctions = currentJunctions[vehicle.id, default: []]
             var next = vehicle
             next.progress += 1
             // Keep a length-aware following gap until the leader's rear has
@@ -111,7 +112,7 @@ extension City {
                 guard leader.id != vehicle.id, let gap = vehicle.gap(to: leader), gap > 0 else { return true }
                 return gap - 1 / Double(vehicle.pace) >= vehicle.halfLength + leader.halfLength + 0.06
             }) else { continue }
-            let entering = junctions(occupiedBy: next).filter { !currentJunctions[vehicle.id, default: []].contains($0) }
+            let entering = junctions(occupiedBy: next).filter { !occupiedJunctions.contains($0) }
             guard entering.allSatisfy({ junction in
                 if !map.hasJunctionControl(at: junction) { return true }
                 let phase = (tick / 18 + junction.x * 11 + junction.y * 5) % 10
@@ -124,10 +125,9 @@ extension City {
             if let nextEnd = reservationEnd(for: next), nextEnd > currentEnd + 0.000001 {
                 // Check a manoeuvre when claiming it. Rechecking a path already
                 // reserved can make its owner yield to cars waiting at its edge.
-                guard next.path(through: nextEnd, in: trafficConvention).allSatisfy({ space in
-                    footprints.allSatisfy { id, other in id == vehicle.id || !space.overlaps(other, clearance: 0.06) }
-                        && reservedPaths.allSatisfy { id, path in id == vehicle.id || !path.contains { space.overlaps($0, clearance: 0.06) } }
-                }) else { continue }
+                let claim = TrafficPath(next.path(through: nextEnd, in: trafficConvention))
+                guard footprints.allSatisfy({ id, other in id == vehicle.id || !claim.overlaps(other, clearance: 0.06) }),
+                      reservedPaths.allSatisfy({ id, path in id == vehicle.id || !claim.overlaps(path, clearance: 0.06) }) else { continue }
             }
             let current = footprints[vehicle.id]!
             let middle = vehicle.footprint(at: vehicle.distance + 0.5 / Double(vehicle.pace), in: trafficConvention)
@@ -147,8 +147,8 @@ extension City {
                 if id == vehicle.id { return true }
                 // More than one car may already occupy a junction in an old
                 // checkpoint. Physical checks still let those cars separate.
-                if !Set(currentJunctions[vehicle.id, default: []]).isDisjoint(with: currentJunctions[id, default: []]) { return true }
-                return !path.contains { middle.overlaps($0, clearance: 0.06) || destination.overlaps($0, clearance: 0.06) }
+                if occupiedJunctions.contains(where: { currentJunctions[id, default: []].contains($0) }) { return true }
+                return !path.overlaps(middle, clearance: 0.06) && !path.overlaps(destination, clearance: 0.06)
             }) else { continue }
             vehicles[index] = next
             // Later cars also avoid the positions accepted earlier this tick.
@@ -207,12 +207,10 @@ extension City {
         let vehicle = Vehicle(id: nextVehicle, route: route, color: color, pace: pace, long: freight,
                               origin: start.lot, destination: end.lot, progress: progress)
         let reservation = reservedPath(for: vehicle)
-        let path = reservation.isEmpty ? [vehicle.footprint(in: trafficConvention)] : reservation
+        let path = reservation.isEmpty ? TrafficPath([vehicle.footprint(in: trafficConvention)]) : reservation
         guard !vehicles.contains(where: { other in
-            path.contains { space in
-                space.overlaps(other.footprint(in: trafficConvention), clearance: 0.06)
-                    || reservedPath(for: other).contains { space.overlaps($0, clearance: 0.06) }
-            }
+            path.overlaps(other.footprint(in: trafficConvention), clearance: 0.06)
+                || path.overlaps(reservedPath(for: other), clearance: 0.06)
         }) else { return }
         vehicles.append(vehicle)
         nextVehicle &+= 1
@@ -225,8 +223,8 @@ extension City {
         return vehicle.distance > end - 0.28 ? end : nil
     }
 
-    private func reservedPath(for vehicle: Vehicle) -> [TrafficFootprint] {
-        reservationEnd(for: vehicle).map { vehicle.path(through: $0, in: trafficConvention) } ?? []
+    private func reservedPath(for vehicle: Vehicle) -> TrafficPath {
+        TrafficPath(reservationEnd(for: vehicle).map { vehicle.path(through: $0, in: trafficConvention) } ?? [])
     }
 
     private func reservationEnd(for vehicle: Vehicle) -> Double? {
