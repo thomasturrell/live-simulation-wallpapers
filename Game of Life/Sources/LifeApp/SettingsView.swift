@@ -24,7 +24,17 @@ struct SettingsView: View {
     let applyStill: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 17) {
+        GeometryReader { geometry in
+            ScrollView {
+                content(compact: geometry.size.width < 620)
+            }
+        }
+        .frame(minWidth: 360, minHeight: 320)
+    }
+
+    private func content(compact: Bool) -> some View {
+        let footer = compact ? AnyLayout(VStackLayout(alignment: .leading)) : AnyLayout(HStackLayout())
+        return VStack(alignment: .leading, spacing: 17) {
             HStack(alignment: .center) {
                 VStack(alignment: .leading, spacing: 3) {
                     Text("Conway’s Game of Life")
@@ -50,12 +60,12 @@ struct SettingsView: View {
                 }
                 .accessibilityLabel("Game of Life preview")
 
-            LifeSettingsControls(settings: $model.settings)
+            LifeSettingsControls(settings: $model.settings, compact: compact)
                 .padding(.vertical, 1)
 
             Divider()
 
-            HStack {
+            footer {
                 VStack(alignment: .leading, spacing: 4) {
                     Picker("Desktop motion", selection: $model.desktopMotion) {
                         ForEach(DesktopMotion.allCases) { motion in
@@ -67,16 +77,16 @@ struct SettingsView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
-                Spacer()
-                Button("Regenerate") { model.settings.seed = .random(in: .min ... .max) }
-                    .help("Start with a new arrangement of cells")
-                Button("Set Still Wallpaper", action: applyStill)
-                    .help("Replace the current wallpaper on connected displays")
+                .frame(maxWidth: .infinity, alignment: .leading)
+                HStack {
+                    Button("Regenerate") { model.settings.seed = .random(in: .min ... .max) }
+                        .help("Start with a new arrangement of cells")
+                    Button("Set Still Wallpaper", action: applyStill)
+                        .help("Replace the current wallpaper on connected displays")
+                }
             }
         }
         .padding(26)
-        .frame(width: 728)
-        .frame(minHeight: 610)
     }
 }
 
@@ -84,8 +94,7 @@ private struct Preview: NSViewRepresentable {
     var settings: LifeSettings
 
     func makeNSView(context: Context) -> LifeView {
-        LifeView(frame: CGRect(x: 0, y: 0, width: 676, height: 258),
-                 settings: settings, previewScale: 0.7)
+        LifeView(frame: .zero, settings: settings, previewScale: 0.7)
     }
 
     func updateNSView(_ view: LifeView, context: Context) {

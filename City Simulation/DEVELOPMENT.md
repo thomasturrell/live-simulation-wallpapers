@@ -84,6 +84,8 @@ Existing weather art remains shared: rain darkens roads and vegetation, adds pud
 
 The standalone development preview has the same Environment choices plus a fractional-month slider, previous/next stage controls, live/day/night lighting, clear/cloudy/rain/snow overrides, independent wind inspection and pause. The **Traffic** picker switches between **Keep left** and **Keep Right**. Switching restarts the disposable preview city so cars begin with routes on the selected side. The preview leaves installed wallpaper settings and checkpoints untouched.
 
+Use the green window button to place the preview in macOS Split View. In a narrow tile, the controls move above the city and scroll independently. Press **⌘Q** to quit City Simulation.
+
 ```sh
 swift run -c release CityPreview
 swift run -c release CityPreview --environment northern --month 10.5 --light day --weather rain --wind 0.7

@@ -8,6 +8,9 @@ Run ./package-macos.sh in the Game of Life source directory and open
 dist/Game of Life.app. Its grid icon stays in
 the menu bar after you close the settings window.
 
+• Use the green window button to place the preview in macOS Split View.
+  Scroll to reach all settings in a narrow tile. Press Command-Q with
+  the preview focused to quit Game of Life and stop its live desktop.
 • Set Desktop motion to Settle on Return. The desktop evolves briefly
   when it comes back into view, then stays still. Keep Game of Life
   running in the menu bar. The menu also offers Continuous and Off.

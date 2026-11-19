@@ -3,14 +3,18 @@ import SwiftUI
 @MainActor
 public struct LifeSettingsControls: View {
     @Binding private var settings: LifeSettings
+    private let compact: Bool
 
-    public init(settings: Binding<LifeSettings>) {
+    public init(settings: Binding<LifeSettings>, compact: Bool = false) {
         _settings = settings
+        self.compact = compact
     }
 
     public var body: some View {
+        let layout = compact ? AnyLayout(VStackLayout(alignment: .leading, spacing: 12))
+                             : AnyLayout(HStackLayout(alignment: .top, spacing: 26))
         VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .top, spacing: 26) {
+            layout {
                 VStack(spacing: 12) {
                     slider("Generation speed", value: $settings.speed, range: LifeSettings.speedRange,
                            step: 0.25, readout: "\(settings.speed.formatted()) gen/s")
@@ -24,7 +28,7 @@ public struct LifeSettingsControls: View {
                            step: 0.5, readout: "\(settings.spacing.formatted()) pt")
                 }
             }
-            HStack(spacing: 26) {
+            layout {
                 Picker("Appearance", selection: $settings.appearance) {
                     ForEach(LifeAppearance.allCases) { Text($0.rawValue).tag($0) }
                 }
