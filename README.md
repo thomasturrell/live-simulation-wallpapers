@@ -30,7 +30,7 @@ Explore 100 systems through tilted, evolving diagrams. Follow a packet across a 
 
 ![A tilted diagram showing power flowing between a solar inverter, battery storage and household loads](System%20Design/assets/domestic-solar.png)
 
-[System Design installation, catalogue and build instructions](System%20Design/README.md)
+[Explore and install System Design](System%20Design/README.md) · [Developer guide](System%20Design/DEVELOPMENT.md)
 
 ## Release downloads
 

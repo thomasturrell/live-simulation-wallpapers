@@ -1,72 +1,59 @@
 # System Design
 
-Follow electricity from a rooftop into a battery, trace a DNS lookup or watch a river refill its floodplain. System Design is a living diagram of 100 real systems. Each connection names a relationship. Arrows, pulses and changing emphasis let you follow it across a tilted sheet that extends past the edges of the display.
+Follow electricity from a rooftop into a battery, trace a DNS lookup or watch a river refill its floodplain. System Design brings 100 real systems to your Mac as diagrams on dotted paper. Each arrow tells you how one part connects to the next.
 
 ![A tilted diagram of a domestic solar installation, with generation, storage and demand connected across the page](assets/domestic-solar.png)
 
-## Install on macOS
-
-Requires macOS 26 or later. The native build supports Apple silicon and Intel Macs.
-
-1. Unzip **System-Design-Native-Wallpaper.zip** from the [collection releases](https://github.com/thomasturrell/live-simulation-wallpapers/releases), or build the app below.
-2. Move **System Design Wallpaper.app** to **Applications**. Open it once, click **Done** and keep it in Applications.
-3. Reopen **System Settings → Wallpaper** and choose **System Design** under **Simulation Wallpapers**. Choose it under **Wallpaper → Screen Saver → Custom** as well. Repeat on other displays as desired.
+**[Download for macOS](https://github.com/thomasturrell/live-simulation-wallpapers/releases)** · Requires macOS 26 or later.
 
 ## Exploring a system
 
-Each system opens with two components and one arrow between them. About every four to six seconds, another component appears and its connections draw into place until the diagram is complete. As it grows, subsystems open and pulses follow the arrows.
+While your screen saver runs, each new diagram opens with two cards and an arrow between them. About every four to six seconds, another part of the system comes into view. A pulse travels along an arrow, a group of related cards opens up, and the diagram grows across the page.
 
-When two systems share a component, the camera settles on its card. The old branches fade, the card takes on its new name and shape, and a connection draws out to the first neighbour. For example, the **Battery bank** in domestic solar power can become the **Cell stack** in battery management. Unrelated systems dissolve into one another on the same dotted paper.
+A single card can take you into another system. Follow the **Battery bank** in domestic solar power and you might see it become the **Cell stack** in battery management. The card stays in place as the old branches fade and a new line leads to its first neighbour. Diagrams that share no component dissolve into one another on the same sheet.
 
-On unlock, the diagram eases down onto the dotted paper and the shadows beneath its cards shorten. This takes about two seconds after a full lock-screen session, even between reveals. Any arrow, pulse or transition already in motion finishes, then the desktop holds still. Each identifiable display keeps its own place across sessions, and Settings previews use separate, disposable state.
+When you unlock your Mac, the cards ease down onto the paper and their shadows shorten. After about two seconds the diagram rests on your desktop, ready to carry on next time. Each display keeps its own place when your Mac can identify it. You can try another diagram in Settings without losing your place on the desktop.
 
-In the wallpaper options, **Explore** offers the entire catalogue, a subject area or a named system. A named system stays selected and explores different routes within it. There are 25 systems in each of computing and technology, energy and engineering, biology and natural systems, and human and organisational systems.
+## Choose what to explore
 
-Choose **Colour** for the Game of Life palettes, including Spectrum, Random and the Mac’s Accent colour. **Appearance** can follow the Mac or use Light or Dark. **Rotation** offers a level view or a fixed 17° tilt. **Varied** picks a direction per display and keeps it as you move between systems or resume a session. **Framing** sets the zoom for the whole tour. Node descriptions, relationship labels and group names can be switched individually. Component names stay visible.
+In **System Settings → Wallpaper**, set **Explore** to **Entire catalogue**, pick a subject or stay with one system to see different routes through it. Each of the four subjects has 25 systems to explore.
 
-The **System label** is off by default. Choose **Show** to add the system’s name, subject area and description in a corner of the artwork.
+| Subject | A system to try |
+| --- | --- |
+| Computing and technology | DNS resolution |
+| Energy and engineering | Domestic solar power |
+| Biology and natural systems | Water cycle |
+| Human and organisational systems | Library lending |
 
-![Water vapour, clouds, rainfall and groundwater linked by curved arrows in the Original palette in Dark appearance](assets/water-cycle.png)
+## Colour and framing
 
-## Build and preview
+| Option | What you’ll see |
+| --- | --- |
+| **Colour** | Choose from the Game of Life palettes, including Spectrum, Random and your Mac’s Accent colour. |
+| **Appearance** | Follow your Mac with **Automatic**, or choose **Light** or **Dark**. |
+| **Rotation** | Keep the page **Level**, or tilt it 17° to the **Left** or **Right**. **Varied** chooses a direction for each display and keeps it between visits. |
+| **Framing** | **Close** brings the cards nearer. **Wide** shows more of the sheet. **Balanced** is the default. |
 
-Use a Swift 6 toolchain and the macOS 26 SDK or later. Run these commands from this directory.
+Component names are always visible. Show or hide **Node descriptions**, **Relationship labels** and **Group names** individually. The **System label** is hidden by default. Choose **Show** to see the system’s name, subject and description in the corner.
 
-```sh
-./Packaging/test.sh
-./NativeWallpaper/build.sh
-swift run DesignPreview
-swift run DesignPreview --png /tmp/solar.png 1600 1000 domestic-solar-power 12 green
-```
+![Water vapour, clouds, rainfall and groundwater linked by curved arrows on a dark sheet](assets/water-cycle.png)
 
-`swift run DesignPreview` opens an animated window. Use **System** to pick a diagram by subject, or choose **Entire catalogue** to explore automatically. **Palette** recolours the current diagram as it plays. Tick **Show system label** to display the caption. The preview uses disposable state.
+*The water cycle in the Original palette with Dark appearance.*
 
-The native build writes the carrier app and a ZIP to `dist/`. Use `--png` to export a deterministic frame. The optional positional arguments after the dimensions are a system or category ID, elapsed playing seconds, colour and appearance. For example, use `water-cycle 20 blue Dark`. Append `--show-system-label` to include the caption.
+## Install on macOS
 
-## Catalogue and playback
+1. Download **System-Design-Native-Wallpaper.zip** from [GitHub Releases](https://github.com/thomasturrell/live-simulation-wallpapers/releases) and unzip it.
+2. Move **System Design Wallpaper.app** into **Applications**, open it once and click **Done**. Keep the app in Applications.
+3. Reopen **System Settings → Wallpaper** and choose **System Design** under **Simulation Wallpapers**. Select it under **Wallpaper → Screen Saver → Custom** too.
 
-The four JSON arrays in `Sources/DesignEngine/Catalogue/` are the source for the picker and the artwork. Each system has a stable ID, name, description, category and layout. Each node has a local ID, name and semantic kind. Optional `detail`, `symbol`, `group` and `concept` fields add explanatory copy, a built-in macOS symbol, subsystem membership and links to other systems. Groups can name a parent. Each directed edge names its source, target, relationship kind and verb phrase. An edge in each direction can describe a two-way exchange. Use matching concept keys only where a viewer can follow the meaning between the two nodes.
+Repeat for any other displays where you want the diagrams. Start your screen saver or lock your Mac to follow the first connection.
 
-Layouts include horizontal and vertical flows, hierarchies, clusters, rings, hubs and meshes. The engine validates references, group ancestry and connectedness when loading the bundle. It picks a connected reveal order from a seed and keeps recent visits to prefer fresh material. A versioned per-display checkpoint holds the selection, entry component, seed, visit history and position within the current action.
+## Compatibility
 
-`DesignArt` measures and routes a sheet once, then updates retained Core Animation layers. The PNG exporter, remote wallpaper and snapshots use the same renderer. Game of Life and System Design import the original colour calculations from the local `WallpaperPalette` target in Game of Life. The native adapter uses the collection’s shared WallpaperAgent bridge.
+Requires **macOS 26 or later**. The download supports Apple silicon and Intel Macs. All 100 systems are included and can be explored offline.
 
-## Verify on a Mac
+<a id="build-and-preview"></a>
+<a id="catalogue-and-playback"></a>
+<a id="verify-on-a-mac"></a>
 
-1. Select the wallpaper and screen saver. Try **Domestic solar power**, change the palette and toggle labels. Confirm the first frame has readable names and a recognisable subject.
-2. Lock for five seconds, unlock and watch the desktop settle. Lock again for about a minute. Look for another component appearing, a pulse following an arrow and a change of focus. In **Entire catalogue**, allow time for a transition to another system.
-3. Unlock during a reveal or a dissolve. The desktop should come to rest within about three seconds. Compare its position on the next lock. Check Activity Monitor or Instruments for idle CPU use after settling.
-4. Try a second display or Space, switch the Mac’s appearance, and open and close Settings previews. Check that the displays resume independently and the preview leaves their histories intact.
-
-macOS owns the remote surfaces. If it replaces a live surface, the next live desktop surface resumes the unfinished settle. A desktop that requests snapshots can sample the motion as it settles. Once the live surface is suspended, its desktop snapshot shows the resting position. The extension saves on unlock, on suspension and periodically during playback. A display without a stable identifier has session-local state. macOS updates can change the private WallpaperAgent interface.
-
-This probe exercises the native picker models, snapshots and timer lifecycle without registering the app.
-
-```sh
-DESIGN_BUILD_ABI_PROBE=1 DESIGN_NATIVE_ARCHS="$(uname -m)" ./NativeWallpaper/build.sh
-.build/native-wallpaper/verify-wallpaper --local \
-  "dist/System Design Wallpaper.app/Contents/Extensions/DesignWallpaper.appex/Contents/Resources/design-thumbnail.png" \
-  "$(mktemp -d)"
-```
-
-Omit `--local` in a graphical login session to exercise remote Core Animation context creation too.
+The [developer guide](DEVELOPMENT.md) covers building and previewing the wallpaper, editing the catalogue and verifying playback on a Mac.
