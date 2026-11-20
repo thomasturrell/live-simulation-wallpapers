@@ -28,7 +28,9 @@ A living isometric pixel-art city with traffic, growing neighbourhoods and light
 
 Explore 100 systems through tilted, evolving diagrams. Follow a packet across a network, heat around a refrigerant loop or pollen between flowers. While the screen saver runs, the diagram reveals neighbouring components and follows shared concepts into other systems. The desktop keeps the frame where the exploration settled.
 
-![A tilted diagram showing power flowing between a solar inverter, battery storage and household loads](System%20Design/assets/domestic-solar.png)
+![Illustrated macOS Lock Screen with a clock and sign-in controls over an animated solar power diagram, adding connections and tracing the flow of electricity](assets/system-design-lock-screen.webp)
+
+*Illustrative preview of System Design on the macOS Lock Screen.*
 
 [Explore and install System Design](System%20Design/README.md) · [Developer guide](System%20Design/DEVELOPMENT.md)
 
