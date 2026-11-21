@@ -71,6 +71,15 @@ jobs:
           ./NativeWallpaper/build.sh "$packages"
           mv "$packages/City Simulation Wallpaper.zip" "$RUNNER_TEMP/release-assets/City-Simulation-Native-Wallpaper.zip"
 
+      - name: Test and archive System Design
+        if: hashFiles('System Design/Package.swift') != ''
+        working-directory: System Design
+        run: |
+          ./Packaging/test.sh
+          packages="$RUNNER_TEMP/system-design"
+          ./NativeWallpaper/build.sh "$packages"
+          mv "$packages/System Design Wallpaper.zip" "$RUNNER_TEMP/release-assets/System-Design-Native-Wallpaper.zip"
+
       - name: Upload the downloads to the release draft
         env:
           GH_TOKEN: ${{ github.token }}

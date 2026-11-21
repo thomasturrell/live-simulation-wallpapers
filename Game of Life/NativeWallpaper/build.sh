@@ -31,7 +31,7 @@ for arch in "${archs[@]}"; do
     swift build "${options[@]}" --target LifeArt
     bin="$(swift build "${options[@]}" --show-bin-path)"
     compile_bridge
-    objects=("$bin"/LifeEngine.build/*.swift.o "$bin"/LifeArt.build/*.swift.o)
+    objects=("$bin"/WallpaperPalette.build/*.swift.o "$bin"/LifeEngine.build/*.swift.o "$bin"/LifeArt.build/*.swift.o)
     link_wallpaper NativeWallpaper/ExtensionMain.swift "${objects[@]}" \
         -Xlinker -e -Xlinker _NSExtensionMain -o "$scratch/wallpaper-$arch"
     if [ "${LIFE_BUILD_ABI_PROBE:-0}" = 1 ] && [ "$arch" = "$(uname -m)" ]; then

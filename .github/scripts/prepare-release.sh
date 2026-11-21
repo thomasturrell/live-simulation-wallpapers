@@ -38,6 +38,9 @@ case "$1" in
             "$RUNNER_TEMP/release-assets/Game-of-Life-Native-Wallpaper.zip"
             "$RUNNER_TEMP/release-assets/City-Simulation-Native-Wallpaper.zip"
         )
+        if [[ -f "System Design/Package.swift" ]]; then
+            assets+=("$RUNNER_TEMP/release-assets/System-Design-Native-Wallpaper.zip")
+        fi
         for asset in "${assets[@]}"; do
             if [[ ! -s "$asset" ]]; then
                 echo "::error::Missing native wallpaper release ZIP $asset."
@@ -67,7 +70,9 @@ case "$1" in
                 gh release edit "$RELEASE_TAG" --target "$commit"
             fi
             gh release upload "$RELEASE_TAG" "${assets[@]}" --clobber
-            for name in Game-of-Life-Desktop-App.zip Game-of-Life-Wallpaper-and-Screen-Saver.zip; do
+            obsolete=(Game-of-Life-Desktop-App.zip Game-of-Life-Wallpaper-and-Screen-Saver.zip)
+            if [[ ! -f "System Design/Package.swift" ]]; then obsolete+=(System-Design-Native-Wallpaper.zip); fi
+            for name in "${obsolete[@]}"; do
                 if jq -e --arg name "$name" 'any(.assets[]; .name == $name)' <<< "$draft" >/dev/null; then
                     gh release delete-asset "$RELEASE_TAG" "$name" --yes
                 fi

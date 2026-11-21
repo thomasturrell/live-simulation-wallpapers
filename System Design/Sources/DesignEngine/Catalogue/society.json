@@ -1,0 +1,685 @@
+[
+  {
+    "id": "retail-supply-chain",
+    "name": "Retail supply chain",
+    "category": "society",
+    "description": "Orders move upstream while goods travel through distribution to customers.",
+    "layout": "flow",
+    "groups": [],
+    "nodes": [
+      {"id": "supplier", "name": "Supplier", "kind": "entity"},
+      {"id": "factory", "name": "Factory", "symbol": "wrench.and.screwdriver", "kind": "process", "concept": "manufacturing"},
+      {"id": "distribution-centre", "name": "Distribution centre", "symbol": "shippingbox", "kind": "hub", "detail": "Receives large shipments and allocates stock to stores.", "concept": "freight"},
+      {"id": "store-stock", "name": "Store stock", "symbol": "shippingbox", "kind": "store", "concept": "inventory"},
+      {"id": "customer", "name": "Customer", "kind": "entity"},
+      {"id": "reorder-point", "name": "Reorder point", "kind": "decision", "detail": "Compares remaining stock with expected demand."},
+      {"id": "purchase-order", "name": "Purchase order", "kind": "event"}
+    ],
+    "edges": [
+      {"source": "supplier", "target": "factory", "kind": "flow", "label": "supplies material"},
+      {"source": "factory", "target": "distribution-centre", "kind": "flow", "label": "ships cartons"},
+      {"source": "distribution-centre", "target": "store-stock", "kind": "flow", "label": "replenishes shelves"},
+      {"source": "store-stock", "target": "customer", "kind": "flow", "label": "supplies purchase"},
+      {"source": "customer", "target": "store-stock", "kind": "inhibition", "label": "reduces stock"},
+      {"source": "store-stock", "target": "reorder-point", "kind": "signal", "label": "reports quantity"},
+      {"source": "reorder-point", "target": "purchase-order", "kind": "signal", "label": "triggers reorder"},
+      {"source": "purchase-order", "target": "supplier", "kind": "feedback", "label": "requests supply"}
+    ]
+  },
+  {
+    "id": "public-transport-interchange",
+    "name": "Public transport interchange",
+    "category": "society",
+    "description": "An interchange connects feeder services, walking routes and a trunk railway.",
+    "layout": "radial",
+    "groups": [],
+    "nodes": [
+      {"id": "interchange", "name": "Interchange", "symbol": "tram", "kind": "hub", "detail": "Connects local arrivals with onward services.", "concept": "rail"},
+      {"id": "local-bus", "name": "Local bus", "kind": "entity"},
+      {"id": "cycle-parking", "name": "Cycle parking", "kind": "store"},
+      {"id": "footpath", "name": "Footpath", "kind": "entity"},
+      {"id": "rail-platform", "name": "Rail platform", "kind": "entity"},
+      {"id": "trunk-service", "name": "Trunk service", "kind": "entity"},
+      {"id": "passenger-information", "name": "Passenger information", "kind": "sensor", "detail": "Communicates departures and platform changes."}
+    ],
+    "edges": [
+      {"source": "local-bus", "target": "interchange", "kind": "flow", "label": "brings passengers"},
+      {"source": "cycle-parking", "target": "interchange", "kind": "flow", "label": "connects cyclists"},
+      {"source": "footpath", "target": "interchange", "kind": "flow", "label": "connects walkers"},
+      {"source": "interchange", "target": "rail-platform", "kind": "flow", "label": "channels transfers"},
+      {"source": "rail-platform", "target": "trunk-service", "kind": "flow", "label": "boards passengers"},
+      {"source": "trunk-service", "target": "passenger-information", "kind": "signal", "label": "reports arrivals"},
+      {"source": "passenger-information", "target": "interchange", "kind": "signal", "label": "directs transfers"}
+    ]
+  },
+  {
+    "id": "emergency-dispatch",
+    "name": "Emergency dispatch",
+    "category": "society",
+    "description": "A control room matches requests for help with an available response team.",
+    "layout": "radial",
+    "groups": [],
+    "nodes": [
+      {"id": "control-room", "name": "Control room", "symbol": "antenna.radiowaves.left.and.right", "kind": "hub", "concept": "dispatch"},
+      {"id": "caller", "name": "Caller", "kind": "entity"},
+      {"id": "call-handler", "name": "Call handler", "kind": "process", "detail": "Establishes the location and immediate need."},
+      {"id": "triage", "name": "Triage", "kind": "decision", "detail": "Determines the urgency of the response."},
+      {"id": "response-team", "name": "Response team", "kind": "entity"},
+      {"id": "receiving-unit", "name": "Receiving unit", "symbol": "cross.case", "kind": "entity", "concept": "care"},
+      {"id": "status-update", "name": "Status update", "kind": "event"}
+    ],
+    "edges": [
+      {"source": "caller", "target": "call-handler", "kind": "signal", "label": "describes incident"},
+      {"source": "call-handler", "target": "triage", "kind": "flow", "label": "records needs"},
+      {"source": "triage", "target": "control-room", "kind": "signal", "label": "sets priority"},
+      {"source": "control-room", "target": "response-team", "kind": "signal", "label": "assigns response"},
+      {"source": "response-team", "target": "receiving-unit", "kind": "flow", "label": "hands over care"},
+      {"source": "response-team", "target": "status-update", "kind": "flow", "label": "reports availability"},
+      {"source": "status-update", "target": "control-room", "kind": "feedback", "label": "updates coverage"}
+    ]
+  },
+  {
+    "id": "care-referral",
+    "name": "Care referral",
+    "category": "society",
+    "description": "A referral carries a question through specialist assessment and back to ongoing care.",
+    "layout": "flow",
+    "groups": [],
+    "nodes": [
+      {"id": "primary-care", "name": "Primary care", "symbol": "cross.case", "kind": "entity", "concept": "care"},
+      {"id": "referral", "name": "Referral", "kind": "event", "detail": "Carries the question and relevant history."},
+      {"id": "triage-desk", "name": "Triage desk", "kind": "decision"},
+      {"id": "appointment", "name": "Appointment", "kind": "event"},
+      {"id": "specialist", "name": "Specialist", "kind": "process"},
+      {"id": "care-plan", "name": "Care plan", "kind": "store", "detail": "Records next steps and follow-up responsibilities."},
+      {"id": "follow-up", "name": "Follow-up", "kind": "process"}
+    ],
+    "edges": [
+      {"source": "primary-care", "target": "referral", "kind": "flow", "label": "requests opinion"},
+      {"source": "referral", "target": "triage-desk", "kind": "flow", "label": "supplies history"},
+      {"source": "triage-desk", "target": "appointment", "kind": "signal", "label": "allocates visit"},
+      {"source": "appointment", "target": "specialist", "kind": "flow", "label": "enables assessment"},
+      {"source": "specialist", "target": "care-plan", "kind": "flow", "label": "records advice"},
+      {"source": "care-plan", "target": "follow-up", "kind": "flow", "label": "guides review"},
+      {"source": "follow-up", "target": "primary-care", "kind": "feedback", "label": "returns findings"}
+    ]
+  },
+  {
+    "id": "card-settlement",
+    "name": "Card settlement",
+    "category": "society",
+    "description": "Authorisation and later settlement connect a merchant to a cardholder’s bank.",
+    "layout": "grouped",
+    "groups": [
+      {"id": "sale", "name": "Sale"},
+      {"id": "network", "name": "Network"},
+      {"id": "settlement", "name": "Settlement"},
+      {"id": "authorisation", "name": "Authorisation", "parent": "network"}
+    ],
+    "nodes": [
+      {"id": "cardholder", "name": "Cardholder", "kind": "entity", "group": "sale"},
+      {"id": "merchant", "name": "Merchant", "kind": "entity", "group": "sale"},
+      {"id": "acquirer", "name": "Acquirer", "kind": "hub", "detail": "Handles payment requests for the merchant.", "group": "network"},
+      {"id": "payment-network", "name": "Payment network", "kind": "hub", "group": "authorisation"},
+      {"id": "issuer", "name": "Issuer", "symbol": "building.columns", "kind": "decision", "concept": "bank", "group": "authorisation"},
+      {"id": "clearing-record", "name": "Clearing record", "kind": "store", "detail": "Records captured transactions for settlement.", "group": "settlement"},
+      {"id": "merchant-account", "name": "Merchant account", "kind": "store", "group": "settlement"}
+    ],
+    "edges": [
+      {"source": "cardholder", "target": "merchant", "kind": "flow", "label": "presents payment"},
+      {"source": "merchant", "target": "acquirer", "kind": "flow", "label": "requests authorisation"},
+      {"source": "acquirer", "target": "payment-network", "kind": "flow", "label": "routes request"},
+      {"source": "payment-network", "target": "issuer", "kind": "flow", "label": "seeks approval"},
+      {"source": "issuer", "target": "merchant", "kind": "signal", "label": "returns decision"},
+      {"source": "merchant", "target": "clearing-record", "kind": "flow", "label": "submits capture"},
+      {"source": "clearing-record", "target": "acquirer", "kind": "flow", "label": "determines settlement"},
+      {"source": "acquirer", "target": "merchant-account", "kind": "flow", "label": "credits proceeds"}
+    ]
+  },
+  {
+    "id": "market-price-feedback",
+    "name": "Market price feedback",
+    "category": "society",
+    "description": "Price changes influence supply and demand and alter the balance of a market.",
+    "layout": "cycle",
+    "groups": [],
+    "nodes": [
+      {"id": "market-price", "name": "Market price", "kind": "sensor"},
+      {"id": "producer-decision", "name": "Producer decision", "kind": "decision"},
+      {"id": "output", "name": "Output", "kind": "entity"},
+      {"id": "available-supply", "name": "Available supply", "symbol": "shippingbox", "kind": "store", "detail": "Holds goods that can be offered to buyers.", "concept": "inventory"},
+      {"id": "buyer-demand", "name": "Buyer demand", "kind": "entity"},
+      {"id": "scarcity-signal", "name": "Scarcity signal", "kind": "sensor", "detail": "Reflects the balance of demand and available stock."}
+    ],
+    "edges": [
+      {"source": "market-price", "target": "producer-decision", "kind": "signal", "label": "informs production"},
+      {"source": "producer-decision", "target": "output", "kind": "flow", "label": "schedules output"},
+      {"source": "output", "target": "available-supply", "kind": "flow", "label": "adds goods"},
+      {"source": "market-price", "target": "buyer-demand", "kind": "inhibition", "label": "discourages purchases"},
+      {"source": "buyer-demand", "target": "scarcity-signal", "kind": "flow", "label": "raises scarcity"},
+      {"source": "available-supply", "target": "scarcity-signal", "kind": "inhibition", "label": "eases scarcity"},
+      {"source": "scarcity-signal", "target": "market-price", "kind": "feedback", "label": "changes price"}
+    ]
+  },
+  {
+    "id": "municipal-waste-collection",
+    "name": "Municipal waste collection",
+    "category": "society",
+    "description": "Collection routes converge at a transfer station before materials are sorted.",
+    "layout": "tree",
+    "groups": [],
+    "nodes": [
+      {"id": "household-bins", "name": "Household bins", "kind": "store"},
+      {"id": "collection-route", "name": "Collection route", "symbol": "shippingbox", "kind": "process", "concept": "freight"},
+      {"id": "transfer-station", "name": "Transfer station", "kind": "hub", "detail": "Consolidates smaller collections into bulk loads."},
+      {"id": "sorting-line", "name": "Sorting line", "kind": "process", "detail": "Separates materials for different destinations."},
+      {"id": "recyclables", "name": "Recyclables", "kind": "entity"},
+      {"id": "organic-waste", "name": "Organic waste", "kind": "entity"},
+      {"id": "residual-waste", "name": "Residual waste", "kind": "entity"},
+      {"id": "compost-site", "name": "Compost site", "symbol": "leaf", "kind": "process", "concept": "decomposition"}
+    ],
+    "edges": [
+      {"source": "household-bins", "target": "collection-route", "kind": "flow", "label": "supplies material"},
+      {"source": "collection-route", "target": "transfer-station", "kind": "flow", "label": "unloads collection"},
+      {"source": "transfer-station", "target": "sorting-line", "kind": "flow", "label": "feeds stream"},
+      {"source": "sorting-line", "target": "recyclables", "kind": "flow", "label": "recovers materials"},
+      {"source": "sorting-line", "target": "organic-waste", "kind": "flow", "label": "separates organics"},
+      {"source": "sorting-line", "target": "residual-waste", "kind": "flow", "label": "sends residue"},
+      {"source": "organic-waste", "target": "compost-site", "kind": "flow", "label": "supplies compost feed"}
+    ]
+  },
+  {
+    "id": "news-production",
+    "name": "News production",
+    "category": "society",
+    "description": "Reporting, verification and editing turn a tip into a published story.",
+    "layout": "grouped",
+    "groups": [
+      {"id": "reporting", "name": "Reporting"},
+      {"id": "editing", "name": "Editing"},
+      {"id": "publication", "name": "Publication"}
+    ],
+    "nodes": [
+      {"id": "source-tip", "name": "Source tip", "kind": "event", "group": "reporting"},
+      {"id": "reporter", "name": "Reporter", "kind": "process", "group": "reporting"},
+      {"id": "documents", "name": "Documents", "kind": "store", "group": "reporting"},
+      {"id": "fact-checker", "name": "Fact checker", "kind": "sensor", "detail": "Checks factual claims against independent evidence.", "group": "editing"},
+      {"id": "editor", "name": "Editor", "kind": "decision", "detail": "Decides when a story is ready for publication.", "group": "editing"},
+      {"id": "published-story", "name": "Published story", "kind": "entity", "group": "publication"},
+      {"id": "reader-response", "name": "Reader response", "kind": "event", "group": "publication"}
+    ],
+    "edges": [
+      {"source": "source-tip", "target": "reporter", "kind": "signal", "label": "prompts enquiry"},
+      {"source": "documents", "target": "reporter", "kind": "flow", "label": "supplies evidence"},
+      {"source": "reporter", "target": "fact-checker", "kind": "flow", "label": "submits claims"},
+      {"source": "fact-checker", "target": "editor", "kind": "signal", "label": "flags corrections"},
+      {"source": "reporter", "target": "editor", "kind": "flow", "label": "delivers copy"},
+      {"source": "editor", "target": "published-story", "kind": "flow", "label": "approves publication"},
+      {"source": "published-story", "target": "reader-response", "kind": "flow", "label": "invites response"},
+      {"source": "reader-response", "target": "reporter", "kind": "feedback", "label": "supplies new leads"}
+    ]
+  },
+  {
+    "id": "consensus-meeting",
+    "name": "Consensus meeting",
+    "category": "society",
+    "description": "A group tests a proposal against concerns before recording a shared decision.",
+    "layout": "cycle",
+    "groups": [],
+    "nodes": [
+      {"id": "proposal", "name": "Proposal", "kind": "entity"},
+      {"id": "facilitator", "name": "Facilitator", "kind": "hub", "detail": "Makes room for concerns to be heard."},
+      {"id": "discussion", "name": "Discussion", "kind": "process"},
+      {"id": "concern", "name": "Concern", "kind": "event"},
+      {"id": "revision", "name": "Revision", "kind": "process"},
+      {"id": "consent-check", "name": "Consent check", "kind": "decision", "detail": "Tests whether the group can accept the proposal."},
+      {"id": "decision-record", "name": "Decision record", "kind": "store"}
+    ],
+    "edges": [
+      {"source": "proposal", "target": "facilitator", "kind": "flow", "label": "sets agenda"},
+      {"source": "facilitator", "target": "discussion", "kind": "signal", "label": "invites views"},
+      {"source": "discussion", "target": "concern", "kind": "flow", "label": "surfaces concern"},
+      {"source": "concern", "target": "revision", "kind": "flow", "label": "guides changes"},
+      {"source": "revision", "target": "proposal", "kind": "feedback", "label": "updates proposal"},
+      {"source": "discussion", "target": "consent-check", "kind": "flow", "label": "informs check"},
+      {"source": "consent-check", "target": "decision-record", "kind": "flow", "label": "records agreement"},
+      {"source": "consent-check", "target": "revision", "kind": "signal", "label": "requests revision"}
+    ]
+  },
+  {
+    "id": "library-lending",
+    "name": "Library lending",
+    "category": "society",
+    "description": "A physical copy circulates among shelves, borrowers and a reservation queue.",
+    "layout": "cycle",
+    "groups": [],
+    "nodes": [
+      {"id": "shelf-stock", "name": "Shelf stock", "symbol": "shippingbox", "kind": "store", "concept": "inventory"},
+      {"id": "catalogue", "name": "Catalogue", "symbol": "cylinder", "kind": "store", "concept": "database"},
+      {"id": "borrower", "name": "Borrower", "kind": "entity"},
+      {"id": "loan-record", "name": "Loan record", "kind": "store", "detail": "Connects a copy, a borrower and a due date."},
+      {"id": "return-desk", "name": "Return desk", "kind": "process"},
+      {"id": "reservation-queue", "name": "Reservation queue", "symbol": "square.stack.3d.up", "kind": "store", "detail": "Holds requests for the next available copy.", "concept": "queue"},
+      {"id": "collection-shelf", "name": "Collection shelf", "kind": "store"}
+    ],
+    "edges": [
+      {"source": "shelf-stock", "target": "catalogue", "kind": "signal", "label": "lists availability"},
+      {"source": "catalogue", "target": "borrower", "kind": "signal", "label": "locates copy"},
+      {"source": "shelf-stock", "target": "borrower", "kind": "flow", "label": "lends copy"},
+      {"source": "borrower", "target": "loan-record", "kind": "flow", "label": "opens loan"},
+      {"source": "borrower", "target": "return-desk", "kind": "flow", "label": "returns copy"},
+      {"source": "return-desk", "target": "loan-record", "kind": "signal", "label": "closes loan"},
+      {"source": "return-desk", "target": "shelf-stock", "kind": "flow", "label": "reshelves copy"},
+      {"source": "reservation-queue", "target": "return-desk", "kind": "signal", "label": "flags next reader"},
+      {"source": "return-desk", "target": "collection-shelf", "kind": "flow", "label": "holds reserved copy"}
+    ]
+  },
+  {
+    "id": "port-logistics",
+    "name": "Port logistics",
+    "category": "society",
+    "description": "A container is transferred between sea, terminal storage and inland transport.",
+    "layout": "grouped",
+    "groups": [
+      {"id": "quayside", "name": "Quayside"},
+      {"id": "terminal", "name": "Terminal"},
+      {"id": "inland", "name": "Inland"}
+    ],
+    "nodes": [
+      {"id": "vessel", "name": "Vessel", "kind": "entity", "group": "quayside"},
+      {"id": "berth-planner", "name": "Berth planner", "kind": "decision", "detail": "Reserves quay space and an unloading window.", "group": "quayside"},
+      {"id": "quay-crane", "name": "Quay crane", "kind": "process", "group": "quayside"},
+      {"id": "yard-slot", "name": "Yard slot", "kind": "store", "detail": "Holds the container until its next movement.", "group": "terminal"},
+      {"id": "release-record", "name": "Release record", "kind": "store", "group": "terminal"},
+      {"id": "gate-operator", "name": "Gate operator", "kind": "decision", "group": "inland"},
+      {"id": "inland-carrier", "name": "Inland carrier", "symbol": "shippingbox", "kind": "entity", "concept": "freight", "group": "inland"}
+    ],
+    "edges": [
+      {"source": "berth-planner", "target": "vessel", "kind": "signal", "label": "assigns berth"},
+      {"source": "vessel", "target": "quay-crane", "kind": "flow", "label": "presents container"},
+      {"source": "quay-crane", "target": "yard-slot", "kind": "flow", "label": "stacks container"},
+      {"source": "release-record", "target": "gate-operator", "kind": "signal", "label": "authorises release"},
+      {"source": "yard-slot", "target": "gate-operator", "kind": "flow", "label": "stages pickup"},
+      {"source": "gate-operator", "target": "inland-carrier", "kind": "flow", "label": "releases load"},
+      {"source": "inland-carrier", "target": "berth-planner", "kind": "feedback", "label": "reports gate demand"}
+    ]
+  },
+  {
+    "id": "food-cooperative",
+    "name": "Food cooperative",
+    "category": "society",
+    "description": "Member demand and farm availability shape a shared weekly order.",
+    "layout": "cycle",
+    "groups": [],
+    "nodes": [
+      {"id": "member-orders", "name": "Member orders", "kind": "store"},
+      {"id": "coordinator", "name": "Coordinator", "kind": "hub", "detail": "Combines household requests into one order."},
+      {"id": "growers", "name": "Growers", "kind": "entity"},
+      {"id": "harvest", "name": "Harvest", "symbol": "leaf", "kind": "entity"},
+      {"id": "packing-station", "name": "Packing station", "kind": "process", "detail": "Divides the harvest into member shares."},
+      {"id": "collection-point", "name": "Collection point", "kind": "entity"},
+      {"id": "member-feedback", "name": "Member feedback", "kind": "event"}
+    ],
+    "edges": [
+      {"source": "member-orders", "target": "coordinator", "kind": "flow", "label": "aggregates demand"},
+      {"source": "coordinator", "target": "growers", "kind": "signal", "label": "requests produce"},
+      {"source": "growers", "target": "harvest", "kind": "flow", "label": "supplies crop"},
+      {"source": "harvest", "target": "packing-station", "kind": "flow", "label": "delivers produce"},
+      {"source": "member-orders", "target": "packing-station", "kind": "signal", "label": "specifies boxes"},
+      {"source": "packing-station", "target": "collection-point", "kind": "flow", "label": "sends shares"},
+      {"source": "collection-point", "target": "member-feedback", "kind": "flow", "label": "collects responses"},
+      {"source": "member-feedback", "target": "coordinator", "kind": "feedback", "label": "shapes next order"}
+    ]
+  },
+  {
+    "id": "postal-delivery",
+    "name": "Postal delivery",
+    "category": "society",
+    "description": "Local collections merge for sorting before delivery routes fan out.",
+    "layout": "tree",
+    "groups": [],
+    "nodes": [
+      {"id": "postbox", "name": "Postbox", "kind": "store"},
+      {"id": "collection-van", "name": "Collection van", "symbol": "shippingbox", "kind": "entity", "concept": "freight"},
+      {"id": "origin-depot", "name": "Origin depot", "kind": "hub"},
+      {"id": "sorting-centre", "name": "Sorting centre", "kind": "process", "detail": "Directs mail towards the correct local depot."},
+      {"id": "destination-depot", "name": "Destination depot", "kind": "hub"},
+      {"id": "delivery-round", "name": "Delivery round", "kind": "process", "detail": "Arranges stops for the final delivery."},
+      {"id": "recipient", "name": "Recipient", "kind": "entity"}
+    ],
+    "edges": [
+      {"source": "postbox", "target": "collection-van", "kind": "flow", "label": "supplies letters"},
+      {"source": "collection-van", "target": "origin-depot", "kind": "flow", "label": "brings mail"},
+      {"source": "origin-depot", "target": "sorting-centre", "kind": "flow", "label": "sends batches"},
+      {"source": "sorting-centre", "target": "destination-depot", "kind": "flow", "label": "sorts by postcode"},
+      {"source": "destination-depot", "target": "delivery-round", "kind": "flow", "label": "assigns addresses"},
+      {"source": "delivery-round", "target": "recipient", "kind": "flow", "label": "delivers mail"},
+      {"source": "sorting-centre", "target": "origin-depot", "kind": "flow", "label": "returns undeliverable mail"}
+    ]
+  },
+  {
+    "id": "urban-water-services",
+    "name": "Urban water services",
+    "category": "society",
+    "description": "A utility links clean-water supply, household use and wastewater collection.",
+    "layout": "grouped",
+    "groups": [
+      {"id": "service", "name": "Service"},
+      {"id": "household", "name": "Household"},
+      {"id": "return", "name": "Return"}
+    ],
+    "nodes": [
+      {"id": "water-utility", "name": "Water utility", "kind": "hub", "group": "service"},
+      {"id": "supply-main", "name": "Supply main", "symbol": "drop", "kind": "entity", "concept": "water-main", "group": "service"},
+      {"id": "customer-meter", "name": "Customer meter", "kind": "sensor", "detail": "Measures the volume supplied to a household.", "group": "household"},
+      {"id": "household-use", "name": "Household use", "kind": "process", "group": "household"},
+      {"id": "sewer-network", "name": "Sewer network", "kind": "hub", "concept": "wastewater", "group": "return"},
+      {"id": "treatment-plant", "name": "Treatment plant", "kind": "process", "detail": "Removes contaminants before water is returned.", "group": "return"},
+      {"id": "river-outfall", "name": "River outfall", "symbol": "water.waves", "kind": "entity", "concept": "river", "group": "return"}
+    ],
+    "edges": [
+      {"source": "water-utility", "target": "supply-main", "kind": "signal", "label": "maintains service"},
+      {"source": "supply-main", "target": "customer-meter", "kind": "flow", "label": "delivers water"},
+      {"source": "customer-meter", "target": "household-use", "kind": "flow", "label": "supplies household"},
+      {"source": "customer-meter", "target": "water-utility", "kind": "signal", "label": "reports use"},
+      {"source": "household-use", "target": "sewer-network", "kind": "flow", "label": "drains wastewater"},
+      {"source": "sewer-network", "target": "treatment-plant", "kind": "flow", "label": "collects flow"},
+      {"source": "treatment-plant", "target": "river-outfall", "kind": "flow", "label": "returns treated water"}
+    ]
+  },
+  {
+    "id": "bank-lending",
+    "name": "Bank lending",
+    "category": "society",
+    "description": "Credit assessment, disbursement and repayment connect borrowers and a bank’s balance sheet.",
+    "layout": "cycle",
+    "groups": [],
+    "nodes": [
+      {"id": "borrower", "name": "Borrower", "kind": "entity"},
+      {"id": "application", "name": "Application", "kind": "event"},
+      {"id": "credit-assessment", "name": "Credit assessment", "kind": "decision", "detail": "Weighs a borrower’s ability to repay."},
+      {"id": "loan-account", "name": "Loan account", "symbol": "building.columns", "kind": "store", "concept": "bank"},
+      {"id": "deposit-account", "name": "Deposit account", "kind": "store"},
+      {"id": "repayment", "name": "Repayment", "kind": "event"},
+      {"id": "loan-balance", "name": "Loan balance", "kind": "sensor", "detail": "Tracks the principal still outstanding."}
+    ],
+    "edges": [
+      {"source": "borrower", "target": "application", "kind": "flow", "label": "requests credit"},
+      {"source": "application", "target": "credit-assessment", "kind": "flow", "label": "supplies information"},
+      {"source": "credit-assessment", "target": "loan-account", "kind": "signal", "label": "authorises loan"},
+      {"source": "loan-account", "target": "deposit-account", "kind": "flow", "label": "credits funds"},
+      {"source": "borrower", "target": "repayment", "kind": "flow", "label": "makes payment"},
+      {"source": "repayment", "target": "loan-balance", "kind": "inhibition", "label": "reduces principal"},
+      {"source": "loan-account", "target": "loan-balance", "kind": "flow", "label": "records obligation"},
+      {"source": "loan-balance", "target": "credit-assessment", "kind": "feedback", "label": "informs exposure"}
+    ]
+  },
+  {
+    "id": "theatre-production",
+    "name": "Theatre production",
+    "category": "society",
+    "description": "A rehearsal process aligns performers, technical departments and cues.",
+    "layout": "mesh",
+    "groups": [],
+    "nodes": [
+      {"id": "script", "name": "Script", "kind": "store"},
+      {"id": "director", "name": "Director", "kind": "decision"},
+      {"id": "cast", "name": "Cast", "kind": "entity"},
+      {"id": "stage-manager", "name": "Stage manager", "symbol": "antenna.radiowaves.left.and.right", "kind": "hub", "detail": "Times technical cues against the performance.", "concept": "dispatch"},
+      {"id": "lighting-desk", "name": "Lighting desk", "kind": "process", "detail": "Changes the stage lighting on cue."},
+      {"id": "sound-desk", "name": "Sound desk", "symbol": "speaker.wave.2", "kind": "process", "concept": "sound-output"},
+      {"id": "performance", "name": "Performance", "kind": "event"}
+    ],
+    "edges": [
+      {"source": "script", "target": "director", "kind": "flow", "label": "supplies text"},
+      {"source": "director", "target": "cast", "kind": "signal", "label": "shapes interpretation"},
+      {"source": "script", "target": "stage-manager", "kind": "flow", "label": "provides cue points"},
+      {"source": "cast", "target": "stage-manager", "kind": "signal", "label": "signals readiness"},
+      {"source": "stage-manager", "target": "lighting-desk", "kind": "signal", "label": "calls lighting cue"},
+      {"source": "stage-manager", "target": "sound-desk", "kind": "signal", "label": "calls sound cue"},
+      {"source": "cast", "target": "performance", "kind": "flow", "label": "performs scenes"},
+      {"source": "lighting-desk", "target": "performance", "kind": "flow", "label": "lights stage"},
+      {"source": "sound-desk", "target": "performance", "kind": "flow", "label": "supplies sound"}
+    ]
+  },
+  {
+    "id": "school-timetabling",
+    "name": "School timetabling",
+    "category": "society",
+    "description": "Availability, subjects and room constraints meet in a teaching timetable.",
+    "layout": "radial",
+    "groups": [],
+    "nodes": [
+      {"id": "timetable", "name": "Timetable", "kind": "hub"},
+      {"id": "teacher-availability", "name": "Teacher availability", "kind": "store"},
+      {"id": "room-inventory", "name": "Room inventory", "symbol": "shippingbox", "kind": "store", "concept": "inventory"},
+      {"id": "subject-requirements", "name": "Subject requirements", "kind": "entity"},
+      {"id": "constraint-solver", "name": "Constraint solver", "kind": "process", "detail": "Searches for assignments that satisfy constraints."},
+      {"id": "conflict-check", "name": "Conflict check", "kind": "decision", "detail": "Finds overlaps between rooms, staff and classes."},
+      {"id": "class-session", "name": "Class session", "kind": "event"}
+    ],
+    "edges": [
+      {"source": "teacher-availability", "target": "constraint-solver", "kind": "flow", "label": "limits assignments"},
+      {"source": "room-inventory", "target": "constraint-solver", "kind": "flow", "label": "limits rooms"},
+      {"source": "subject-requirements", "target": "constraint-solver", "kind": "flow", "label": "specifies hours"},
+      {"source": "constraint-solver", "target": "timetable", "kind": "flow", "label": "proposes slots"},
+      {"source": "timetable", "target": "conflict-check", "kind": "flow", "label": "exposes clashes"},
+      {"source": "conflict-check", "target": "constraint-solver", "kind": "feedback", "label": "requests adjustment"},
+      {"source": "timetable", "target": "class-session", "kind": "signal", "label": "schedules lesson"}
+    ]
+  },
+  {
+    "id": "civic-budgeting",
+    "name": "Civic budgeting",
+    "category": "society",
+    "description": "A council allocates expected revenue, funds services and reviews outcomes.",
+    "layout": "cycle",
+    "groups": [],
+    "nodes": [
+      {"id": "revenue-forecast", "name": "Revenue forecast", "kind": "sensor"},
+      {"id": "budget-proposal", "name": "Budget proposal", "kind": "entity"},
+      {"id": "public-consultation", "name": "Public consultation", "kind": "process", "detail": "Collects views on proposed priorities."},
+      {"id": "council-vote", "name": "Council vote", "kind": "decision"},
+      {"id": "department-allocation", "name": "Department allocation", "kind": "store", "detail": "Sets the funding available to each service."},
+      {"id": "service-delivery", "name": "Service delivery", "kind": "process"},
+      {"id": "outcome-review", "name": "Outcome review", "kind": "sensor"}
+    ],
+    "edges": [
+      {"source": "revenue-forecast", "target": "budget-proposal", "kind": "signal", "label": "sets envelope"},
+      {"source": "budget-proposal", "target": "public-consultation", "kind": "flow", "label": "invites comments"},
+      {"source": "public-consultation", "target": "council-vote", "kind": "signal", "label": "informs debate"},
+      {"source": "council-vote", "target": "department-allocation", "kind": "signal", "label": "authorises spending"},
+      {"source": "department-allocation", "target": "service-delivery", "kind": "flow", "label": "funds services"},
+      {"source": "service-delivery", "target": "outcome-review", "kind": "flow", "label": "supplies results"},
+      {"source": "outcome-review", "target": "budget-proposal", "kind": "feedback", "label": "informs next budget"}
+    ]
+  },
+  {
+    "id": "bicycle-sharing",
+    "name": "Bicycle sharing",
+    "category": "society",
+    "description": "Trips move bicycles between stations and redistribution restores availability.",
+    "layout": "mesh",
+    "groups": [],
+    "nodes": [
+      {"id": "origin-station", "name": "Origin station", "symbol": "shippingbox", "kind": "store", "concept": "inventory"},
+      {"id": "rider", "name": "Rider", "kind": "entity"},
+      {"id": "trip", "name": "Trip", "kind": "event"},
+      {"id": "destination-station", "name": "Destination station", "kind": "store"},
+      {"id": "dock-sensor", "name": "Dock sensor", "symbol": "waveform.path.ecg", "kind": "sensor", "detail": "Reports the number of occupied docks.", "concept": "telemetry"},
+      {"id": "rebalancing-desk", "name": "Rebalancing desk", "kind": "decision", "detail": "Chooses where to move bicycles between trips."},
+      {"id": "cargo-vehicle", "name": "Cargo vehicle", "symbol": "shippingbox", "kind": "entity", "concept": "freight"}
+    ],
+    "edges": [
+      {"source": "origin-station", "target": "rider", "kind": "flow", "label": "releases bike"},
+      {"source": "rider", "target": "trip", "kind": "flow", "label": "starts journey"},
+      {"source": "trip", "target": "destination-station", "kind": "flow", "label": "returns bike"},
+      {"source": "destination-station", "target": "dock-sensor", "kind": "flow", "label": "changes occupancy"},
+      {"source": "origin-station", "target": "dock-sensor", "kind": "flow", "label": "changes occupancy"},
+      {"source": "dock-sensor", "target": "rebalancing-desk", "kind": "signal", "label": "reports imbalance"},
+      {"source": "rebalancing-desk", "target": "cargo-vehicle", "kind": "signal", "label": "assigns pickup"},
+      {"source": "cargo-vehicle", "target": "origin-station", "kind": "flow", "label": "delivers bicycles"},
+      {"source": "destination-station", "target": "cargo-vehicle", "kind": "flow", "label": "supplies surplus"}
+    ]
+  },
+  {
+    "id": "airport-baggage",
+    "name": "Airport baggage",
+    "category": "society",
+    "description": "Bag tags and flight assignments guide bags from check-in to an aircraft hold.",
+    "layout": "flow",
+    "groups": [],
+    "nodes": [
+      {"id": "check-in", "name": "Check-in", "kind": "process"},
+      {"id": "bag-tag", "name": "Bag tag", "kind": "entity"},
+      {"id": "scanner", "name": "Scanner", "symbol": "magnifyingglass", "kind": "sensor", "detail": "Reads the identifier attached at check-in.", "concept": "inspection"},
+      {"id": "sort-controller", "name": "Sort controller", "kind": "decision"},
+      {"id": "conveyor", "name": "Conveyor", "kind": "process"},
+      {"id": "make-up-area", "name": "Make-up area", "kind": "store", "detail": "Groups bags for loading onto the same flight."},
+      {"id": "aircraft-hold", "name": "Aircraft hold", "kind": "store"}
+    ],
+    "edges": [
+      {"source": "check-in", "target": "bag-tag", "kind": "flow", "label": "prints routing"},
+      {"source": "bag-tag", "target": "scanner", "kind": "flow", "label": "supplies identifier"},
+      {"source": "scanner", "target": "sort-controller", "kind": "signal", "label": "reports bag"},
+      {"source": "sort-controller", "target": "conveyor", "kind": "signal", "label": "directs transfer"},
+      {"source": "conveyor", "target": "make-up-area", "kind": "flow", "label": "delivers bag"},
+      {"source": "make-up-area", "target": "aircraft-hold", "kind": "flow", "label": "loads flight"},
+      {"source": "check-in", "target": "sort-controller", "kind": "signal", "label": "supplies flight plan"}
+    ]
+  },
+  {
+    "id": "research-publication",
+    "name": "Research publication",
+    "category": "society",
+    "description": "A manuscript moves through editorial assessment, peer review and revision.",
+    "layout": "cycle",
+    "groups": [],
+    "nodes": [
+      {"id": "manuscript", "name": "Manuscript", "kind": "entity"},
+      {"id": "editor", "name": "Editor", "kind": "decision", "detail": "Selects reviewers and weighs their assessments."},
+      {"id": "reviewers", "name": "Reviewers", "kind": "entity"},
+      {"id": "review-reports", "name": "Review reports", "kind": "store", "detail": "Record concerns and requests for clarification."},
+      {"id": "revision", "name": "Revision", "kind": "process"},
+      {"id": "publication", "name": "Publication", "kind": "event"},
+      {"id": "research-community", "name": "Research community", "kind": "entity"}
+    ],
+    "edges": [
+      {"source": "manuscript", "target": "editor", "kind": "flow", "label": "requests review"},
+      {"source": "editor", "target": "reviewers", "kind": "signal", "label": "invites assessment"},
+      {"source": "reviewers", "target": "review-reports", "kind": "flow", "label": "records critique"},
+      {"source": "review-reports", "target": "editor", "kind": "signal", "label": "informs decision"},
+      {"source": "review-reports", "target": "revision", "kind": "flow", "label": "guides changes"},
+      {"source": "revision", "target": "manuscript", "kind": "feedback", "label": "updates manuscript"},
+      {"source": "editor", "target": "publication", "kind": "signal", "label": "accepts work"},
+      {"source": "publication", "target": "research-community", "kind": "flow", "label": "shares findings"}
+    ]
+  },
+  {
+    "id": "museum-collections",
+    "name": "Museum collections",
+    "category": "society",
+    "description": "A collection record connects an object with its provenance, care and exhibition.",
+    "layout": "tree",
+    "groups": [],
+    "nodes": [
+      {"id": "collection-record", "name": "Collection record", "symbol": "cylinder", "kind": "hub", "concept": "database"},
+      {"id": "accession", "name": "Accession", "kind": "event"},
+      {"id": "object", "name": "Object", "kind": "entity"},
+      {"id": "provenance", "name": "Provenance", "kind": "store", "detail": "Records an object’s ownership and collection history."},
+      {"id": "condition-survey", "name": "Condition survey", "symbol": "magnifyingglass", "kind": "sensor", "detail": "Documents changes in an object’s physical state.", "concept": "inspection"},
+      {"id": "conservator", "name": "Conservator", "kind": "process"},
+      {"id": "exhibition", "name": "Exhibition", "kind": "event"}
+    ],
+    "edges": [
+      {"source": "accession", "target": "collection-record", "kind": "flow", "label": "creates record"},
+      {"source": "collection-record", "target": "object", "kind": "dependency", "label": "identifies object"},
+      {"source": "provenance", "target": "collection-record", "kind": "flow", "label": "documents origin"},
+      {"source": "object", "target": "condition-survey", "kind": "flow", "label": "presents condition"},
+      {"source": "condition-survey", "target": "conservator", "kind": "signal", "label": "guides care"},
+      {"source": "conservator", "target": "collection-record", "kind": "feedback", "label": "records treatment"},
+      {"source": "collection-record", "target": "exhibition", "kind": "signal", "label": "informs selection"},
+      {"source": "object", "target": "exhibition", "kind": "flow", "label": "goes on display"}
+    ]
+  },
+  {
+    "id": "community-radio",
+    "name": "Community radio",
+    "category": "society",
+    "description": "Contributors and music sources meet at a mixing desk before reaching listeners.",
+    "layout": "flow",
+    "groups": [],
+    "nodes": [
+      {"id": "presenter", "name": "Presenter", "kind": "entity"},
+      {"id": "microphone", "name": "Microphone", "symbol": "waveform", "kind": "sensor", "concept": "sound"},
+      {"id": "music-library", "name": "Music library", "kind": "store"},
+      {"id": "mixing-desk", "name": "Mixing desk", "kind": "hub", "detail": "Combines speech and recorded audio into a programme."},
+      {"id": "transmitter", "name": "Transmitter", "kind": "process", "detail": "Sends the programme to nearby receivers."},
+      {"id": "listener", "name": "Listener", "kind": "entity"},
+      {"id": "programme-request", "name": "Programme request", "kind": "event"}
+    ],
+    "edges": [
+      {"source": "presenter", "target": "microphone", "kind": "flow", "label": "speaks programme"},
+      {"source": "microphone", "target": "mixing-desk", "kind": "flow", "label": "supplies voice"},
+      {"source": "music-library", "target": "mixing-desk", "kind": "flow", "label": "supplies tracks"},
+      {"source": "mixing-desk", "target": "transmitter", "kind": "flow", "label": "sends mix"},
+      {"source": "transmitter", "target": "listener", "kind": "flow", "label": "broadcasts signal"},
+      {"source": "listener", "target": "programme-request", "kind": "flow", "label": "suggests track"},
+      {"source": "programme-request", "target": "presenter", "kind": "feedback", "label": "shapes programme"}
+    ]
+  },
+  {
+    "id": "bus-service-regulation",
+    "name": "Bus service regulation",
+    "category": "society",
+    "description": "Controllers use spacing between buses to reduce bunching.",
+    "layout": "cycle",
+    "groups": [],
+    "nodes": [
+      {"id": "bus-location", "name": "Bus location", "symbol": "location", "kind": "sensor", "concept": "position"},
+      {"id": "headway-estimate", "name": "Headway estimate", "kind": "sensor", "detail": "Measures the gap between successive services."},
+      {"id": "control-desk", "name": "Control desk", "symbol": "antenna.radiowaves.left.and.right", "kind": "decision", "concept": "dispatch"},
+      {"id": "holding-instruction", "name": "Holding instruction", "kind": "event", "detail": "Delays departure to restore more even spacing."},
+      {"id": "stop-dwell", "name": "Stop dwell", "kind": "process"},
+      {"id": "passenger-queue", "name": "Passenger queue", "symbol": "square.stack.3d.up", "kind": "store", "concept": "queue"},
+      {"id": "departure", "name": "Departure", "kind": "event"}
+    ],
+    "edges": [
+      {"source": "bus-location", "target": "headway-estimate", "kind": "flow", "label": "supplies positions"},
+      {"source": "headway-estimate", "target": "control-desk", "kind": "signal", "label": "reports spacing"},
+      {"source": "control-desk", "target": "holding-instruction", "kind": "signal", "label": "asks bus to wait"},
+      {"source": "holding-instruction", "target": "stop-dwell", "kind": "signal", "label": "extends dwell"},
+      {"source": "passenger-queue", "target": "stop-dwell", "kind": "flow", "label": "adds boarding time"},
+      {"source": "stop-dwell", "target": "departure", "kind": "flow", "label": "sets departure time"},
+      {"source": "departure", "target": "headway-estimate", "kind": "feedback", "label": "changes spacing"},
+      {"source": "departure", "target": "passenger-queue", "kind": "inhibition", "label": "carries passengers"}
+    ]
+  },
+  {
+    "id": "community-seed-library",
+    "name": "Community seed library",
+    "category": "society",
+    "description": "Growers borrow seed and return a portion of the next harvest to a shared collection.",
+    "layout": "cycle",
+    "groups": [],
+    "nodes": [
+      {"id": "seed-bank", "name": "Seed bank", "symbol": "shippingbox", "kind": "store", "detail": "Stores documented seed lots for local growers.", "concept": "inventory"},
+      {"id": "grower", "name": "Grower", "kind": "entity"},
+      {"id": "garden-plot", "name": "Garden plot", "kind": "entity"},
+      {"id": "flowers", "name": "Flowers", "kind": "entity"},
+      {"id": "pollinators", "name": "Pollinators", "symbol": "camera.macro", "kind": "entity", "concept": "pollinator"},
+      {"id": "seed-harvest", "name": "Seed harvest", "kind": "event"},
+      {"id": "seed-steward", "name": "Seed steward", "kind": "process", "detail": "Checks returned seed before adding it to stock."}
+    ],
+    "edges": [
+      {"source": "seed-bank", "target": "grower", "kind": "flow", "label": "lends seed"},
+      {"source": "grower", "target": "garden-plot", "kind": "flow", "label": "sows seed"},
+      {"source": "garden-plot", "target": "flowers", "kind": "flow", "label": "grows flowers"},
+      {"source": "flowers", "target": "pollinators", "kind": "flow", "label": "supplies nectar"},
+      {"source": "pollinators", "target": "flowers", "kind": "flow", "label": "carries pollen"},
+      {"source": "flowers", "target": "seed-harvest", "kind": "flow", "label": "sets seed"},
+      {"source": "seed-harvest", "target": "seed-steward", "kind": "flow", "label": "returns seed lot"},
+      {"source": "seed-steward", "target": "seed-bank", "kind": "flow", "label": "cleans and stores"}
+    ]
+  }
+]
