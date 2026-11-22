@@ -5,7 +5,6 @@ import Testing
 private func trafficCity(_ convention: TrafficConvention = .rightHand) -> City {
     var city = City(trafficConvention: convention)
     city.vehicles = []
-    city.map.airport = nil
     for plot in CityMap.plots {
         city.map[plot] = Lot(ground: (plot.y == 19 && (20...28).contains(plot.x))
                              || (plot.x == 24 && (15...23).contains(plot.y)) ? .road : .grass)

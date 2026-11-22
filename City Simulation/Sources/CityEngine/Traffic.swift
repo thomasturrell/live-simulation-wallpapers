@@ -186,17 +186,6 @@ extension City {
         dispatchJourney(from: start, to: end, freight: freight, underway: underway)
     }
 
-    mutating func dispatchAirportTraffic(toAirport: Bool) {
-        guard let terminal = map.airport?.terminal, let road = map.roadAccess(at: terminal) else { return }
-        let airport = Address(lot: terminal, road: road, zone: .civic)
-        let addresses = trafficAddresses().filter { $0.zone == .homes || $0.zone == .commerce }
-        guard !addresses.isEmpty else { return }
-        for _ in 0..<3 {
-            let city = addresses[random.pick(addresses.count)]
-            dispatchJourney(from: toAirport ? city : airport, to: toAirport ? airport : city, freight: false)
-        }
-    }
-
     private mutating func dispatchJourney(from start: Address, to end: Address, freight: Bool, underway: Bool = false) {
         guard vehicles.count < 60 else { return }
         guard let route = map.route(from: start.road, to: end.road, origin: start.lot, destination: end.lot,

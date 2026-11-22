@@ -2,7 +2,7 @@
 
 A little city with a life of its own. Neighbourhoods grow, cars cross the river and aircraft pass over the skyline. City Simulation brings an evolving miniature world to your Mac, with something new to spot each time you visit.
 
-![A miniature city in daylight, with riverside towers, leafy neighbourhoods, bridges and an airport on the outskirts](assets/city-day.webp)
+![A passenger plane flying over a miniature city with riverside towers, leafy neighbourhoods and bridges](assets/city-day.webp)
 
 **[Download for macOS](https://github.com/thomasturrell/live-simulation-wallpapers/releases)** · Requires macOS 26 or later.
 
@@ -14,7 +14,7 @@ Start with a bustling city and watch its neighbourhoods develop. Cranes overlook
 
 Cars travel between homes, shops, offices and factories, crossing bridges and queuing at busy junctions. In new cities, traffic keeps left on streets with white centre markings. Look closer for fountains, glinting water and chimney smoke.
 
-Some cities have a small regional airport on the outskirts. Watch passenger aircraft descend, land and taxi to the terminal before heading out for take-off. Even without an airport, you may spot a plane passing overhead.
+Passenger planes occasionally cross the skyline. Look for their navigation lights after dark.
 
 ## Day, night, seasons and weather
 

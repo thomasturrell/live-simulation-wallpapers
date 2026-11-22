@@ -9,7 +9,6 @@ private let directions = [SIMD2(1, 0), SIMD2(0, 1), SIMD2(-1, 0), SIMD2(0, -1)]
 private func roadFrame(_ roads: [SIMD2<Int>], bridges: Set<Plot> = [],
                        convention: TrafficConvention, palette: Palette) -> Pixels {
     var map = City().map
-    map.airport = nil
     for x in -4...4 {
         for y in -4...4 { map[Plot(center.x + x, center.y + y)] = Lot() }
     }
@@ -47,7 +46,7 @@ func straightAndBridgeDashesKeepAnEvenPhaseAcrossTiles(convention: TrafficConven
                 #expect(abs(y - projected) <= 1)
             }
         }
-        if convention == .uk { #expect(!frame.storage.contains(palette.taxiwayPaint.pixel)) }
+        if convention == .uk { #expect(!frame.storage.contains(palette.yellowRoadPaint.pixel)) }
     }
 }
 

@@ -11,7 +11,8 @@ public struct City: Codable, Equatable {
     public static let ticksPerSecond = 30
     public static let dayLength = 8 * 60 * ticksPerSecond
     public static let defaultSeed: UInt64 = 0x7661_6C65_7269_6467
-    private static let checkpointVersion = 6
+    private static let checkpointVersion = 7
+    private static let environmentSeedSalt: UInt64 = 0x656E_7669_726F_6E6D
 
     public internal(set) var map: CityMap
     public internal(set) var vehicles: [Vehicle] = []
@@ -35,7 +36,7 @@ public struct City: Codable, Equatable {
         var generator = CityRandom(state: seed)
         map = CityMap(random: &generator, generateLayout: seed != Self.defaultSeed)
         random = generator
-        environmentSeed = seed ^ 0x656E_7669_726F_6E6D
+        environmentSeed = seed ^ Self.environmentSeedSalt
         aviation = Aviation(seed: seed)
         savedTrafficConvention = trafficConvention
         seedTraffic()
@@ -76,9 +77,7 @@ public struct City: Codable, Equatable {
             nextProject = tick + 570 + random.pick(360)
         }
         moveTraffic()
-        for event in aviation.step(tick: tick, darkness: darkness, airport: map.airport) {
-            dispatchAirportTraffic(toAirport: event == .passengersArrive)
-        }
+        aviation.step(tick: tick)
     }
 
     private mutating func planDevelopment() {
@@ -86,7 +85,6 @@ public struct City: Codable, Equatable {
             let connections = CityMap.plots.filter { p in
                 let lot = map[p]
                 guard lot.ground == .grass, lot.building == nil,
-                      map.airport?.contains(p) != true, map.airport?.isApproach(p) != true,
                       (5...51).contains(p.x), (6...50).contains(p.y),
                       p.neighbors.filter(map.isRoad).count == 1 else { return false }
                 return p.neighbors.filter {
@@ -118,7 +116,6 @@ public struct City: Codable, Equatable {
         for point in CityMap.plots {
             let lot = map[point]
             guard lot.ground == .grass, lot.zone != .civic,
-                  map.airport?.isApproach(point) != true,
                   map.roadAccess(at: point) != nil,
                   (5...51).contains(point.x), (6...50).contains(point.y),
                   (lot.building?.level ?? 0) < map.capacity(at: point) else { continue }
@@ -142,14 +139,22 @@ public struct City: Codable, Equatable {
 
     public init?(checkpoint: Data) {
         guard checkpoint.count <= 2_000_000,
-              let saved = try? PropertyListDecoder().decode(Checkpoint.self, from: checkpoint),
-              saved.city.isValid else { return nil }
+              let saved = try? PropertyListDecoder().decode(Checkpoint.self, from: checkpoint) else { return nil }
         self = saved.city
         switch (saved.version, savedTrafficConvention) {
         case (5, nil): savedTrafficConvention = .rightHand
-        case (Self.checkpointVersion, .some): break
+        case (6, .some), (Self.checkpointVersion, .some): break
         default: return nil
         }
+        if saved.version < Self.checkpointVersion {
+            let hadAirport = map.hasLegacyAirport
+            if hadAirport {
+                guard let terminal = map.removeLegacyAirport(seed: environmentSeed ^ Self.environmentSeedSalt) else { return nil }
+                vehicles.removeAll { $0.origin == terminal || $0.destination == terminal }
+            }
+            guard aviation.migrateLegacyFlights(hadAirport: hadAirport) else { return nil }
+        }
+        guard isValid else { return nil }
     }
 
     private struct Checkpoint: Codable {
@@ -160,21 +165,18 @@ public struct City: Codable, Equatable {
     private var isValid: Bool {
         guard map.isValid, (0..<Int.max / 2).contains(tick),
               (0...tick).contains(revision), nextProject >= tick,
-              vehicles.count <= 60, aviation.isValid(tick: tick, airport: map.airport) else { return false }
+              vehicles.count <= 60, aviation.isValid(tick: tick) else { return false }
         for point in CityMap.plots {
             let lot = map[point]
             guard (0..<120).contains(lot.detail) else { return false }
             if let building = lot.building {
                 guard lot.ground == .grass, map.roadAccess(at: point) != nil,
                       (1...map.capacity(at: point)).contains(building.level),
-                      (0...Airport.terminalStyle).contains(building.style),
-                      building.style != Airport.terminalStyle || point == map.airport?.terminal else { return false }
+                      (0...Building.riversideTowerStyle).contains(building.style) else { return false }
             }
         }
         if let construction {
             guard map.contains(construction.plot), map[construction.plot].ground == .grass,
-                  map.airport?.contains(construction.plot) != true,
-                  map.airport?.isApproach(construction.plot) != true,
                   (0...tick).contains(construction.start),
                   (tick + 1...tick + 210).contains(construction.finish),
                   (180...210).contains(construction.finish - construction.start) else { return false }
