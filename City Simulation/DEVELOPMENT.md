@@ -12,7 +12,7 @@ Use a Swift 6 toolchain with the macOS 26 SDK or newer. From this directory:
 swift run -c release CityPreview
 swift run -c release CityPreview --png /tmp/city-5k.png 5120 2880
 swift run -c release CityPreview --png /tmp/city-at-night.png 1280 720 270
-swift run -c release CityPreview --png /tmp/city-airport.png 1280 720 100
+swift run -c release CityPreview --png /tmp/city-overflight.png 1280 720 85
 ```
 
 The first command produces the app and ZIP in `dist/`. Pass an output directory as the first argument to write them elsewhere, or set `CITY_NATIVE_ARCHS` to limit the architecture slices. The resizable preview window animates immediately without installing the extension. PNG export takes an optional width, height and time in simulated seconds. At the default seed, the first construction site opens after nine seconds and completes after fifteen.
@@ -47,9 +47,7 @@ The probe exercises the real wallpaper settings and request types, remote Core A
 
 Each display starts with its own river, bridges and street grids, generated from its display UUID. Cars commute between homes, shops, offices and factories, and queue at larger junctions. Buildings go up in stages and lights come on across the city at dusk. All of the pixel art is drawn by the renderer and covered by the repository’s MIT licence.
 
-Generated cities have a 25% chance of a small regional airport on the outskirts when suitable land is available. Its compact 12 × 6 lot site includes a marked runway, taxiways, apron, passenger terminal, control tower, hangars and connected access roads. The site and low approach corridors stay clear of new development; rivers, parks and promenades are preserved. The fixed default preview city includes an airport.
-
-Occasional passenger aircraft approach, descend, land, slow down and taxi to the terminal. After a 45–95 second stop they push back, taxi out, hold short, line up and accelerate into a climbing departure. The single stand and runway serve one flight at a time, with quiet intervals of 45–109 seconds between visits and longer intervals at night. Passenger trips add a few cars to the terminal roads. Independent overflights occasionally cross cities with or without an airport. Aircraft share the city's simulation clock, lighting and depth rendering, including small shadows, cabin windows, engines, landing gear and navigation lights.
+Passenger aircraft cross the city one at a time. Each flyover follows the simulation clock and uses the same lighting and depth rendering as the city, with cabin windows, engines and navigation lights drawn on the aircraft.
 
 ## Environment and configuration
 
@@ -78,7 +76,7 @@ Every row totals 100%. Each spell samples the current fictional season's probabi
 
 Spells last 2½ minutes of city time, with 24-second smooth transitions followed by stable conditions. Repeated selections can naturally produce longer spells. Snow cover thaws over the following spell after the flakes stop. Weather is computed from the checkpointed city tick and an independent seed, so it resumes exactly across freezes and restarts without using the traffic/development random stream. No separate weather cache, timer or background process is needed.
 
-Existing weather art remains shared: rain darkens roads and vegetation, adds puddles/ripples and restrained slanted rain; snow adds drifting flakes and temporary cover on lawns, trees and building/airport roofs. Cloud shadows and wind-blown leaves/seeds stay subtle. None of these effects edits terrain, buildings, construction or routes.
+Rain darkens roads and vegetation and adds puddles, ripples and slanted rain. Snow adds drifting flakes and temporary cover on lawns, trees and rooftops. Cloud shadows and wind-blown leaves and seeds stay subtle.
 
 ### CityPreview controls and exports
 
@@ -107,8 +105,8 @@ Build with `CITY_BUILD_ABI_PROBE=1 ./NativeWallpaper/build.sh`, then run the pro
 ## Architecture and persistence
 
 - **CityEngine** owns a seedable 56 × 56 city and advances it at 30 fixed ticks per second. The internal traffic convention defaults to UK left-hand traffic and controls lane geometry and driveway routing. Traffic stops before junctions with room for the whole vehicle, waits for a clear crossing and exit, and keeps space between cars through turns and driveway manoeuvres. Trips approach and leave buildings from the matching side of the road. It routes trips on a connected road graph, balances development between housing and jobs, and enforces frontage and density limits. New road segments open frontage for future projects. Parks and riverbanks stay protected.
-- **CityArt** draws original pixel art onto a virtual canvas. UK streets and bridges use white centre dashes. At controlled junctions, the renderer uses the city's convention and the simulation's stopping distance to paint a white line across each incoming lane. It caches terrain, airport facilities, buildings and their occlusion data, then adds road traffic, aircraft, water glints and chimney smoke. Playback samples the simulation up to 20 times per second. The desktop, snapshots and development preview use the same renderer and integer scaling.
-- **NativeWallpaper** atomically checkpoints each identified display to the extension's Application Support directory about every 15 seconds of active simulation and at lifecycle transitions. A checkpoint includes the city clock, lots, construction, vehicle trips, traffic convention, flight phases/schedules, city random state and an independent environmental seed. Version 5 checkpoints restore as right-hand cities so existing routes and positions carry over. New cities use the internal default. System Settings preview surfaces use disposable city state. Settling stops the timer and retains the final frame. Environmental cache keys include the hemisphere-adjusted seasonal phase, lighting and weather, so changes redraw correctly even at the same city tick. Quantized palettes retain the terrain/building cache for most frames.
+- **CityArt** draws original pixel art onto a virtual canvas. UK streets and bridges use white centre dashes. At controlled junctions, the renderer uses the city's convention and the simulation's stopping distance to paint a white line across each incoming lane. It caches terrain, buildings and their occlusion data, then adds road traffic, aircraft, water glints and chimney smoke. Playback samples the simulation up to 20 times per second. The desktop, snapshots and development preview use the same renderer and integer scaling.
+- **NativeWallpaper** atomically checkpoints each identified display to the extension's Application Support directory about every 15 seconds of active simulation and at lifecycle transitions. A checkpoint includes the city clock, lots, construction, vehicle trips, traffic convention, overflights, city random state and an independent environmental seed. Version 5 checkpoints restore as right-hand cities so existing routes and positions carry over. Version 5 and 6 checkpoints with an airport restore its site to the original terrain and zoning, retaining the surrounding streets, city progress and any active overflight. System Settings preview surfaces use disposable city state. Settling stops the timer and retains the final frame. Environmental cache keys include the hemisphere-adjusted seasonal phase, lighting and weather, so changes redraw correctly even at the same city tick. Quantized palettes retain the terrain/building cache for most frames.
 
 The private integration follows the [Game of Life native extension](../Game%20of%20Life/NativeWallpaper/INSTALL.md) and [Aerial’s wallpaper extension](https://github.com/AerialScreensaver/Aerial/tree/main/WallpaperExtension).
 

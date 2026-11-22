@@ -1,12 +1,12 @@
 # City Simulation gallery
 
-Explore the city by day and night, watch a flight come and go, and look closer at the buildings, parks and streets that make up its neighbourhoods. Buildings, trees and vehicle colours vary, so these images show a selection of what you might see.
+Explore the city by day and night, spot passenger planes overhead, and look closer at the buildings, parks and streets that make up its neighbourhoods. Buildings, trees and vehicle colours vary, so these images show a selection of what you might see.
 
 [Back to City Simulation](README.md)
 
 ## Day and night
 
-![Daytime city with riverside towers, leafy neighbourhoods, bridges and an airport on the outskirts](assets/city-day.webp)
+![A passenger plane flying over a daytime city with riverside towers, leafy neighbourhoods and bridges](assets/city-day.webp)
 
 ![The city after dark, with glowing windows, streetlights and traffic beside the river](assets/city-at-night.webp)
 
@@ -24,21 +24,11 @@ Blossom, summer greenery, autumn colours and bare winter branches give the city 
 
 <img src="assets/environment/seasonal-vegetation.png" alt="January through December rows of evergreen, deciduous and blossom tree artwork" width="384">
 
-## Airports and aircraft
+## Aircraft
 
-A small regional airport and the aircraft that visit it. The flight cycle plays at 6× speed with a shortened stop at the terminal.
-
-![Passenger aircraft approaching, landing, taxiing to the terminal, pushing back and taking off from the compact airport](assets/airport-flight-cycle.webp)
-
-| Airport in daylight | Airport at night |
-| --- | --- |
-| ![Compact airport with runway 09/27, taxiways, apron, terminal, control tower, hangars and perimeter roads](assets/airport-day.webp) | ![Airport at night with illuminated runway edges, taxiway lights and terminal windows](assets/airport-night.webp) |
-
-| Passenger terminal | Air traffic control tower | Hangar |
+| Passenger aircraft | Aircraft in flight | Aircraft at night |
 | --- | --- | --- |
-| ![Glazed passenger terminal with a short boarding pier and rooftop equipment](assets/airport-terminal.webp) | ![Control tower with a glazed cabin, antenna and raised observation deck](assets/control-tower.webp) | ![Airport hangar with a broad aircraft door](assets/hangar.webp) |
-| **Passenger aircraft** | **Aircraft in flight** | **Aircraft at night** |
-| ![Small passenger aircraft with cabin windows, engines, landing gear and a coloured tail](assets/passenger-aircraft.webp) | ![Passenger aircraft in flight with retracted landing gear](assets/aircraft-in-flight.webp) | ![Passenger aircraft at night with lit cabin windows and navigation lights](assets/aircraft-at-night.webp) |
+| ![Small passenger aircraft with cabin windows, engines and a teal tail](assets/passenger-aircraft.webp) | ![Passenger aircraft in flight with swept wings and a red tail](assets/aircraft-in-flight.webp) | ![Passenger aircraft at night with lit cabin windows and navigation lights](assets/aircraft-at-night.webp) |
 
 ## Buildings
 
