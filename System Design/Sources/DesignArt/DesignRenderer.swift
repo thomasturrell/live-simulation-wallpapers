@@ -85,8 +85,11 @@ package final class DesignRenderer {
         let generation = style.colour == .spectrum ? hueStep : style.colour == .random ? (hueStep / 240) * 240 : 0
 
         func sheet(_ chapter: Chapter) -> Sheet {
-            let existing = sheets.first { $0.scene.chapter.visit == chapter.visit }
-            if let existing, existing.camera == camera, existing.scene.chapter.firstCount == chapter.firstCount, existing.scene.chapter.exit == chapter.exit,
+            let existing = sheets.first {
+                let cached = $0.scene.chapter
+                return cached.visit == chapter.visit && cached.firstCount == chapter.firstCount && cached.exit == chapter.exit
+            }
+            if let existing, existing.camera == camera,
                existing.seed == exploration.paletteSeed, existing.style == style, existing.dark == dark, existing.generation == generation,
                style.colour != .accent || existing.accentRevision == accentRevision { return existing }
             let layout: DiagramLayout

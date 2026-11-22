@@ -61,30 +61,29 @@ final class WallpaperDriver {
         let key = uuid?.uuidString ?? (request.preview ? "preview-\(id)" : "session-\(id)")
         let playback = displays[key] ?? DisplayPlayback(displayUUID: uuid)
         if let previous = owners[id], previous !== playback { invalidate(id) }
-        if !view.preview && view.isSaver && owners[id] == nil { hint = nil }
+        if !view.preview && !view.suspended && view.isSaver && owners[id] == nil { hint = nil }
         displays[key] = playback
         owners[id] = playback
         playback.views[id] = view
         playback.invalidateSnapshots = { [weak self] in self?.invalidateSnapshots?() }
-        let changed = playback.select(request.optionIDs["explore"])
-        playback.refresh(hint: hint)
-        if changed { playback.drawAll() } else { view.draw(playback.exploration) }
+        if !playback.refresh(hint: hint, activating: id) { view.draw(playback.exploration) }
         CATransaction.flush()
         return context
     }
 
     func update(_ id: UUID, _ request: Presentation) {
         guard let playback = owners[id], let view = playback.views[id] else { return }
-        let previous = view.isSaver
+        let wasSaver = view.isSaver, wasSuspended = view.suspended
         let change = view.apply(request)
-        let selected = playback.select(request.optionIDs["explore"])
-        if !view.preview && view.isSaver != previous {
+        let activated = !view.suspended && (wasSuspended || wasSaver != view.isSaver)
+        if !view.preview && activated && (view.isSaver || wasSaver) {
             hint = nil
-            refreshAll()
-        } else { playback.refresh(hint: hint) }
-        if selected { playback.drawAll() }
-        else if change.redraw { view.draw(playback.exploration) }
-        if !view.preview && (change.art || selected) { invalidateSnapshots?() }
+            refreshAll(except: playback)
+        }
+        if !playback.refresh(hint: hint, activating: activated ? id : nil) {
+            if change.redraw { view.draw(playback.exploration) }
+            if !view.preview && change.art { invalidateSnapshots?() }
+        }
     }
 
     func invalidate(_ id: UUID) {
@@ -96,16 +95,15 @@ final class WallpaperDriver {
 
     func snapshot(_ id: UUID) throws -> Any {
         guard let playback = owners[id], let view = playback.views[id] else { throw BridgeError.noSurface }
-        let desktop = !view.preview && (!view.isSaver || hint == false)
-        let frame = desktop ? playback.desktopSnapshotFrame() : playback.exploration
+        let frame = view.usesDesktopSnapshot(hint: hint) ? playback.desktopSnapshotFrame() : playback.exploration
         guard let snapshot = view.snapshot(frame) else {
             throw BridgeError.noSurface
         }
         return snapshot
     }
 
-    private func refreshAll() {
-        for playback in displays.values { playback.refresh(hint: hint) }
+    private func refreshAll(except updated: DisplayPlayback? = nil) {
+        for playback in displays.values where playback !== updated { playback.refresh(hint: hint) }
     }
 
     private func appearanceChanged() {
@@ -129,6 +127,7 @@ final class DisplayPlayback {
     private let path: URL?
     private let seed: UInt64
     private var playback: Playback
+    private var activeViewID: UUID?
     private var timer: DispatchSourceTimer?
     private var timestamp = 0.0
     private var refreshDesktopSnapshot = false
@@ -163,19 +162,29 @@ final class DisplayPlayback {
         return playback.mode == .suspended ? exploration.restingFrame : exploration
     }
 
-    func select(_ scope: String?) -> Bool {
-        guard let scope, exploration.scope != scope,
-              scope == "all" || Subject(rawValue: scope) != nil || Catalogue.bundled[scope] != nil else { return false }
+    private func selectForegroundScope(_ visible: [UUID: RemoteView], animated: Bool, activating id: UUID?) -> Bool {
+        // Both roles can have live surfaces during lock/unlock. Only the foreground
+        // role owns Explore, and a host that reuses one surface can still use it.
+        let foreground = visible.filter { $0.value.preview || $0.value.isSaver == animated }
+        let candidates = foreground.isEmpty ? visible : foreground
+        if let id, candidates[id] != nil {
+            activeViewID = id
+        } else if activeViewID.flatMap({ candidates[$0] }) == nil {
+            activeViewID = candidates.keys.min { $0.uuidString < $1.uuidString }
+        }
+        guard let id = activeViewID, let scope = candidates[id]?.scope, exploration.scope != scope else { return false }
         playback = Playback(Exploration(seed: seed, scope: scope))
         lastSaved = (-1, 0)
         save()
         return true
     }
 
-    func refresh(hint: Bool?) {
-        let visible = views.values.filter { !$0.suspended }
-        let animated = visible.contains { $0.preview } || (hint ?? visible.contains { $0.isSaver })
+    @discardableResult
+    func refresh(hint: Bool?, activating id: UUID? = nil) -> Bool {
+        let visible = views.filter { !$0.value.suspended }
+        let animated = visible.values.contains { $0.preview } || (hint ?? visible.values.contains { $0.isSaver })
         let previous = playback.mode
+        let selected = selectForegroundScope(visible, animated: animated, activating: id)
         playback.present(visible: !visible.isEmpty, animated: animated)
         if previous != .settling && playback.mode == .settling {
             refreshDesktopSnapshot = true
@@ -190,12 +199,18 @@ final class DisplayPlayback {
             timer.activate()
         } else if !playback.needsTimer { stop() }
         if previous != playback.mode && playback.mode != .playing { save() }
-        if previous == .playing && playback.mode == .still && visible.contains(where: { !$0.preview }) {
+        if selected {
+            timestamp = ProcessInfo.processInfo.systemUptime
+            for view in views.values { view.draw(exploration) }
+        }
+        if previous == .settling && playback.mode == .suspended && views.values.contains(where: { $0.usesDesktopSnapshot(hint: hint) }) {
+            // A sampled intermediate frame otherwise survives after the timer stops.
+            invalidateSnapshots?()
+        } else if (selected || (previous == .playing && playback.mode == .still)) && visible.values.contains(where: { !$0.preview }) {
             invalidateSnapshots?()
         }
+        return selected
     }
-
-    func drawAll() { for view in views.values { view.draw(exploration) } }
 
     private func advance() {
         let now = ProcessInfo.processInfo.systemUptime
@@ -245,8 +260,11 @@ final class RemoteView {
     private var placement = false
     private var mode = "default"
     private(set) var suspended = false
+    private(set) var scope: String?
     let preview: Bool
     var isSaver: Bool { mode == "locked" || (mode == "idle" && !placement) }
+
+    func usesDesktopSnapshot(hint: Bool?) -> Bool { !preview && (!isSaver || hint == false) }
 
     init(size: CGSize, request: Presentation) {
         self.size = size
@@ -262,6 +280,10 @@ final class RemoteView {
         if let scale = request.scale { self.scale = scale }
         if let active = request.activity { suspended = active == "suspended" }
         if let dark = request.systemDark { self.dark = dark }
+        if let scope = request.optionIDs["explore"],
+           scope == "all" || Subject(rawValue: scope) != nil || Catalogue.bundled[scope] != nil {
+            self.scope = scope
+        }
         style.apply(request.optionIDs)
         let art = style != oldStyle || wasDark != style.appearance.isDark(systemDark: dark)
         return (art || before != (size, scale, suspended), art)

@@ -4,6 +4,7 @@ import DesignEngine
 /// Reveals share one layout at a given viewport and framing so existing nodes stay put.
 struct DiagramLayout {
     let nodes: [String: CGRect]
+    let cameraStops: [CGPoint]
     let groups: [String: CGRect]
     let routes: [Route]
     let labels: [CGRect?]
@@ -42,6 +43,7 @@ struct DiagramLayout {
         }
         Self.fitOpening(chapter: chapter, rects: &rects, camera: camera)
         nodes = rects
+        cameraStops = camera.stops(for: chapter, nodes: rects)
         var boundaries: [String: CGRect] = [:]
         func boundary(_ group: Subsystem) -> CGRect {
             if let cached = boundaries[group.id] { return cached }

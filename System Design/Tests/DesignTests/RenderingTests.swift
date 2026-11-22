@@ -154,6 +154,27 @@ import Testing
     }
 }
 
+@Test @MainActor func everySoilFormationRevealBringsTheNewCardOnScreen() {
+    let chapter = Exploration(seed: 42, scope: "soil-formation").chapter
+    let style = DesignStyle()
+    for size in [CGSize(width: 1440, height: 900), CGSize(width: 550, height: 1100)] {
+        let camera = DiagramCamera(size: size, style: style, displaySeed: 42)
+        let layout = DiagramLayout(chapter: chapter, style: style, camera: camera)
+        let scene = DiagramScene(chapter: chapter, layout: layout, style: style,
+                                 ink: Ink(style: style, dark: false, generation: 0, seed: 42))
+        for beat in 1...(chapter.order.count - chapter.firstCount) {
+            let id = chapter.focus(at: beat)
+            let card = scene.components[id]!.body
+            scene.display(camera: camera, beat: beat - 1, progress: 1, elevation: 1)
+            let before = card.convert(card.bounds.centre, to: scene.layer)
+            scene.display(camera: camera, beat: beat, progress: 0, elevation: 1)
+            #expect(card.convert(card.bounds.centre, to: scene.layer) == before)
+            scene.display(camera: camera, beat: beat, progress: Chapter.revealEnd, elevation: 1)
+            #expect(scene.layer.bounds.contains(card.convert(card.bounds, to: scene.layer)), "\(id) at \(size)")
+        }
+    }
+}
+
 @Test @MainActor func palettesKeepTitlesLegibleInBothAppearances() {
     func luminance(_ colour: CGColor) -> Double {
         let channels = colour.components!.prefix(3).map { c in

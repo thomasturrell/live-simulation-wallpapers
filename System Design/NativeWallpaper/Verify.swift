@@ -36,6 +36,7 @@ enum VerifyWallpaper {
         }
 
         let base = URL(fileURLWithPath: files[1], isDirectory: true)
+        try await verifyExploreOwnership(storage: base)
         let display = UUID()
         let viewID = UUID()
         var request = Presentation(nil)
@@ -50,9 +51,8 @@ enum VerifyWallpaper {
             _ = try driver.snapshot(viewID)
             driver.invalidate(viewID)
         }
-        precondition(playback.select(request.optionIDs["explore"]))
         playback.views[viewID] = view
-        playback.refresh(hint: nil)
+        precondition(playback.refresh(hint: nil, activating: viewID))
         let quietTick = Int(Double(playback.exploration.chapter.beatTicks) * 0.37)
         let deadline = ContinuousClock.now + .seconds(6)
         while playback.exploration.tick < quietTick && ContinuousClock.now < deadline {
@@ -74,6 +74,19 @@ enum VerifyWallpaper {
         guard view.snapshot(middle.restingFrame) != nil else { throw BridgeError.noSurface }
         precondition(world.position == halfway, "A desktop snapshot must not jump the live layer")
 
+        var suspendDesktop = Presentation(nil)
+        suspendDesktop.mode = "default"
+        suspendDesktop.activity = "suspended"
+        let sampled = playback.desktopSnapshotFrame()
+        precondition(sampled.elevation == middle.elevation)
+        var suspensionSnapshots: [Double] = []
+        playback.invalidateSnapshots = { suspensionSnapshots.append(playback.desktopSnapshotFrame().elevation) }
+        _ = view.apply(suspendDesktop)
+        playback.refresh(hint: false)
+        playback.refresh(hint: false)
+        precondition(!playback.hasTimer && suspensionSnapshots == [0], "Replace the sampled desktop image exactly once on suspension")
+        precondition(playback.exploration.elevation == middle.elevation, "Keep unfinished live settling available for restore")
+        playback.invalidateSnapshots = nil
         playback.views.removeAll()
         playback.refresh(hint: false)
         precondition(!playback.hasTimer)
@@ -120,5 +133,45 @@ enum VerifyWallpaper {
         restored.refresh(hint: nil)
         precondition(!restored.hasTimer)
         print("Picker models, IOSurface, lock playback, desktop settling, suspension and per-display restore passed.")
+    }
+
+    private static func verifyExploreOwnership(storage: URL) async throws {
+        let display = UUID(), saverID = UUID(), desktopID = UUID()
+        let playback = DisplayPlayback(displayUUID: display, storage: storage)
+        let size = CGSize(width: 800, height: 500)
+        var request = Presentation(nil)
+        request.mode = "locked"
+        request.optionIDs = ["explore": "domestic-solar-power"]
+        playback.views[saverID] = RemoteView(size: size, request: request)
+        precondition(playback.refresh(hint: nil, activating: saverID))
+        try await Task.sleep(for: .milliseconds(250))
+        let running = try playback.exploration.checkpoint()
+        let saved = try DisplayPlayback(displayUUID: display, storage: storage).exploration.checkpoint()
+        precondition(playback.exploration.age > 0)
+
+        request.mode = "default"
+        request.activity = "suspended"
+        request.optionIDs = ["explore": "water-cycle"]
+        let desktop = RemoteView(size: size, request: request)
+        playback.views[desktopID] = desktop
+        precondition(!playback.refresh(hint: nil, activating: desktopID))
+        var update = Presentation(nil)
+        update.optionIDs = ["explore": "soil-formation"]
+        _ = desktop.apply(update)
+        precondition(!playback.refresh(hint: nil))
+        update.optionIDs = [:]
+        update.activity = "active"
+        _ = desktop.apply(update)
+        precondition(!playback.refresh(hint: nil, activating: desktopID))
+        let after = try playback.exploration.checkpoint()
+        let afterSaved = try DisplayPlayback(displayUUID: display, storage: storage).exploration.checkpoint()
+        precondition(after == running && afterSaved == saved, "A background desktop must not reset the saver or its checkpoint")
+
+        precondition(playback.refresh(hint: false))
+        precondition(playback.exploration.scope == "soil-formation", "Activation must apply the desktop’s latest selection")
+        precondition(!playback.refresh(hint: false))
+        precondition(playback.refresh(hint: true) && playback.exploration.scope == "domestic-solar-power")
+        playback.views.removeAll()
+        playback.refresh(hint: nil)
     }
 }

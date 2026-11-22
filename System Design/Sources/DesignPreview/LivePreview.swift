@@ -14,6 +14,7 @@ final class LivePreview: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private var selectedSystem: NSMenuItem?
     private var window: NSWindow?
     private var timer: Timer?
+    private var systemColourObserver: NSObjectProtocol?
     private var lastUpdate = 0.0
 
     static func run() {
@@ -60,6 +61,14 @@ final class LivePreview: NSObject, NSApplicationDelegate, NSWindowDelegate {
             canvas.bottomAnchor.constraint(equalTo: content.bottomAnchor)
         ])
         window.contentMinSize = CGSize(width: controls.fittingSize.width + 32, height: 280)
+        systemColourObserver = NotificationCenter.default.addObserver(forName: NSColor.systemColorsDidChangeNotification,
+                                                                       object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated {
+                guard let self, self.style.colour == .accent else { return }
+                self.renderer.systemAccentChanged()
+                self.render()
+            }
+        }
         window.center()
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
@@ -161,6 +170,9 @@ final class LivePreview: NSObject, NSApplicationDelegate, NSWindowDelegate {
                       systemDark: canvas.effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua)
     }
 
-    func windowWillClose(_ notification: Notification) { timer?.invalidate() }
+    func windowWillClose(_ notification: Notification) {
+        timer?.invalidate()
+        if let systemColourObserver { NotificationCenter.default.removeObserver(systemColourObserver) }
+    }
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
 }

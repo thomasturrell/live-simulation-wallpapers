@@ -188,23 +188,9 @@ final class DiagramScene {
     }
 
     private func frame(camera: DiagramCamera, beat: Int, fraction: CGFloat) {
-        let size = camera.size, factor = camera.factor
-        // Hold the camera while neighbours develop. Once a new region becomes the subject,
-        // ease towards it; the handoff finishes on the common component in both diagrams.
-        func anchor(_ step: Int) -> CGPoint {
-            let id = step >= chapter.lastBeat - 1 ? chapter.exit : chapter.focus(at: step - step % 3)
-            let centre = layout.nodes[id]!.centre
-            if step >= chapter.lastBeat - 1 { return centre }
-            let count = min(chapter.order.count, chapter.firstCount + step - step % 3)
-            let visible = chapter.order.prefix(count).compactMap { layout.nodes[$0]?.centre }
-            let mean = visible.reduce(CGPoint.zero) { CGPoint(x: $0.x + $1.x, y: $0.y + $1.y) }
-            let dx = (mean.x / CGFloat(count) - centre.x) * factor
-            let dy = (mean.y / CGFloat(count) - centre.y) * factor
-            return CGPoint(x: centre.x + max(-size.width * 0.20, min(size.width * 0.20, dx)) / factor,
-                           y: centre.y + max(-size.height * 0.19, min(size.height * 0.19, dy)) / factor)
-        }
-        let previous = beat == 0 && chapter.visit.linkedEntry ? layout.nodes[chapter.visit.entry]!.centre : anchor(max(0, beat - 1))
-        let centre = lerp(previous, anchor(beat), fraction)
+        let size = camera.size
+        let previous = beat == 0 && chapter.visit.linkedEntry ? layout.nodes[chapter.visit.entry]!.centre : layout.cameraStops[max(0, beat - 1)]
+        let centre = lerp(previous, layout.cameraStops[beat], fraction)
         let transform = camera.transform
         let offset = centre.applying(transform)
         world.position = CGPoint(x: camera.focusPoint.x - offset.x, y: camera.focusPoint.y - offset.y)
@@ -226,7 +212,7 @@ final class DiagramScene {
             let legend = CGRect(origin: origins[i], size: extent.size)
             if legend.intersects(clock) { penalties[i] += 6 }
             for step in 0...chapter.lastBeat {
-                let centre = anchor(step).applying(transform)
+                let centre = layout.cameraStops[step].applying(transform)
                 for id in chapter.order.prefix(chapter.firstCount + step) {
                     let point = layout.nodes[id]!.centre.applying(transform)
                     let title = CGPoint(x: point.x - centre.x + camera.focusPoint.x, y: point.y - centre.y + camera.focusPoint.y)
