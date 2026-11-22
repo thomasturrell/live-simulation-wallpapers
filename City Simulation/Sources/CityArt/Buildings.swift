@@ -1,6 +1,6 @@
 import CityEngine
 
-private struct Footprint {
+struct Footprint {
     let u: Int, v: Int, w: Int, d: Int
     var farU: Int { u + w }
     var farV: Int { v + d }
@@ -10,7 +10,7 @@ private struct Footprint {
     }
 }
 
-private struct Masonry {
+struct Masonry {
     let roof: Ink, edge: Ink, light: Ink, shade: Ink, trim: Ink
     init(_ c: Palette, _ roof: UInt32, _ edge: UInt32, _ light: UInt32, _ shade: UInt32, _ trim: UInt32) {
         self.roof = c.roof(roof)
@@ -23,6 +23,10 @@ private struct Masonry {
 
 extension Pixels {
     mutating func building(_ b: Building, zone: Zone, at p: Dot, palette c: Palette) {
+        if c.skin == .contemporary {
+            contemporaryBuilding(b, zone: zone, at: p, palette: c)
+            return
+        }
         switch zone {
         case .homes:
             if b.level == 1 { house(at: p, style: b.style, palette: c) }
@@ -34,7 +38,7 @@ extension Pixels {
         }
     }
 
-    private mutating func prism(_ p: Dot, _ footprint: Footprint, base: Int = 0, top: Int, _ colors: Masonry) {
+    mutating func prism(_ p: Dot, _ footprint: Footprint, base: Int = 0, top: Int, _ colors: Masonry) {
         let bottom = footprint.points(p, base)
         let high = footprint.points(p, top)
         polygon([high[3], high[2], bottom[2], bottom[3]], colors.light)
@@ -46,7 +50,7 @@ extension Pixels {
         line(bottom[2], bottom[1], colors.edge)
     }
 
-    private mutating func gable(_ p: Dot, _ f: Footprint, at z: Int, rise: Int, alongX: Bool, _ m: Masonry) {
+    mutating func gable(_ p: Dot, _ f: Footprint, at z: Int, rise: Int, alongX: Bool, _ m: Masonry) {
         let base = f.points(p, z)
         if alongX {
             let left = p.iso(f.u, (f.v + f.farV) / 2, z + rise)
@@ -68,7 +72,7 @@ extension Pixels {
         }
     }
 
-    private mutating func windows(_ p: Dot, _ f: Footprint, floors: [Int], pitch: Int, pane: Int, height: Int,
+    mutating func windows(_ p: Dot, _ f: Footprint, floors: [Int], pitch: Int, pane: Int, height: Int,
                                   style: Int, c: Palette, trim: Ink, glass: UInt32 = 0x588086) {
         for z in floors {
             for offset in stride(from: 1, through: f.w - pane - 1, by: pitch) {
@@ -88,13 +92,13 @@ extension Pixels {
         }
     }
 
-    private func windowLight(_ glass: Ink, index: Int, palette: Palette) -> Ink {
+    func windowLight(_ glass: Ink, index: Int, palette: Palette) -> Ink {
         guard index < 6 else { return glass }
         let strength = min(1, max(0, (palette.night - 0.29 - Double(index) * 0.055) * 4))
         return glass.mix(palette.gold, strength * (index.isMultiple(of: 2) ? 0.89 : 0.61))
     }
 
-    private mutating func aperture(_ a: Dot, _ b: Dot, _ height: Int, _ trim: Ink, _ glass: Ink) {
+    mutating func aperture(_ a: Dot, _ b: Dot, _ height: Int, _ trim: Ink, _ glass: Ink) {
         polygon([a, b, b.offset(0, height), a.offset(0, height)], glass)
         line(a, b, trim)
         line(a.offset(0, height), b.offset(0, height), trim)

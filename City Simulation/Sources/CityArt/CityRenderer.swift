@@ -69,6 +69,7 @@ public final class CityRenderer {
         let site: Construction?
         let stage: Int
         let trafficConvention: TrafficConvention
+        let skin: CitySkin
     }
 
     private struct Background {
@@ -102,11 +103,13 @@ public final class CityRenderer {
         return pixels.image()
     }
 
-    public func image(for city: City, viewport: CityViewport, environment: EnvironmentFrame? = nil) -> CGImage {
+    public func image(for city: City, viewport: CityViewport, environment: EnvironmentFrame? = nil,
+                      skin: CitySkin = .original) -> CGImage {
         let environment = (environment ?? Environment.frame(city: city)).quantized
         let key = BackgroundKey(viewport: viewport, map: city.map, environment: environment,
-                                site: city.construction, stage: city.constructionStage, trafficConvention: city.trafficConvention)
-        let palette = Palette(night: environment.darkness, environment: environment)
+                                site: city.construction, stage: city.constructionStage,
+                                trafficConvention: city.trafficConvention, skin: skin)
+        let palette = Palette(night: environment.darkness, environment: environment, skin: skin)
         if lastKey != key {
             background = makeBackground(city, viewport, palette)
             lastKey = key

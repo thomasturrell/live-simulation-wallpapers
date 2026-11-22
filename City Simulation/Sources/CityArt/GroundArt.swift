@@ -22,10 +22,24 @@ extension Pixels {
             tile(p, -8, -8, 16, 16, c.grass(n))
             let eastBank = map.landscape(at: Plot(plot.x - 1, plot.y)).ground == .water
             let edge = eastBank ? -8 : 7
-            line(p.iso(edge, -8, -2), p.iso(edge, 8, -2), c.waterDark)
-            line(p.iso(edge, -8), p.iso(edge, 8), c.shore)
-            tile(p, eastBank ? -7 : 3, -8, 4, 16, c.paths)
-            if n.isMultiple(of: 3) { line(p.iso(edge, 2), p.iso(edge, 6), c.curb) }
+            if c.skin == .contemporary {
+                let walk = eastBank ? -7 : 1
+                let stone = c.roof(0xDACFB8)
+                tile(p, walk, -8, 7, 16, stone)
+                for v in [-6, 2] {
+                    line(p.iso(walk, v), p.iso(walk + 6, v), c.roof(0xB9B3A4))
+                }
+                line(p.iso(edge, -8), p.iso(edge, 8), c.color(0x83949A))
+                line(p.iso(edge, -8, 2), p.iso(edge, 8, 2), c.roof(0xDCE3DD))
+                for v in [-7, 1] {
+                    line(p.iso(edge, v), p.iso(edge, v, 3), c.color(0x667C86))
+                }
+            } else {
+                line(p.iso(edge, -8, -2), p.iso(edge, 8, -2), c.waterDark)
+                line(p.iso(edge, -8), p.iso(edge, 8), c.shore)
+                tile(p, eastBank ? -7 : 3, -8, 4, 16, c.paths)
+                if n.isMultiple(of: 3) { line(p.iso(edge, 2), p.iso(edge, 6), c.curb) }
+            }
         } else {
             tile(p, -8, -8, 16, 16, c.grass(n))
             span(p.x - 6 + n % 5, p.x - 5 + n % 5, p.y + n % 5 - 2, c.grass(n + 2))
@@ -109,7 +123,16 @@ extension Pixels {
         tile(p, left, -5, right - left, 10, c.asphalt)
         tile(p, -5, top, 10, bottom - top, c.asphalt)
         roadMarkings(at: p, plot: plot, connections: connections, map: map, convention: convention, palette: c)
-        if bridge {
+        if bridge && c.skin == .contemporary {
+            for v in [-6, 6] {
+                line(p.iso(-8, v), p.iso(8, v), c.roof(0xD2C7B3))
+                for u in [-8, 0] {
+                    line(p.iso(u, v, 1), p.iso(u + 7, v, 4), c.color(0x788C9A))
+                    line(p.iso(u, v), p.iso(u, v, 4), c.color(0x536C7A))
+                }
+                line(p.iso(-8, v, 4), p.iso(8, v, 4), c.roof(0xCEDAD9))
+            }
+        } else if bridge {
             line(p.iso(-8, -6, 2), p.iso(8, -6, 2), c.curb)
             line(p.iso(-8, 6, 2), p.iso(8, 6, 2), c.curb)
             for u in [-8, 0, 7] {

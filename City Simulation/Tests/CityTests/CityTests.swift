@@ -237,3 +237,26 @@ func integerPixelsCoverTheDisplay(size: CGSize) throws {
     let sum: (Data) -> Int = { $0[sample..<(sample + 3)].reduce(0) { $0 + Int($1) } }
     #expect(sum(nightPixels) < sum(dayPixels))
 }
+
+@Test func switchingSkinsRebuildsArtworkAtTheSavedTick() throws {
+    var city = City()
+    for _ in 0..<300 { city.step() }
+    let checkpoint = try city.checkpoint()
+    let saved = try #require(City(checkpoint: checkpoint))
+    let renderer = CityRenderer()
+    let viewport = CityViewport(pixelWidth: 640, pixelHeight: 360)
+    let original = renderer.image(for: saved, viewport: viewport)
+    #expect(renderer.image(for: saved, viewport: viewport, skin: .original) === original)
+
+    let contemporary = renderer.image(for: saved, viewport: viewport, skin: .contemporary)
+    #expect(renderer.image(for: saved, viewport: viewport, skin: .contemporary) === contemporary)
+    let originalBytes = try #require(original.dataProvider?.data) as Data
+    let contemporaryBytes = try #require(contemporary.dataProvider?.data) as Data
+    #expect(contemporaryBytes != originalBytes)
+
+    let fresh = CityRenderer().image(for: saved, viewport: viewport, skin: .contemporary)
+    #expect(try #require(fresh.dataProvider?.data) as Data == contemporaryBytes)
+    let switchedBack = renderer.image(for: saved, viewport: viewport, skin: .original)
+    #expect(try #require(switchedBack.dataProvider?.data) as Data == originalBytes)
+    #expect(try saved.checkpoint() == checkpoint)
+}

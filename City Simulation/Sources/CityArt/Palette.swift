@@ -4,6 +4,7 @@ import CityEngine
 struct Palette {
     let night: Double
     var environment: EnvironmentFrame? = nil
+    var skin: CitySkin = .original
     var weather: EnvironmentalWeather { environment?.weather ?? .init() }
     var season: SeasonAppearance { environment?.season ?? SeasonAppearance.months[5] }
     var snow: Ink { color(0xDFE5DC, 0x7D8B9F) }

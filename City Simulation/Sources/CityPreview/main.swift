@@ -7,6 +7,7 @@ import SwiftUI
 
 @MainActor
 final class PreviewModel: ObservableObject {
+    @Published var skin: CitySkin = .original
     @Published var mode: EnvironmentMode = .simulationWorld
     @Published var inspectCalendar = false
     @Published var month = 1.0
@@ -49,6 +50,9 @@ struct PreviewControls: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 Text("City preview").font(.title2.bold())
+                Picker("Skin", selection: $model.skin) {
+                    ForEach(CitySkin.allCases, id: \.self) { Text($0.title).tag($0) }
+                }
                 Picker("Environment", selection: $model.mode) {
                     ForEach(EnvironmentMode.allCases, id: \.self) { Text($0.title).tag($0) }
                 }.onChange(of: model.mode) { previous, current in
@@ -162,7 +166,7 @@ final class PreviewView: NSView {
                                     pixelHeight: Int((bounds.height * scale).rounded()))
         context.saveGState()
         context.scaleBy(x: 1 / scale, y: 1 / scale)
-        viewport.draw(renderer.image(for: playback.city, viewport: viewport, environment: environment), in: context)
+        viewport.draw(renderer.image(for: playback.city, viewport: viewport, environment: environment, skin: model.skin), in: context)
         context.restoreGState()
     }
 }
@@ -174,6 +178,7 @@ func run() throws {
     var args = Array(CommandLine.arguments.dropFirst())
     var mode = EnvironmentMode.simulationWorld
     var preview = EnvironmentPreview()
+    var skin = CitySkin.original
     var convention = TrafficConvention.default
     func option(_ name: String) throws -> String? {
         guard let index = args.firstIndex(of: name) else { return nil }
@@ -202,12 +207,16 @@ func run() throws {
         guard let wind = Double(value), wind.isFinite, (0...1).contains(wind) else { throw PreviewError.usage }
         preview.wind = wind
     }
+    if let value = try option("--skin") {
+        guard let selected = CitySkin(rawValue: value) else { throw PreviewError.usage }
+        skin = selected
+    }
     if let value = try option("--traffic") {
         guard let selected = TrafficConvention(rawValue: value) else { throw PreviewError.usage }
         convention = selected
     }
     if args.first == "--gallery", args.count == 2 {
-        try writeGallery(to: URL(fileURLWithPath: args[1], isDirectory: true), convention: convention)
+        try writeGallery(to: URL(fileURLWithPath: args[1], isDirectory: true), convention: convention, skin: skin)
         return
     }
     if args.first == "--icns", args.count == 2 {
@@ -226,7 +235,7 @@ func run() throws {
         let viewport = CityViewport(pixelWidth: width, pixelHeight: height)
         let environment = Environment.frame(city: city, mode: mode,
                                             systemDark: UserDefaults.standard.string(forKey: "AppleInterfaceStyle") == "Dark", preview: preview)
-        let image = CityRenderer().image(for: city, viewport: viewport, environment: environment)
+        let image = CityRenderer().image(for: city, viewport: viewport, environment: environment, skin: skin)
         let output = URL(fileURLWithPath: args[1])
         try writePNG(image, viewport: viewport, to: output)
         print("\(output.path) · \(mode.title) · \(environment.weather.kind.title)")
@@ -247,6 +256,7 @@ func run() throws {
     window.title = "City Simulation"
     window.collectionBehavior = [.fullScreenPrimary, .fullScreenAllowsTiling]
     let model = PreviewModel()
+    model.skin = skin
     model.mode = mode
     model.trafficConvention = convention
     model.inspectWind = preview.wind != nil; model.wind = preview.wind ?? 0.5
@@ -280,7 +290,7 @@ private func savePNG(_ image: CGImage, to output: URL) throws {
 /// Reproducible contact sheets use the production renderer without advancing a
 /// city or touching wallpaper checkpoints, weather caches or network services.
 @MainActor
-private func writeGallery(to directory: URL, convention: TrafficConvention) throws {
+private func writeGallery(to directory: URL, convention: TrafficConvention, skin: CitySkin) throws {
     try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
     let city = City(trafficConvention: convention)
     let viewport = CityViewport(pixelWidth: 640, pixelHeight: 360)
@@ -296,7 +306,7 @@ private func writeGallery(to directory: URL, convention: TrafficConvention) thro
         for (index, example) in examples.enumerated() {
             let x = index % columns * 320, y = h - (index / columns + 1) * 202
             let frame = Environment.frame(city: city, mode: example.1, preview: example.2)
-            let image = CityRenderer().image(for: city, viewport: viewport, environment: frame)
+            let image = CityRenderer().image(for: city, viewport: viewport, environment: frame, skin: skin)
             context.draw(image, in: CGRect(x: x, y: y + 22, width: 320, height: 180))
             (example.0 as NSString).draw(at: NSPoint(x: x + 8, y: y + 5), withAttributes: [
                 .font: NSFont.systemFont(ofSize: 11), .foregroundColor: NSColor.white
@@ -379,6 +389,6 @@ final class PreviewDelegate: NSObject, NSApplicationDelegate {
 do {
     try MainActor.assumeIsolated { try run() }
 } catch {
-    fputs("Usage: CityPreview [--png FILE [WIDTH HEIGHT [SIMULATED-SECONDS]]] [--traffic uk|right] [--environment simulation|northern|southern] [--month NUMBER] [--light day|night] [--weather clear|cloudy|rain|snow] [--wind 0...1] | --gallery DIRECTORY\n\(error)\n", stderr)
+    fputs("Usage: CityPreview [--png FILE [WIDTH HEIGHT [SIMULATED-SECONDS]]] [--skin original|contemporary] [--traffic uk|right] [--environment simulation|northern|southern] [--month NUMBER] [--light day|night] [--weather clear|cloudy|rain|snow] [--wind 0...1] | --gallery DIRECTORY\n\(error)\n", stderr)
     exit(1)
 }
