@@ -24,6 +24,16 @@ if [[ "$has_tag" == true ]]; then
     commit="$(gh api "repos/$GH_REPO/commits/tags/$RELEASE_TAG" --jq .sha)"
 fi
 
+remove_draft_assets() {
+    local asset name
+    for asset in "$@"; do
+        name="${asset##*/}"
+        if jq -e --arg name "$name" 'any(.assets[]; .name == $name)' <<< "$draft" >/dev/null; then
+            gh release delete-asset "$RELEASE_TAG" "$name" --yes
+        fi
+    done
+}
+
 case "$1" in
     resolve)
         printf 'commit=%s\n' "$commit" >> "$GITHUB_OUTPUT"
@@ -38,6 +48,9 @@ case "$1" in
             "$RUNNER_TEMP/release-assets/Game-of-Life-Native-Wallpaper.zip"
             "$RUNNER_TEMP/release-assets/City-Simulation-Native-Wallpaper.zip"
         )
+        if [[ -f "System Design/Package.swift" ]]; then
+            assets+=("$RUNNER_TEMP/release-assets/System-Design-Native-Wallpaper.zip")
+        fi
         for asset in "${assets[@]}"; do
             if [[ ! -s "$asset" ]]; then
                 echo "::error::Missing native wallpaper release ZIP $asset."
@@ -55,23 +68,17 @@ case "$1" in
             draft_url="$(gh release create "$RELEASE_TAG" "${assets[@]}" \
                 --draft "${target[@]}" --generate-notes --notes "$notes")"
         else
+            obsolete=(Game-of-Life-Desktop-App.zip Game-of-Life-Wallpaper-and-Screen-Saver.zip)
+            if [[ ! -f "System Design/Package.swift" ]]; then obsolete+=(System-Design-Native-Wallpaper.zip); fi
+            retarget=false
             if [[ "$has_tag" == false && "$(jq -r '.target_commitish' <<< "$draft")" != "$commit" ]]; then
-                # Remove old builds before retargeting so an interrupted upload
-                # cannot leave binaries from another commit on the new target.
-                for asset in "${assets[@]}"; do
-                    name="${asset##*/}"
-                    if jq -e --arg name "$name" 'any(.assets[]; .name == $name)' <<< "$draft" >/dev/null; then
-                        gh release delete-asset "$RELEASE_TAG" "$name" --yes
-                    fi
-                done
+                retarget=true
+                # Even builds absent from the new commit must go before the target moves.
+                remove_draft_assets "${assets[@]}" "${obsolete[@]}"
                 gh release edit "$RELEASE_TAG" --target "$commit"
             fi
             gh release upload "$RELEASE_TAG" "${assets[@]}" --clobber
-            for name in Game-of-Life-Desktop-App.zip Game-of-Life-Wallpaper-and-Screen-Saver.zip; do
-                if jq -e --arg name "$name" 'any(.assets[]; .name == $name)' <<< "$draft" >/dev/null; then
-                    gh release delete-asset "$RELEASE_TAG" "$name" --yes
-                fi
-            done
+            if [[ "$retarget" == false ]]; then remove_draft_assets "${obsolete[@]}"; fi
             draft_url="$(jq -r '.html_url' <<< "$draft")"
         fi
 

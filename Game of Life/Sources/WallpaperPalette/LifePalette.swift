@@ -1,8 +1,8 @@
 import AppKit
 
-package struct LifePalette {
-    let background: [CGColor]
-    let cells: [CGColor]
+public struct LifePalette {
+    public let background: [CGColor]
+    public let cells: [CGColor]
 
     private typealias RGB = SIMD3<Double>
     private static let green = rgb(0x9bb749)
@@ -14,7 +14,7 @@ package struct LifePalette {
     private static let spectrum = [green, yellow, orange, red, purple, blue]
     private static let generationsPerHue = 40
 
-    init(darkness: Double, colour: LifeColour, generation: Int, seed: UInt64) {
+    public init(darkness: Double, colour: LifeColour, generation: Int, seed: UInt64) {
         let backgrounds: [RGB]
         let inks: [RGB]
         switch colour {

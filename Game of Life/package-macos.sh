@@ -30,7 +30,7 @@ for arch in arm64 x86_64; do
     cp "$bin/GameOfLife" "$scratch/app-$arch"
     xcrun clang -bundle -target "$triple" -isysroot "$sdk" \
         -L "$swiftlib" -L "$sdk/usr/lib/swift" -rpath /usr/lib/swift \
-        "$bin"/LifeEngine.build/*.swift.o "$bin"/LifeArt.build/*.swift.o "$bin"/LifeSaver.build/*.swift.o \
+        "$bin"/WallpaperPalette.build/*.swift.o "$bin"/LifeEngine.build/*.swift.o "$bin"/LifeArt.build/*.swift.o "$bin"/LifeSaver.build/*.swift.o \
         -lswiftCompatibilityPacks -o "$scratch/saver-$arch"
 done
 lipo -create "$scratch/app-arm64" "$scratch/app-x86_64" -output "$app/Contents/MacOS/GameOfLife"
