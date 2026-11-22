@@ -28,7 +28,7 @@ A living isometric pixel-art city with traffic, growing neighbourhoods and light
 
 Explore 100 systems through tilted, evolving diagrams. Follow a packet across a network, heat around a refrigerant loop or pollen between flowers. While the screen saver runs, the diagram reveals neighbouring components and follows shared concepts into other systems. The desktop keeps the frame where the exploration settled.
 
-![Illustrated macOS Lock Screen with two cards for owls and songbirds connected by an arrow. Six more cards appear one by one to complete the woodland food web.](assets/system-design-lock-screen.webp)
+![Illustrated macOS Lock Screen. A woodland food web grows from owls and songbirds to eight cards. The other cards fade, leaving owls in view as the connection to songbirds returns.](assets/system-design-lock-screen.webp)
 
 *Illustrative preview of System Design on the macOS Lock Screen.*
 
