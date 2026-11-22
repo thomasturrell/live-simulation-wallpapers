@@ -14,6 +14,6 @@ GitHub also provides source code ZIP and tar.gz archives for the release tag.
 2. Wait for the workflow to finish. It attaches the native wallpaper ZIPs to a draft release. If the tag exists, the workflow builds its commit. For a new tag, the draft targets the selected branch's commit at the time you ran the workflow.
 3. Open the draft from the workflow summary or the **Releases** page. Review the notes and downloads, then click **Publish release**.
 
-Run the workflow again with the same tag to replace the native wallpaper ZIPs on an existing draft. The workflow also removes the earlier Game of Life desktop-app and wallpaper-and-screen-saver ZIPs from that draft.
+Run the workflow again with the same tag to replace the native wallpaper ZIPs on an existing draft and remove the earlier Game of Life desktop-app and wallpaper-and-screen-saver ZIPs. If the draft moves to a different commit, the workflow removes its previous wallpaper ZIPs before changing the target. A commit that predates System Design receives the Game of Life and City Simulation downloads only.
 
 For a new tag, use the default branch if your target branch changes GitHub Actions workflow files. GitHub requires a token with Workflows write permission to create releases for those commits.
