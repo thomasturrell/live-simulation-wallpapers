@@ -71,7 +71,7 @@ func generatedCitiesSupportCrossRiverTrafficAndConstruction(uuid: UUID) throws {
     #expect(city.vehicles.contains { !initialIDs.contains($0.id) })
     for vehicle in city.vehicles {
         #expect(city.map.route(from: vehicle.route[0], to: vehicle.route.last!,
-                               origin: vehicle.origin, destination: vehicle.destination,
+                               origin: vehicle.originAccess.lot, destination: vehicle.destinationAccess.lot,
                                convention: city.trafficConvention) == vehicle.route)
         #expect(city.map[vehicle.origin].building != nil)
         #expect(city.map[vehicle.destination].building != nil)

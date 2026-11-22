@@ -8,6 +8,8 @@ private let center = Dot(12, 10)
 
 private func sprite(at angle: Double, long: Bool, visibility: Double = 1, night: Double = 0) -> Pixels {
     var pixels = Pixels(width: 24, height: 20, background: asphalt, rasterScale: 4)
+    pixels.overlay = true
+    pixels.opacity = visibility
     let pose = Vehicle.Pose(x: 0, y: 0, dx: cos(angle) * 0.08, dy: sin(angle) * 0.08, visibility: visibility)
     pixels.car(at: center, pose: pose, color: 0, long: long, palette: Palette(night: night, skin: .contemporary))
     return pixels

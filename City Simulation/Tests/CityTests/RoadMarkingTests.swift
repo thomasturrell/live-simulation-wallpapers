@@ -99,3 +99,24 @@ func bendsCarryTheCentreMarkAndDeadEndsHaveNoStopLine(convention: TrafficConvent
     #expect(leftImage !== rightImage)
     #expect(rightImage === renderer.image(for: right, viewport: viewport))
 }
+
+@Test(arguments: [false, true], CitySkin.allCases)
+func parkingPaintFollowsTheVehicleAccessOnEachSide(driveway: Bool, skin: CitySkin) {
+    let palette = Palette(night: 0, skin: skin)
+    let background = palette.grass(0)
+    let scale = skin == .original ? 1 : 3
+    for direction in directions {
+        let lot = Plot(center.x + direction.x, center.y + direction.y)
+        let access = ParkingAccess(road: center, lot: lot, isDriveway: driveway)
+        var pixels = Pixels(width: 160, height: 120, background: background, rasterScale: scale)
+        pixels.parkingAccess(access, at: origin, palette: palette)
+        func painted(_ distance: Int) -> Bool {
+            let p = origin.iso(direction.x * distance, direction.y * distance).point
+            let x = Int(p.x * Double(scale)), y = Int(p.y * Double(scale))
+            return pixels.storage[y * pixels.rasterWidth + x] != background.pixel
+        }
+        #expect(painted(Int(access.offset)))
+        #expect(painted(16) == driveway)
+        #expect(!painted(0) && !painted(-8))
+    }
+}

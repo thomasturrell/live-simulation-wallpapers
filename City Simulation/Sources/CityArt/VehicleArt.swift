@@ -12,7 +12,7 @@ extension Pixels {
         let alongX = abs(pose.dx) >= abs(pose.dy)
         let rightward = alongX ? pose.dx >= 0 : pose.dy < 0
         let slope = alongX ? 1 : -1
-        let half = pose.visibility < 0.65 ? 2 : long ? 5 : 3
+        let half = long ? 5 : 3
         let windshield = c.color(0x44646D, 0x4B6070)
         let left = p.offset(-half, -(half * slope) / 2)
         let right = p.offset(half, (half * slope) / 2)
@@ -33,8 +33,8 @@ extension Pixels {
         let magnitude = hypot(pose.dx, pose.dy)
         let dx = magnitude > 0 ? pose.dx / magnitude : 1
         let dy = magnitude > 0 ? pose.dy / magnitude : 0
-        let length = pose.visibility < 0.65 ? 1.75 : long ? 4.9 : 3.0
-        let width = pose.visibility < 0.65 ? 0.85 : long ? 1.35 : 1.25
+        let length = long ? 4.9 : 3.0
+        let width = long ? 1.35 : 1.25
         let side = dx >= dy ? 1.0 : -1.0
         let facesFront = dx + dy >= 0
 

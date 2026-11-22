@@ -58,6 +58,7 @@ struct Pixels {
     var depths: [Int16]
     var depth: Int16 = 0
     var overlay = false
+    var opacity = 1.0
 
     init(width: Int, height: Int, background: Ink, rasterScale: Int = 1) {
         self.width = width
@@ -86,7 +87,11 @@ struct Pixels {
         guard start <= last else { return }
         let row = y * rasterWidth, pixel = ink.pixel
         if overlay {
-            for x in start...last where depth >= depths[row + x] { storage[row + x] = pixel }
+            for x in start...last where depth >= depths[row + x] {
+                let i = row + x
+                if opacity == 1 { storage[i] = pixel }
+                else { storage[i] = Ink(storage[i]).mix(Ink(pixel), opacity).rgb | 0xFF00_0000 }
+            }
         } else if depth == 0 {
             for x in start...last { storage[row + x] = pixel }
         } else {

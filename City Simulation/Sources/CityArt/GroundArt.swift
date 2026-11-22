@@ -152,6 +152,28 @@ extension Pixels {
         }
     }
 
+    mutating func parkingAccess(_ access: ParkingAccess, at road: Dot, palette c: Palette) {
+        let n = access.outward
+        func point(_ along: Int, _ out: Int) -> Dot {
+            road.iso(along * n.y + out * n.x, -along * n.x + out * n.y)
+        }
+        func strip(_ halfWidth: Int, _ near: Int, _ far: Int) -> [Dot] {
+            [point(-halfWidth, near), point(halfWidth, near), point(halfWidth, far), point(-halfWidth, far)]
+        }
+        if access.isDriveway {
+            polygon(strip(3, 5, 22), c.curb)
+            polygon(strip(2, 5, 21), c.paths.mix(c.sidewalk, 0.65))
+            line(point(-2, 20), point(2, 20), c.roof(0xCBC4AF))
+        } else {
+            polygon(strip(6, 5, 9), c.asphalt.mix(c.sidewalk, 0.25))
+            let paint = c.whiteRoadPaint.mix(c.sidewalk, 0.36)
+            for end in [-5, 5] {
+                line(point(end, 6), point(end, 9), paint, width: 0.45)
+                line(point(end, 9), point(end > 0 ? 3 : -3, 9), paint, width: 0.45)
+            }
+        }
+    }
+
     mutating func bridgeRails(at p: Dot, palette c: Palette) {
         for v in [-6, 6] {
             line(p.iso(-8, v), p.iso(8, v), c.roof(0xD2C7B3))
