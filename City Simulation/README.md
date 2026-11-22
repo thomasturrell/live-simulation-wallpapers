@@ -12,7 +12,7 @@ The city comes to life while your screen saver runs, then becomes a still citysc
 
 Start with a bustling city and watch its neighbourhoods develop. Cranes overlook construction sites as buildings rise from foundations to finished homes and offices. New streets make room for growth, while parks and riverside paths keep their place beside the changing skyline.
 
-Cars travel between homes, shops, offices and factories, crossing bridges and queuing at busy junctions. In new cities, traffic keeps left on streets with white centre markings. Look closer for fountains, glinting water and chimney smoke.
+Cars travel between homes, shops, offices and factories, crossing bridges and queuing at busy junctions. In new cities, traffic keeps left on streets with white centre markings. In Contemporary, look for cars following the curve of each turn and delivery trucks with a separate cab and cargo box. Look closer for fountains, glinting water and chimney smoke.
 
 In System Settings → Wallpaper or Screen Saver, choose a **Skin**. **Original** is the default. **Contemporary** draws a British riverside skyline with smooth rooflines and shaded trees. Look for stepped glass offices, recessed balconies, rooftop solar panels and pale stone quays. You can switch skins on a still desktop and resume the same saved city.
 
