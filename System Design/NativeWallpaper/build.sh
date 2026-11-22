@@ -51,15 +51,7 @@ lipo -create "${wallpaper_binaries[@]}" -output "$extension/Contents/MacOS/Desig
 lipo -create "${carrier_binaries[@]}" -output "$app/Contents/MacOS/InstallWallpaper"
 swift run "${base_options[@]}" --scratch-path "$scratch/preview" DesignPreview \
     --png "$extension/Contents/Resources/design-thumbnail.png" 640 360 domestic-solar-power 22
-iconset="$scratch/Design.iconset"
-mkdir -p "$iconset"
-swift run "${base_options[@]}" --scratch-path "$scratch/preview" DesignPreview --icon-png "$scratch/icon.png"
-for size in 16 32 128 256 512; do
-    sips -z "$size" "$size" "$scratch/icon.png" --out "$iconset/icon_${size}x${size}.png" >/dev/null
-    double=$((size * 2))
-    sips -z "$double" "$double" "$scratch/icon.png" --out "$iconset/icon_${size}x${size}@2x.png" >/dev/null
-done
-iconutil -c icns "$iconset" -o "$app/Contents/Resources/Design.icns"
+swift run "${base_options[@]}" --scratch-path "$scratch/preview" DesignPreview --icns "$app/Contents/Resources/Design.icns"
 cp Sources/DesignEngine/Catalogue/*.json "$extension/Contents/Resources/"
 cp "$support/Protocol/LICENSE" "$extension/Contents/Resources/Aerial-LICENSE.txt"
 sign_wallpaper "${DESIGN_SIGN_IDENTITY:--}"
