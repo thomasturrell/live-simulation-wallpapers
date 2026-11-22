@@ -1,4 +1,4 @@
-import CityArt
+@testable import CityArt
 @testable import CityEngine
 import CoreGraphics
 import Foundation
@@ -259,4 +259,32 @@ func integerPixelsCoverTheDisplay(size: CGSize) throws {
     let switchedBack = renderer.image(for: saved, viewport: viewport, skin: .original)
     #expect(try #require(switchedBack.dataProvider?.data) as Data == originalBytes)
     #expect(try saved.checkpoint() == checkpoint)
+}
+
+@Test func contemporaryRasterResolvesEdgesAndOcclusionWithinALogicalPixel() {
+    let background = Ink(0x112233), roof = Ink(0x556677), car = Ink(0xAABBCC)
+    var pixels = Pixels(width: 4, height: 4, background: background, rasterScale: 4)
+    pixels.depth = 8
+    pixels.polygon([Dot(0, 0), Dot(4, 0), Dot(0, 4)], roof)
+    pixels.overlay = true
+    pixels.depth = 7
+    pixels.box(Dot(0, 0), 4, 4, car)
+
+    // The diagonal splits the logical pixel at (1, 2). Only the exposed
+    // samples should show a car passing behind the roof.
+    let start = 8 * pixels.rasterWidth + 4
+    #expect(pixels.storage[start] == roof.pixel)
+    #expect(pixels.storage[start + 3 * pixels.rasterWidth + 3] == car.pixel)
+    #expect(pixels.image().shouldInterpolate)
+}
+
+@Test func contemporaryUsesAFinerRasterWithTheOriginalCameraFraming() {
+    let city = City(), renderer = CityRenderer()
+    let view = CityViewport(pixelWidth: 1280, pixelHeight: 720)
+    let original = renderer.image(for: city, viewport: view)
+    let fine = renderer.image(for: city, viewport: view, skin: .contemporary)
+    #expect(original.width == 640 && original.height == 360)
+    #expect(fine.width >= view.pixelWidth && fine.height >= view.pixelHeight)
+    #expect(fine.width * original.height == fine.height * original.width)
+    #expect(fine.shouldInterpolate && !original.shouldInterpolate)
 }

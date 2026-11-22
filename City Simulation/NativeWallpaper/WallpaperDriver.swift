@@ -309,6 +309,8 @@ final class RemoteView {
         let environment = environment(for: city)
         pixels.frame = CGRect(x: rect.minX / scale, y: rect.minY / scale,
                               width: rect.width / scale, height: rect.height / scale)
+        pixels.minificationFilter = skin == .contemporary ? .linear : .nearest
+        pixels.magnificationFilter = skin == .contemporary ? .linear : .nearest
         pixels.contents = renderer.image(for: city, viewport: frame, environment: environment, skin: skin)
         renderedSkin = skin
         renderedEnvironment = environment.quantized

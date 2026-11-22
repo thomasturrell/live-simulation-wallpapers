@@ -26,7 +26,7 @@ public struct CityViewport: Equatable {
     }
 
     public func draw(_ image: CGImage, in context: CGContext) {
-        context.interpolationQuality = .none
+        context.interpolationQuality = image.shouldInterpolate ? .high : .none
         context.setShouldAntialias(false)
         context.draw(image, in: imageRect)
     }
@@ -40,7 +40,7 @@ public struct CityViewport: Equatable {
 
     func project(_ x: Double, _ y: Double, altitude: Double = 0) -> Dot {
         let u = x - Double(CityMap.center.x), v = y - Double(CityMap.center.y)
-        return origin.offset(Int(((u - v) * 16).rounded()), Int(((u + v) * 8 - altitude).rounded()))
+        return origin.projectedOffset((u - v) * 16, (u + v) * 8 - altitude)
     }
 
     /// Invert the projection over the view and allow for tall buildings just below the crop.
@@ -165,7 +165,9 @@ public final class CityRenderer {
     private func depth(_ worldSum: Double) -> Int16 { Int16((worldSum + 128) * 32) }
 
     private func makeBackground(_ city: City, _ viewport: CityViewport, _ c: Palette) -> Background {
-        var pixels = Pixels(width: viewport.width, height: viewport.height, background: c.grass(0))
+        // Keep the camera in logical units. Bound the moving colour and depth buffers on 5K displays.
+        let scale = c.skin == .contemporary ? min(4, max(2, viewport.zoom + 1)) : 1
+        var pixels = Pixels(width: viewport.width, height: viewport.height, background: c.grass(0), rasterScale: scale)
         var water: [(Dot, Int)] = []
         var stacks: [(Dot, Plot, Int)] = []
         let plots = viewport.drawingOrder.map { ($0, viewport.project($0), city.map[$0]) }
@@ -178,6 +180,10 @@ public final class CityRenderer {
                 pixels.tile(p.offset(4, 1), -6, -5, 12, 13, c.shadow)
             } else if hasTree(lot, at: plot) {
                 let shadow = p.offset(4, 1)
+                if c.skin == .contemporary {
+                    pixels.oval(at: shadow, radiusX: 4.8, radiusY: 1.9, top: c.shadow, bottom: c.grass(lot.detail))
+                    continue
+                }
                 pixels.span(shadow.x - 2, shadow.x + 4, shadow.y, c.shadow)
                 pixels.span(shadow.x, shadow.x + 3, shadow.y + 1, c.shadow)
             }
@@ -201,6 +207,9 @@ public final class CityRenderer {
                 if lot.ground == .park && lot.detail.isMultiple(of: 2) {
                     pixels.tree(at: p.iso(-5, -4), style: lot.detail / 2, palette: c)
                 }
+            } else if c.skin == .contemporary && lot.ground == .bridge {
+                pixels.bridgeRails(at: p, palette: c)
+                if plot.x.isMultiple(of: 2) { pixels.lamp(at: p.iso(0, 7), palette: c) }
             } else if lot.ground == .road && lot.detail.isMultiple(of: 3) {
                 pixels.depth += 22
                 pixels.lamp(at: p.iso(6, 6), palette: c)
@@ -234,6 +243,22 @@ private extension Pixels {
         let windshield = c.color(0x44646D, 0x4B6070)
         let left = p.offset(-half, -(half * slope) / 2)
         let right = p.offset(half, (half * slope) / 2)
+        if c.skin == .contemporary {
+            let side = Dot(2, -slope)
+            let front = right.offset(0, -1), rear = left.offset(0, -1)
+            let farFront = front.offset(side.x, side.y), farRear = rear.offset(side.x, side.y)
+            polygon([rear, front, front.offset(0, 1), rear.offset(0, 1)], body.mix(c.outline, 0.46))
+            polygon([rear, farRear, farFront, front], body)
+            let cab = p.offset(rightward && long ? 2 : 0, -2)
+            let nose = cab.offset(1, slope), tail = cab.offset(-2, -slope)
+            polygon([tail, tail.offset(1, -1), nose.offset(1, -1), nose], windshield)
+            line(tail.offset(1, -1), nose.offset(1, -1), body.mix(c.shore, 0.4), width: 0.5)
+            if c.night > 0.3 {
+                let head = rightward ? front : rear
+                line(head, head.offset(1, 0), c.gold, width: 0.5)
+            }
+            return
+        }
         line(left.offset(0, 1), right.offset(0, 1), c.roadEdge)
         line(left.offset(0, -1), right.offset(0, -1), body)
         line(left.offset(0, -2), right.offset(0, -2), body.mix(c.curb, 0.33))

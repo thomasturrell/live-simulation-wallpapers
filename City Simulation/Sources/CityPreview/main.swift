@@ -300,7 +300,7 @@ private func writeGallery(to directory: URL, convention: TrafficConvention, skin
                                       space: CGColorSpace(name: CGColorSpace.sRGB)!, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { throw PreviewError.write }
         context.setFillColor(NSColor(calibratedWhite: 0.12, alpha: 1).cgColor)
         context.fill(CGRect(x: 0, y: 0, width: w, height: h))
-        context.interpolationQuality = .none
+        context.interpolationQuality = skin == .contemporary ? .high : .none
         NSGraphicsContext.saveGraphicsState()
         NSGraphicsContext.current = NSGraphicsContext(cgContext: context, flipped: false)
         for (index, example) in examples.enumerated() {

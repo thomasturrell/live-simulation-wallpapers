@@ -33,7 +33,11 @@ extension Pixels {
         let roof = p.offset(0, -z)
         tile(roof, u, v, 8, 5, c.roof(0x294964))
         line(roof.iso(u, v), roof.iso(u + 8, v), c.roof(0x7DADC4))
-        line(roof.iso(u + 4, v), roof.iso(u + 4, v + 4), c.roof(0x638BA5))
+        let grid = c.roof(0x7897B4)
+        for column in [2, 4, 6] {
+            line(roof.iso(u + column, v), roof.iso(u + column, v + 5), grid, width: 0.28)
+        }
+        line(roof.iso(u, v + 2), roof.iso(u + 8, v + 2), grid, width: 0.28)
     }
 
     private mutating func contemporaryHomes(_ p: Dot, level: Int, style: Int, c: Palette) {
@@ -59,8 +63,13 @@ extension Pixels {
             tile(p.offset(0, -h), f.u + 1, f.v + 1, f.w - 2, f.d - 2, c.roof(0x83929B))
             if style.isMultiple(of: 4) {
                 solarArray(p, u: f.u + 2, v: -3, z: h + 1, c: c)
-            } else if level == 3 {
-                prism(p, Footprint(u: -5, v: -4, w: 7, d: 6), base: h, top: h + 3, m)
+            } else {
+                let plant = Footprint(u: -4, v: -3, w: level == 3 ? 5 : 3, d: 4)
+                let zinc = Masonry(c, 0xA1ACB8, 0x5F7080, 0x909EAA, 0x657788, 0xB8C0BF)
+                prism(p, plant, base: h, top: h + 2, zinc)
+                for u in plant.u + 1..<plant.farU {
+                    line(p.iso(u, -2, h + 2), p.iso(u, 0, h + 2), zinc.edge, width: 0.3)
+                }
             }
         }
 
@@ -125,11 +134,27 @@ extension Pixels {
         let u = f.u + 2 + style % 3
         polygon([p.iso(u, f.farV, top - 1), p.iso(u + 3, f.farV, top - 1),
                  p.iso(u + 3, f.farV, base + 1), p.iso(u, f.farV, base + 1)], reflection)
+        let mullion = c.color(0x456983, 0x29394B)
+        for column in stride(from: 2, through: f.w - 1, by: 3) {
+            line(p.iso(f.u + column, f.farV, base), p.iso(f.u + column, f.farV, top - 1), mullion, width: 0.34)
+        }
+        for column in stride(from: 2, through: f.d - 1, by: 3) {
+            line(p.iso(f.farU, f.v + column, base), p.iso(f.farU, f.v + column, top - 1), mullion, width: 0.34)
+        }
         for z in stride(from: base + 4, through: top - 2, by: 6) {
             let a = p.iso(f.u, f.farV, z), b = p.iso(f.farU, f.farV, z), d = p.iso(f.farU, f.v, z)
             line(a.offset(0, 1), b.offset(0, 1), m.edge)
             line(a, b, m.trim)
             line(b, d, c.color(0x89A4B4))
+            // Small groups of offices catch skylight or show warm interiors at dusk.
+            for column in stride(from: 1, through: f.d - 2, by: 3) {
+                let index = (column * 7 + z / 3 + style) % 16
+                let glass = windowLight(c.color(0x698CA7, 0x394C65), index: index, palette: c)
+                let start = p.iso(f.farU, f.v + column, z - 1)
+                let end = p.iso(f.farU, f.v + column + 2, z - 1)
+                polygon([start, end, end.offset(0, 2), start.offset(0, 2)], glass,
+                        bottomInk: glass.mix(m.shade, 0.36))
+            }
             let sidePane = p.iso(f.farU, f.v + 3, z + 2)
             let sideGlass = windowLight(c.color(0x7593A8, 0x38485E), index: (z + style) % 11, palette: c)
             line(sidePane, sidePane.offset(-3, 1), sideGlass)

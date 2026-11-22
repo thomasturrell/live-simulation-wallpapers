@@ -8,7 +8,7 @@ extension Pixels {
             let u = (dx * along - dy * across) * scale
             let v = (dy * along + dx * across) * scale
             let height = (z + across * pose.bank) * scale
-            return p.offset(Int((u - v).rounded()), Int(((u + v) * 0.5 - height).rounded()))
+            return p.projectedOffset(u - v, (u + v) * 0.5 - height)
         }
         let white = c.color(0xE0DDC9, 0x9DA8B3)
         let shade = c.color(0x9DAEAC, 0x596C7E)

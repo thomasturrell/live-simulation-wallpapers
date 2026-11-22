@@ -11,6 +11,15 @@ extension Pixels {
             tile(p, -8, -8, 16, 16, c.water)
             let west = map[Plot(plot.x - 1, plot.y)].ground == .promenade
             let east = map[Plot(plot.x + 1, plot.y)].ground == .promenade
+            if c.skin == .contemporary && c.night > 0.18 && plot.x.isMultiple(of: 2)
+                && map[Plot(plot.x, plot.y - 1)].ground == .bridge {
+                let foot = p.iso(0, -8)
+                let light = c.water.mix(c.gold, min(0.8, c.night))
+                for y in [1, 3, 4, 7] {
+                    let shimmer = foot.offset(-1 + y % 2, y)
+                    line(shimmer, shimmer.offset(y % 3 + 1, 0), light.mix(c.water, Double(y) / 10), width: 0.5)
+                }
+            }
             if west { tile(p, -8, -8, 3, 16, c.waterDark) }
             if east { tile(p, 5, -8, 3, 16, c.waterDark) }
             if n.isMultiple(of: 4) {
@@ -26,8 +35,11 @@ extension Pixels {
                 let walk = eastBank ? -7 : 1
                 let stone = c.roof(0xDACFB8)
                 tile(p, walk, -8, 7, 16, stone)
-                for v in [-6, 2] {
-                    line(p.iso(walk, v), p.iso(walk + 6, v), c.roof(0xB9B3A4))
+                let joint = c.roof(0xAAA999)
+                for v in stride(from: -8, to: 8, by: 4) {
+                    line(p.iso(walk, v), p.iso(walk + 7, v), joint, width: 0.3)
+                    let u = walk + (v.isMultiple(of: 8) ? 2 : 5)
+                    line(p.iso(u, v), p.iso(u, v + 4), joint, width: 0.3)
                 }
                 line(p.iso(edge, -8), p.iso(edge, 8), c.color(0x83949A))
                 line(p.iso(edge, -8, 2), p.iso(edge, 8, 2), c.roof(0xDCE3DD))
@@ -111,6 +123,13 @@ extension Pixels {
             tile(p, -8, -6, 16, 13, c.sidewalk)
         } else {
             tile(p, -8, -8, 16, 16, c.sidewalk)
+            if c.skin == .contemporary {
+                let joint = c.sidewalk.mix(c.roadEdge, 0.29)
+                for seam in stride(from: -8, to: 8, by: 4) {
+                    line(p.iso(seam, -8), p.iso(seam, 8), joint, width: 0.32)
+                    line(p.iso(-8, seam), p.iso(8, seam), joint, width: 0.32)
+                }
+            }
             line(p.iso(-8, -8), p.iso(-8, 8), c.curb)
             line(p.iso(-8, -8), p.iso(8, -8), c.curb)
         }
@@ -123,22 +142,24 @@ extension Pixels {
         tile(p, left, -5, right - left, 10, c.asphalt)
         tile(p, -5, top, 10, bottom - top, c.asphalt)
         roadMarkings(at: p, plot: plot, connections: connections, map: map, convention: convention, palette: c)
-        if bridge && c.skin == .contemporary {
-            for v in [-6, 6] {
-                line(p.iso(-8, v), p.iso(8, v), c.roof(0xD2C7B3))
-                for u in [-8, 0] {
-                    line(p.iso(u, v, 1), p.iso(u + 7, v, 4), c.color(0x788C9A))
-                    line(p.iso(u, v), p.iso(u, v, 4), c.color(0x536C7A))
-                }
-                line(p.iso(-8, v, 4), p.iso(8, v, 4), c.roof(0xCEDAD9))
-            }
-        } else if bridge {
+        if bridge && c.skin == .original {
             line(p.iso(-8, -6, 2), p.iso(8, -6, 2), c.curb)
             line(p.iso(-8, 6, 2), p.iso(8, 6, 2), c.curb)
             for u in [-8, 0, 7] {
                 line(p.iso(u, 6), p.iso(u, 6, 4), c.outline)
                 line(p.iso(u, -6), p.iso(u, -6, 4), c.curb)
             }
+        }
+    }
+
+    mutating func bridgeRails(at p: Dot, palette c: Palette) {
+        for v in [-6, 6] {
+            line(p.iso(-8, v), p.iso(8, v), c.roof(0xD2C7B3))
+            for u in [-8, 0] {
+                line(p.iso(u, v, 1), p.iso(u + 7, v, 4), c.color(0x788C9A))
+                line(p.iso(u, v), p.iso(u, v, 4), c.color(0x536C7A))
+            }
+            line(p.iso(-8, v, 4), p.iso(8, v, 4), c.roof(0xCEDAD9))
         }
     }
 
@@ -158,7 +179,7 @@ extension Pixels {
             let firstTrim = controlled.contains(connections[0]) ? 2 : 0
             let secondTrim = controlled.contains(connections[1]) ? 2 : 0
             if first.x == second.x || first.y == second.y {
-                line(dot(first, 4 - firstTrim), dot(second, 4 - secondTrim), ink)
+                line(dot(first, 4 - firstTrim), dot(second, 4 - secondTrim), ink, width: 0.46)
             } else {
                 line(dot(first, 5 - firstTrim), dot(first, 2), ink)
                 line(dot(first, 2), dot(second, 2), ink)
@@ -203,6 +224,19 @@ extension Pixels {
             line(centre, centre.offset(i % 2 == 0 ? -1 : 1, -2), bark)
             let threshold = Double((i * 3 + style) % 8) / 8 + 0.045
             let growth = max(0, min(1, (season.foliage - threshold) * 7))
+            if c.skin == .contemporary && growth > 0.12 {
+                let radius = 3.35 * growth
+                let leaf = green.mix(c.foliage, 0.28 + Double(i % 3) * 0.08)
+                var sun = leaf.mix(c.color(0xACC780), 0.45)
+                if style % 3 == 1 && season.blossom > threshold { sun = sun.mix(c.color(0xE6C4CE), 0.76) }
+                if c.weather.snowCover > threshold { sun = c.snow }
+                oval(at: centre, radiusX: radius, radiusY: radius * 1.12,
+                     top: sun, bottom: leaf.mix(c.leafShade, 0.78))
+                let crown = centre.projectedOffset(-0.65 * growth, -1.05 * growth)
+                oval(at: crown, radiusX: radius * 0.65, radiusY: radius * 0.55,
+                     top: sun, bottom: leaf)
+                continue
+            }
             let radius = Int((growth * 3).rounded())
             if radius > 0 {
                 let r = radius
@@ -221,6 +255,14 @@ extension Pixels {
     }
 
     mutating func lamp(at p: Dot, palette c: Palette) {
+        if c.skin == .contemporary {
+            let light = p.offset(-1, -8)
+            line(p, p.offset(0, -8), c.color(0x627384), width: 0.55)
+            line(p.offset(0, -8), light, c.curb, width: 0.45)
+            oval(at: light, radiusX: 0.95, radiusY: 0.6,
+                 top: c.night > 0.2 ? c.gold : c.shore, bottom: c.curb)
+            return
+        }
         line(p, p.offset(0, -8), c.outline)
         span(p.x - 2, p.x + 1, p.y - 8, c.outline)
         span(p.x - 2, p.x - 1, p.y - 7, c.night > 0.25 ? c.gold : c.curb)

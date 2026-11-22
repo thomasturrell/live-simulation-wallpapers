@@ -14,7 +14,7 @@ Start with a bustling city and watch its neighbourhoods develop. Cranes overlook
 
 Cars travel between homes, shops, offices and factories, crossing bridges and queuing at busy junctions. In new cities, traffic keeps left on streets with white centre markings. Look closer for fountains, glinting water and chimney smoke.
 
-In System Settings → Wallpaper or Screen Saver, choose a **Skin**. **Original** is the default. **Contemporary** gives the same streets a British riverside look, with stepped glass offices, brick apartments with recessed balconies, rooftop solar panels and pale stone quays. You can switch skins on a still desktop and resume the same saved city.
+In System Settings → Wallpaper or Screen Saver, choose a **Skin**. **Original** is the default. **Contemporary** draws a British riverside skyline with smooth rooflines and shaded trees. Look for stepped glass offices, recessed balconies, rooftop solar panels and pale stone quays. You can switch skins on a still desktop and resume the same saved city.
 
 Passenger planes occasionally cross the skyline. Look for their navigation lights after dark.
 

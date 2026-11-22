@@ -41,9 +41,11 @@ extension Pixels {
     mutating func prism(_ p: Dot, _ footprint: Footprint, base: Int = 0, top: Int, _ colors: Masonry) {
         let bottom = footprint.points(p, base)
         let high = footprint.points(p, top)
-        polygon([high[3], high[2], bottom[2], bottom[3]], colors.light)
-        polygon([high[2], high[1], bottom[1], bottom[2]], colors.shade)
-        polygon(high, colors.roof)
+        polygon([high[3], high[2], bottom[2], bottom[3]], colors.light,
+                bottomInk: rasterScale > 1 ? colors.light.mix(colors.shade, 0.38) : nil)
+        polygon([high[2], high[1], bottom[1], bottom[2]], colors.shade,
+                bottomInk: rasterScale > 1 ? colors.shade.mix(colors.edge, 0.32) : nil)
+        polygon(high, colors.roof, bottomInk: rasterScale > 1 ? colors.roof.mix(colors.edge, 0.22) : nil)
         line(high[3], high[2], colors.trim)
         line(high[2], high[1], colors.edge)
         line(bottom[3], bottom[2], colors.edge)
@@ -100,7 +102,15 @@ extension Pixels {
 
     mutating func aperture(_ a: Dot, _ b: Dot, _ height: Int, _ trim: Ink, _ glass: Ink) {
         polygon([a, b, b.offset(0, height), a.offset(0, height)], glass)
-        line(a, b, trim)
+        if rasterScale > 1 {
+            let reveal = glass.mix(Ink(0x1E3249), 0.55)
+            line(a, b, reveal, width: 0.7)
+            line(a, a.offset(0, height), reveal, width: 0.5)
+            let mid = a.projectedOffset((b.point.x - a.point.x) * 0.5, (b.point.y - a.point.y) * 0.5)
+            line(mid, mid.offset(0, height), trim.mix(glass, 0.55), width: 0.32)
+        } else {
+            line(a, b, trim)
+        }
         line(a.offset(0, height), b.offset(0, height), trim)
     }
 

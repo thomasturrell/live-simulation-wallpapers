@@ -80,7 +80,7 @@ Rain darkens roads and vegetation and adds puddles, ripples and slanted rain. Sn
 
 ### CityPreview controls and exports
 
-Use the **Skin** picker to switch between **Original** (default) and **Contemporary** while the city runs or is paused. To compare the two in a PNG, export once with each skin using the same dimensions, simulated seconds and environment overrides.
+Use the **Skin** picker to switch between **Original** (default) and **Contemporary** while the city runs or is paused. For a wallpaper-scale comparison, export once with each skin using the same dimensions, simulated seconds and environment overrides.
 
 The standalone development preview has the same Environment choices plus a fractional-month slider, previous/next stage controls, live/day/night lighting, clear/cloudy/rain/snow overrides, independent wind inspection and pause. The **Traffic** picker switches between **Keep left** and **Keep Right**. Switching restarts the disposable preview city so cars begin with routes on the selected side. The preview leaves installed wallpaper settings and checkpoints untouched.
 
@@ -88,9 +88,9 @@ Use the green window button to place the preview in macOS Split View. In a narro
 
 ```sh
 swift run -c release CityPreview --skin contemporary
-swift run -c release CityPreview --png /tmp/city-original.png 640 360 0 \
+swift run -c release CityPreview --png /tmp/city-original.png 1280 720 0 \
   --skin original --environment simulation --month 2 --light day --weather clear
-swift run -c release CityPreview --png /tmp/city-contemporary.png 640 360 0 \
+swift run -c release CityPreview --png /tmp/city-contemporary.png 1280 720 0 \
   --skin contemporary --environment simulation --month 2 --light day --weather clear
 swift run -c release CityPreview --environment northern --month 10.5 --light day --weather rain --wind 0.7
 swift run -c release CityPreview --png /tmp/winter-snow.png 1280 720 \
@@ -111,7 +111,7 @@ Build with `CITY_BUILD_ABI_PROBE=1 ./NativeWallpaper/build.sh`, then run the pro
 ## Architecture and persistence
 
 - **CityEngine** owns a seedable 56 × 56 city and advances it at 30 fixed ticks per second. The internal traffic convention defaults to UK left-hand traffic and controls lane geometry and driveway routing. Traffic stops before junctions with room for the whole vehicle, waits for a clear crossing and exit, and keeps space between cars through turns and driveway manoeuvres. Trips approach and leave buildings from the matching side of the road. It routes trips on a connected road graph, balances development between housing and jobs, and enforces frontage and density limits. New road segments open frontage for future projects. Parks and riverbanks stay protected.
-- **CityArt** draws original pixel art onto a virtual canvas. UK streets and bridges use white centre dashes. At controlled junctions, the renderer uses the city's convention and the simulation's stopping distance to paint a white line across each incoming lane. It caches terrain, buildings and their occlusion data, then adds road traffic, aircraft, water glints and chimney smoke. Playback samples the simulation up to 20 times per second. The desktop, snapshots and development preview use the same renderer and integer scaling.
+- **CityArt** draws original pixel art onto a virtual canvas. UK streets and bridges use white centre dashes. At controlled junctions, the renderer uses the city's convention and the simulation's stopping distance to paint a white line across each incoming lane. It caches terrain, buildings and their occlusion data, then adds road traffic, aircraft, water glints and chimney smoke. Playback samples the simulation up to 20 times per second. The desktop, snapshots and development preview use the same camera and renderer. Original enlarges its logical pixels by whole numbers. Contemporary draws geometry and its occlusion mask at two to four samples per logical axis and filters the result to the display or export size.
 - **NativeWallpaper** atomically checkpoints each identified display to the extension's Application Support directory about every 15 seconds of active simulation and at lifecycle transitions. A checkpoint includes the city clock, lots, construction, vehicle trips, traffic convention, overflights, city random state and an independent environmental seed. Version 5 checkpoints restore as right-hand cities so existing routes and positions carry over. Version 5 and 6 checkpoints with an airport restore its site to the original terrain and zoning, retaining the surrounding streets, city progress and any active overflight. System Settings preview surfaces use disposable city state. Settling stops the timer and retains the final frame. The renderer’s cache key includes the skin, hemisphere-adjusted seasonal phase, lighting and weather, so changes redraw correctly even at the same city tick. Quantized palettes retain the terrain/building cache for most frames.
 
 The private integration follows the [Game of Life native extension](../Game%20of%20Life/NativeWallpaper/INSTALL.md) and [Aerial’s wallpaper extension](https://github.com/AerialScreensaver/Aerial/tree/main/WallpaperExtension).
