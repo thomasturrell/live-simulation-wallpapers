@@ -2,7 +2,7 @@
 
 A little city with a life of its own. Neighbourhoods grow, cars cross the river and aircraft pass over the skyline. City Simulation brings an evolving miniature world to your Mac, with something new to spot each time you visit.
 
-![Animated preview of a passenger plane crossing the city as traffic moves over the bridges](assets/city-preview.webp)
+![A passenger plane flying over a miniature city with riverside towers, leafy neighbourhoods and bridges](assets/city-day.webp)
 
 **[Download for macOS](https://github.com/thomasturrell/live-simulation-wallpapers/releases)** · Requires macOS 26 or later.
 
