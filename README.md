@@ -18,7 +18,7 @@ The first wallpaper is based on [Conway’s Game of Life](https://en.wikipedia.o
 
 A living isometric pixel-art city with traffic, growing neighbourhoods, passing passenger planes and lights that come on after dark. Choose a simulated seasonal world with fictional weather, or follow the Mac’s appearance and real-world calendar in the Northern or Southern Hemisphere.
 
-![A passenger plane flying over an isometric city with riverside towers, bridges and leafy neighbourhoods](City%20Simulation/assets/city-day.webp)
+![Animated preview of a passenger plane crossing an isometric city as traffic moves over the bridges](City%20Simulation/assets/city-preview.webp)
 
 [City Simulation installation, build instructions and asset gallery](City%20Simulation/README.md)
 
