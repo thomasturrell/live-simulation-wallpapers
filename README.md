@@ -18,7 +18,9 @@ The first wallpaper is based on [Conway’s Game of Life](https://en.wikipedia.o
 
 A living isometric pixel-art city with traffic, growing neighbourhoods, passing passenger planes and lights that come on after dark. Choose a simulated seasonal world with fictional weather, or follow the Mac’s appearance and real-world calendar in the Northern or Southern Hemisphere.
 
-![A passenger plane flying over an isometric city with riverside towers, bridges and leafy neighbourhoods](City%20Simulation/assets/city-day.webp)
+![Illustrated macOS Lock Screen with a large clock and sign-in controls over an isometric city with moving traffic and a passing passenger plane](assets/city-lock-screen.webp)
+
+*Illustrative preview of City Simulation on the macOS Lock Screen.*
 
 [City Simulation installation, build instructions and asset gallery](City%20Simulation/README.md)
 
