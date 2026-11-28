@@ -29,6 +29,7 @@ import json
 import os
 from pathlib import Path
 import plistlib
+import subprocess
 import sys
 
 command = Path(sys.argv[0]).name
@@ -36,6 +37,8 @@ args = sys.argv[1:]
 failure = os.environ.get("RELEASE_TEST_FAILURE", "")
 with open(os.environ["RELEASE_TEST_LOG"], "a") as stream:
     stream.write(json.dumps([command] + args) + "\n")
+if command == "codesign" and "--verify" in args and "-R" in args:
+    subprocess.run(["/usr/bin/csreq", "-r", args[args.index("-R") + 1], "-t"], check=True, capture_output=True)
 if command == "security":
     if args[0] == "create-keychain":
         Path(args[-1]).touch()
@@ -82,6 +85,8 @@ elif command == "spctl":
     if failure == "extracted" and "verify-" in args[-1]:
         sys.exit(1)
 elif command == "lipo":
+    if len(args) != 3 or not Path(args[0]).is_file() or args[1] != "-verify_arch" or args[2] not in ("arm64", "x86_64"):
+        sys.exit("Invalid lipo arguments")
     if failure == "architecture":
         sys.exit(1)
 elif command == "file":

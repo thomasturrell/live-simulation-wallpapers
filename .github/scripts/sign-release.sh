@@ -95,7 +95,7 @@ verify_app() {
     # for Developer ID trust, team, timestamp and Hardened Runtime as well.
     for binary in "$extension" "$app"; do
         codesign --verify --strict --all-architectures \
-            -R "anchor apple generic and certificate leaf[subject.OU] = \"$APPLE_TEAM_ID\" and certificate leaf[field.1.2.840.113635.100.6.1.13] exists" "$binary"
+            -R "=anchor apple generic and certificate leaf[subject.OU] = \"$APPLE_TEAM_ID\" and certificate leaf[field.1.2.840.113635.100.6.1.13] exists" "$binary"
         codesign --display --verbose=4 "$binary" 2> "$private/signature.txt"
         grep -q 'flags=.*runtime' "$private/signature.txt" || fail 'Hardened Runtime is missing.'
         grep -q '^Timestamp=' "$private/signature.txt" || fail 'A secure signing timestamp is missing.'
@@ -135,6 +135,8 @@ with zipfile.ZipFile(sys.argv[1]) as archive:
             raise SystemExit("Unsafe path in wallpaper archive")
 PY
     ditto -x -k "$RUNNER_TEMP/unsigned-assets/$archive" "$stage"
+    # Finder metadata and resource forks invalidate strict distribution signing.
+    xattr -cr "$stage"
     app="$stage/${apps[$index]}"
     extension="$app/Contents/Extensions/${extensions[$index]}.appex"
     host_binary="$app/Contents/MacOS/InstallWallpaper"
@@ -149,8 +151,10 @@ PY
                 fail "Unexpected nested code in $archive. Update the signing order."
         fi
     done < <(find "$stage" -type f -print0)
-    lipo -verify_arch arm64 x86_64 "$host_binary"
-    lipo -verify_arch arm64 x86_64 "$extension_binary"
+    for architecture in arm64 x86_64; do
+        lipo "$host_binary" -verify_arch "$architecture"
+        lipo "$extension_binary" -verify_arch "$architecture"
+    done
 
     # Preserve the extension sandbox. The carrier needs no entitlements or
     # Hardened Runtime exceptions. Do not inherit old ad-hoc entitlements.
