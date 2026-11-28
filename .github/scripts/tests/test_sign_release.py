@@ -6,6 +6,7 @@ Run on macOS: python3 -m unittest discover -s .github/scripts/tests -v
 import base64
 import json
 import os
+import shutil
 from pathlib import Path
 import subprocess
 import sys
@@ -102,12 +103,24 @@ elif command == "xcrun":
         print("::error::untrusted workflow annotation", file=sys.stderr)
         sys.exit(1)
     elif args[:2] == ["notarytool", "submit"]:
-        status = "Invalid" if failure == "rejected" else "Accepted"
-        print(json.dumps({"id": "test-submission", "status": status}))
-        if failure == "timeout":
+        if "--wait" in args:
+            sys.exit("Submission should not wait")
+        if failure == "submit-error":
+            print("Error: HTTP status code: 503. Service unavailable.", file=sys.stderr)
             sys.exit(1)
+        number = {"Game-of-Life": "1", "City-Simulation": "2", "System-Design": "3"}[Path(args[2]).stem]
+        submission_id = "-".join(number * size for size in (8, 4, 4, 4, 12))
+        print(json.dumps({"id": "invalid" if failure == "bad-id" else submission_id}))
+    elif args[:2] == ["notarytool", "info"]:
+        if failure == "info-error":
+            print("Error: HTTP status code: 503. Service unavailable.", file=sys.stderr)
+            sys.exit(1)
+        status = {"rejected": "Invalid", "timeout": "In Progress"}.get(failure, "Accepted")
+        print(json.dumps({"id": args[2], "status": status}))
     elif args[:2] == ["notarytool", "log"]:
-        Path(args[-1]).write_text(json.dumps({"status": "Accepted", "issues": None}))
+        status = "Invalid" if failure == "rejected" else "Accepted"
+        issues = [{"message": "Test rejection"}] if failure == "rejected" else None
+        Path(args[-1]).write_text(json.dumps({"status": status, "issues": issues}))
     elif args[:2] == ["stapler", "staple"]:
         if failure == "staple":
             sys.exit(1)
@@ -158,6 +171,7 @@ class SigningTests(unittest.TestCase):
             APPLE_TEAM_ID="ABC1234567",
             APPLE_APP_SPECIFIC_PASSWORD="test-app-specific-password",
             RELEASE_HAS_SYSTEM_DESIGN="true",
+            NOTARISATION_WAIT_SECONDS="0",
         )
         for name, app, extension in PACKAGES:
             with zipfile.ZipFile(self.unsigned / (name + "-Native-Wallpaper.zip"), "w") as archive:
@@ -168,10 +182,13 @@ class SigningTests(unittest.TestCase):
                 if name != "Game-of-Life":
                     archive.writestr("assets/example.png", b"image fixture")
 
-    def run_signing(self, failure=""):
-        self.env["RELEASE_TEST_FAILURE"] = failure
+    def run_phase(self, phase, failure=""):
+        env = dict(self.env, RELEASE_TEST_FAILURE=failure)
+        if phase == "finalize":
+            del env["APPLE_CERTIFICATE_BASE64"]
+            del env["APPLE_CERTIFICATE_PASSWORD"]
         original = json.loads(self.search_list.read_text()) if self.search_list.exists() else ORIGINAL_KEYCHAINS
-        result = subprocess.run(["bash", str(SCRIPT)], cwd=ROOT, env=self.env,
+        result = subprocess.run(["bash", str(SCRIPT), phase], cwd=ROOT, env=env,
                                 capture_output=True, text=True)
         self.assertFalse((self.runner / "wallpaper-signing").exists())
         if self.search_list.exists():
@@ -180,6 +197,16 @@ class SigningTests(unittest.TestCase):
             for value in {self.env.get(name, ""), self.env.get(name, "").strip()} - {""}:
                 self.assertNotIn(value, result.stdout + result.stderr)
         return result
+
+    def run_signing(self, failure=""):
+        shutil.rmtree(self.runner / "notarisation-pending", ignore_errors=True)
+        submitted = self.run_phase("submit", failure)
+        if submitted.returncode:
+            return submitted
+        finalized = self.run_phase("finalize", failure)
+        finalized.stdout = submitted.stdout + finalized.stdout
+        finalized.stderr = submitted.stderr + finalized.stderr
+        return finalized
 
     def commands(self):
         return [json.loads(line) for line in self.log.read_text().splitlines()]
@@ -204,7 +231,12 @@ class SigningTests(unittest.TestCase):
                 for flag in ("--keychain", "runtime", "--timestamp"):
                     self.assertIn(flag, command)
                 self.assertNotIn("--deep", command)
-        self.assertEqual(sum(command[:3] == ["xcrun", "notarytool", "submit"] for command in commands), 3)
+        submits = [i for i, command in enumerate(commands) if command[:3] == ["xcrun", "notarytool", "submit"]]
+        checks = [i for i, command in enumerate(commands) if command[:3] == ["xcrun", "notarytool", "info"]]
+        self.assertEqual(len(submits), 3)
+        self.assertEqual(len(checks), 3)
+        self.assertLess(max(submits), min(checks))
+        self.assertEqual(sum(command[:2] == ["security", "import"] for command in commands), 1)
         self.assertEqual(sum(command[0] == "spctl" for command in commands), 6)
         for name, app, _ in PACKAGES:
             with zipfile.ZipFile(self.runner / "release-assets" / (name + "-Native-Wallpaper.zip")) as archive:
@@ -213,6 +245,59 @@ class SigningTests(unittest.TestCase):
                 if name != "Game-of-Life":
                     self.assertEqual(archive.read("assets/example.png"), b"image fixture")
         self.assertEqual(commands[-1][0:2], ["security", "delete-keychain"])
+
+    def test_timeout_can_resume_existing_submissions_without_signing_again(self):
+        submitted = self.run_phase("submit")
+        self.assertEqual(submitted.returncode, 0, submitted.stdout + submitted.stderr)
+        pending = self.runner / "notarisation-pending"
+        manifests = {path.name: path.read_bytes() for path in pending.glob("*.json")}
+        self.assertEqual(len(manifests), 3)
+        self.assertEqual(len(list(pending.glob("*.zip"))), 3)
+        for manifest in manifests.values():
+            self.assertIn(json.loads(manifest)["id"], submitted.stdout)
+
+        timed_out = self.run_phase("finalize", "timeout")
+        self.assertNotEqual(timed_out.returncode, 0)
+        self.assertIn("still in progress", timed_out.stdout)
+        self.assertNotIn("Apple rejected", timed_out.stdout)
+        self.assertEqual(timed_out.stdout.count("Still In Progress:"), 3)
+        self.assertFalse((self.runner / "release-assets").exists())
+        self.assertEqual({path.name: path.read_bytes() for path in pending.glob("*.json")}, manifests)
+        commands_before = len(self.commands())
+
+        resumed = self.run_phase("finalize")
+        self.assertEqual(resumed.returncode, 0, resumed.stdout + resumed.stderr)
+        commands = self.commands()[commands_before:]
+        self.assertFalse(any(c[:3] == ["xcrun", "notarytool", "submit"] for c in commands))
+        self.assertFalse(any(c[:2] in (["codesign", "--force"], ["security", "import"]) for c in commands))
+        self.assertEqual(sum(c[:3] == ["xcrun", "notarytool", "info"] for c in commands), 3)
+        self.assertEqual(len(list((self.runner / "release-assets").glob("*.zip"))), 3)
+
+    def test_rejection_reports_apple_diagnostics(self):
+        result = self.run_signing("rejected")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("Apple rejected Game-of-Life", result.stdout)
+        self.assertIn("Test rejection", result.stdout)
+        self.assertNotIn("still in progress after", result.stdout)
+
+    def test_query_error_can_be_retried_without_resubmission(self):
+        result = self.run_signing("info-error")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("HTTP status code: 503", result.stdout)
+        self.assertIn("Could not query Apple", result.stdout)
+        self.assertTrue((self.runner / "notarisation-pending/Game-of-Life.json").is_file())
+        self.assertFalse((self.runner / "release-assets").exists())
+
+    def test_rejects_changed_signed_package_before_checking_apple(self):
+        submitted = self.run_phase("submit")
+        self.assertEqual(submitted.returncode, 0, submitted.stdout + submitted.stderr)
+        archive = self.runner / "notarisation-pending/Game-of-Life-Native-Wallpaper.zip"
+        with archive.open("ab") as stream:
+            stream.write(b"changed")
+        result = self.run_phase("finalize")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("digest does not match", result.stdout)
+        self.assertFalse(any(c[:3] == ["xcrun", "notarytool", "info"] for c in self.commands()))
 
     def test_restores_empty_original_keychain_search_list(self):
         self.search_list.write_text("[]")
@@ -252,7 +337,7 @@ class SigningTests(unittest.TestCase):
         self.assertFalse(any(command[:3] == ["xcrun", "notarytool", "submit"] for command in self.commands()))
 
     def test_failures_remove_all_outputs_and_credentials(self):
-        for failure in ("import", "search-list", "identity", "architecture", "signing", "signature", "runtime", "timestamp", "entitlements", "rejected", "timeout", "staple", "gatekeeper", "extracted", "cleanup"):
+        for failure in ("import", "search-list", "identity", "architecture", "signing", "signature", "runtime", "timestamp", "entitlements", "submit-error", "bad-id", "info-error", "rejected", "timeout", "staple", "gatekeeper", "extracted", "cleanup"):
             with self.subTest(failure=failure):
                 result = self.run_signing(failure)
                 self.assertNotEqual(result.returncode, 0)

@@ -13,6 +13,7 @@ concurrency:
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
   build:
@@ -24,6 +25,7 @@ jobs:
     outputs:
       commit: ${{ steps.release.outputs.commit }}
       system-design: ${{ steps.packages.outputs.system-design }}
+      artifact-id: ${{ steps.upload-unsigned.outputs.artifact-id }}
     env:
       GH_REPO: ${{ github.repository }}
       RELEASE_TAG: ${{ inputs.tag }}
@@ -107,20 +109,23 @@ jobs:
           mv "$packages/System Design Wallpaper.zip" "$RUNNER_TEMP/release-assets/System-Design-Native-Wallpaper.zip"
 
       - name: Pass packages to the isolated signing job
+        id: upload-unsigned
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: unsigned-wallpapers
+          name: unsigned-wallpapers-${{ github.run_attempt }}
           path: ${{ runner.temp }}/release-assets/*.zip
           if-no-files-found: error
-          retention-days: 1
+          retention-days: 30
           compression-level: 0
 
   sign:
-    name: Sign, notarise and verify wallpapers
+    name: Sign wallpapers and submit to Apple
     needs: build
     runs-on: macos-26
-    timeout-minutes: 90
+    timeout-minutes: 30
     environment: release
+    outputs:
+      artifact-id: ${{ steps.upload-pending.outputs.artifact-id }}
     defaults:
       run:
         shell: bash
@@ -132,14 +137,26 @@ jobs:
           ref: ${{ github.sha }}
           persist-credentials: false
 
+      - name: Require the upstream artifact ID
+        env:
+          ARTIFACT_ID: ${{ needs.build.outputs.artifact-id }}
+        run: |
+          if [[ ! "$ARTIFACT_ID" =~ ^[0-9]+$ ]]; then
+            echo "::error::Missing upstream artifact ID; refusing to download an unspecified artifact."
+            exit 1
+          fi
+
       - name: Download this run's packages
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          name: unsigned-wallpapers
+          artifact-ids: ${{ needs.build.outputs.artifact-id }}
           path: ${{ runner.temp }}/unsigned-assets
           digest-mismatch: error
+          merge-multiple: true
+          github-token: ${{ github.token }}
+          run-id: ${{ github.run_id }}
 
-      - name: Sign and notarise with the release credentials
+      - name: Sign and submit with the release credentials
         env:
           APPLE_CERTIFICATE_BASE64: ${{ secrets.APPLE_CERTIFICATE_BASE64 }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
@@ -147,28 +164,94 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           RELEASE_HAS_SYSTEM_DESIGN: ${{ needs.build.outputs.system-design }}
-        run: bash .github/scripts/sign-release.sh
+        run: bash .github/scripts/sign-release.sh submit
 
       - name: Remove signing credentials even after cancellation
         if: always()
         run: bash .github/scripts/sign-release.sh cleanup
 
-      - name: Pass verified downloads to the draft job
+      - name: Retain signed packages and submission IDs for later retries
+        id: upload-pending
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: verified-wallpapers
+          name: pending-notarisation-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/notarisation-pending/*.zip
+            ${{ runner.temp }}/notarisation-pending/*.json
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
+
+  notarise:
+    name: Check notarisation, staple and verify wallpapers
+    needs: [build, sign]
+    runs-on: macos-26
+    # The script polls all submissions for two hours, leaving time for packaging.
+    timeout-minutes: 135
+    environment: release
+    outputs:
+      artifact-id: ${{ steps.upload-verified.outputs.artifact-id }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Check out the trusted verification scripts
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      # Use the immutable artifact from the successful signing job, including
+      # when this job is re-run after Apple's processing has taken too long.
+      - name: Require the upstream artifact ID
+        env:
+          ARTIFACT_ID: ${{ needs.sign.outputs.artifact-id }}
+        run: |
+          if [[ ! "$ARTIFACT_ID" =~ ^[0-9]+$ ]]; then
+            echo "::error::Missing upstream artifact ID; refusing to download an unspecified artifact."
+            exit 1
+          fi
+
+      - name: Download this run's signed packages and submission IDs
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          artifact-ids: ${{ needs.sign.outputs.artifact-id }}
+          path: ${{ runner.temp }}/notarisation-pending
+          digest-mismatch: error
+          merge-multiple: true
+          github-token: ${{ github.token }}
+          run-id: ${{ github.run_id }}
+
+      - name: Check Apple notarisation, staple and verify
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          RELEASE_HAS_SYSTEM_DESIGN: ${{ needs.build.outputs.system-design }}
+        run: bash .github/scripts/sign-release.sh finalize
+
+      - name: Remove notarisation credentials even after cancellation
+        if: always()
+        run: bash .github/scripts/sign-release.sh cleanup
+
+      - name: Pass verified downloads to the draft job
+        id: upload-verified
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: verified-wallpapers-${{ github.run_attempt }}
           path: ${{ runner.temp }}/release-assets/*.zip
           if-no-files-found: error
-          retention-days: 1
+          retention-days: 30
           compression-level: 0
 
   release:
     name: Prepare wallpaper release draft
-    needs: [build, sign]
+    needs: [build, notarise]
     runs-on: macos-26
     timeout-minutes: 10
     permissions:
       contents: write
+      actions: read
     env:
       GH_REPO: ${{ github.repository }}
       RELEASE_TAG: ${{ inputs.tag }}
@@ -191,12 +274,24 @@ jobs:
           ref: ${{ needs.build.outputs.commit }}
           persist-credentials: false
 
+      - name: Require the upstream artifact ID
+        env:
+          ARTIFACT_ID: ${{ needs.notarise.outputs.artifact-id }}
+        run: |
+          if [[ ! "$ARTIFACT_ID" =~ ^[0-9]+$ ]]; then
+            echo "::error::Missing upstream artifact ID; refusing to download an unspecified artifact."
+            exit 1
+          fi
+
       - name: Download only the verified packages
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          name: verified-wallpapers
+          artifact-ids: ${{ needs.notarise.outputs.artifact-id }}
           path: ${{ runner.temp }}/release-assets
           digest-mismatch: error
+          merge-multiple: true
+          github-token: ${{ github.token }}
+          run-id: ${{ github.run_id }}
 
       - name: Upload the verified downloads to the release draft
         env:
