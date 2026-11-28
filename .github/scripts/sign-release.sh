@@ -44,6 +44,12 @@ fail() {
 for secret in APPLE_CERTIFICATE_BASE64 APPLE_CERTIFICATE_PASSWORD APPLE_ID APPLE_TEAM_ID APPLE_APP_SPECIFIC_PASSWORD; do
     [[ -n "${!secret:-}" ]] || fail "Missing release environment secret: $secret."
 done
+# A pasted newline is not part of an Apple ID, Team ID or app-specific password.
+# Do not trim the certificate export password, where whitespace may be intentional.
+for credential in APPLE_ID APPLE_TEAM_ID APPLE_APP_SPECIFIC_PASSWORD; do
+    printf -v "$credential" '%s' "$(printf '%s' "${!credential}" | python3 -c 'import sys; sys.stdout.write(sys.stdin.read().strip())')"
+    [[ -n "${!credential}" ]] || fail "Empty release environment secret: $credential."
+done
 [[ "$APPLE_TEAM_ID" =~ ^[A-Z0-9]{10}$ ]] || fail 'Invalid Apple Team ID.'
 [[ "${RELEASE_HAS_SYSTEM_DESIGN:-}" =~ ^(true|false)$ ]] || fail 'Missing wallpaper package selection.'
 
@@ -74,7 +80,27 @@ identities=($(security find-identity -v -p codesigning "$keychain" |
 identity="${identities[0]}"
 if ! xcrun notarytool store-credentials wallpaper-release --keychain "$keychain" \
     --apple-id "$APPLE_ID" --team-id "$APPLE_TEAM_ID" \
-    --password "$APPLE_APP_SPECIFIC_PASSWORD" >/dev/null 2>&1; then
+    --password "$APPLE_APP_SPECIFIC_PASSWORD" > "$private/notary-credentials.txt" 2>&1; then
+    # Show Apple's reason without exposing credential values or leaving the raw
+    # authentication output behind after the temporary keychain is removed.
+    python3 - "$private/notary-credentials.txt" <<'PY'
+import os
+import pathlib
+import re
+import sys
+
+message = pathlib.Path(sys.argv[1]).read_text(errors="replace")
+secrets = {variant for name, value in os.environ.items() if name.startswith("APPLE_")
+           for variant in (value, value.strip()) if variant}
+for secret in sorted(secrets, key=len, reverse=True):
+    message = message.replace(secret, "[REDACTED]")
+message = re.sub(r"\x1b\[[0-?]*[ -/]*[@-~]", "", message)
+message = re.sub(r"[\x00-\x08\x0b-\x1f\x7f]", "", message)
+message = re.sub(r"[\w.+-]+@[\w.-]+", "[REDACTED EMAIL]", message)
+for line in message[:4000].splitlines():
+    # Prefix every line so tool output cannot be interpreted as a workflow command.
+    print("notarytool: " + line)
+PY
     fail 'Could not validate and store Apple notarisation credentials.'
 fi
 unset APPLE_CERTIFICATE_BASE64 APPLE_CERTIFICATE_PASSWORD APPLE_ID APPLE_APP_SPECIFIC_PASSWORD password
