@@ -65,7 +65,14 @@ elif command == "codesign" and "--display" in args:
 elif command == "codesign" and failure == "signature" and "--verify" in args:
     sys.exit(1)
 elif command == "xcrun":
-    if args[:2] == ["notarytool", "submit"]:
+    if args[:2] == ["notarytool", "store-credentials"] and failure == "credentials":
+        print("Error: HTTP status code: 401. Invalid credentials.")
+        for name, value in os.environ.items():
+            if name.startswith("APPLE_"):
+                print(name + "=" + value, file=sys.stderr)
+        print("::error::untrusted workflow annotation", file=sys.stderr)
+        sys.exit(1)
+    elif args[:2] == ["notarytool", "submit"]:
         status = "Invalid" if failure == "rejected" else "Accepted"
         print(json.dumps({"id": "test-submission", "status": status}))
         if failure == "timeout":
@@ -136,8 +143,9 @@ class SigningTests(unittest.TestCase):
         result = subprocess.run(["bash", str(SCRIPT)], cwd=ROOT, env=self.env,
                                 capture_output=True, text=True)
         self.assertFalse((self.runner / "wallpaper-signing").exists())
-        for name in ("APPLE_CERTIFICATE_BASE64", "APPLE_CERTIFICATE_PASSWORD", "APPLE_ID", "APPLE_APP_SPECIFIC_PASSWORD"):
-            self.assertNotIn(self.env[name], result.stdout + result.stderr)
+        for name in ("APPLE_CERTIFICATE_BASE64", "APPLE_CERTIFICATE_PASSWORD", "APPLE_ID", "APPLE_TEAM_ID", "APPLE_APP_SPECIFIC_PASSWORD"):
+            for value in {self.env.get(name, ""), self.env.get(name, "").strip()} - {""}:
+                self.assertNotIn(value, result.stdout + result.stderr)
         return result
 
     def commands(self):
@@ -173,6 +181,31 @@ class SigningTests(unittest.TestCase):
         result = self.run_signing()
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertEqual(len(list((self.runner / "release-assets").glob("*.zip"))), 2)
+
+    def test_trims_pasted_notary_credentials_without_changing_export_password(self):
+        for name in ("APPLE_ID", "APPLE_TEAM_ID", "APPLE_APP_SPECIFIC_PASSWORD"):
+            self.env[name] = " \t" + self.env[name] + "\r\n"
+        self.env["APPLE_CERTIFICATE_PASSWORD"] = " password with intentional spaces "
+        result = self.run_signing()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        credentials = next(command for command in self.commands() if command[:3] == ["xcrun", "notarytool", "store-credentials"])
+        for flag, name in (("--apple-id", "APPLE_ID"), ("--team-id", "APPLE_TEAM_ID"), ("--password", "APPLE_APP_SPECIFIC_PASSWORD")):
+            self.assertEqual(credentials[credentials.index(flag) + 1], self.env[name].strip())
+        imported = next(command for command in self.commands() if command[:2] == ["security", "import"])
+        self.assertEqual(imported[imported.index("-P") + 1], self.env["APPLE_CERTIFICATE_PASSWORD"])
+
+    def test_credential_failure_retains_diagnostics_and_redacts_secrets(self):
+        for name in ("APPLE_ID", "APPLE_TEAM_ID", "APPLE_APP_SPECIFIC_PASSWORD"):
+            self.env[name] += "\n"
+        result = self.run_signing("credentials")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("HTTP status code: 401. Invalid credentials.", result.stdout)
+        self.assertIn("[REDACTED]", result.stdout)
+        self.assertIn("notarytool: ::error::untrusted workflow annotation", result.stdout)
+        self.assertNotIn("\n::error::untrusted workflow annotation", result.stdout)
+        self.assertFalse((self.runner / "release-assets").exists())
+        self.assertEqual(self.commands()[-1][:2], ["security", "delete-keychain"])
+        self.assertFalse(any(command[:3] == ["xcrun", "notarytool", "submit"] for command in self.commands()))
 
     def test_failures_remove_all_outputs_and_credentials(self):
         for failure in ("import", "identity", "architecture", "signature", "runtime", "timestamp", "entitlements", "rejected", "timeout", "staple", "gatekeeper", "extracted", "cleanup"):
