@@ -12,6 +12,7 @@ extension Vehicle {
     }
 
     func gap(to leader: Vehicle) -> Double? {
+        guard leader.parkedTicks == nil else { return nil }
         let from = route[segment], to = route[segment + 1]
         let offset = distance - Double(segment)
         let other = leader.segment
@@ -26,9 +27,8 @@ extension Vehicle {
         let center = SIMD2(pose.x, pose.y)
         let length = hypot(pose.dx, pose.dy)
         let direction = length > 0 ? SIMD2(pose.dx, pose.dy) / length : SIMD2(1, 0)
-        let bodyLength = pose.visibility < 0.65 ? 0.125 : halfLength
-        let extent = direction * (bodyLength - TrafficFootprint.radius)
-        return TrafficFootprint(front: center + extent, back: center - extent, visible: pose.visibility > 0.18)
+        let extent = direction * (halfLength - TrafficFootprint.radius)
+        return TrafficFootprint(front: center + extent, back: center - extent, visible: true)
     }
 }
 

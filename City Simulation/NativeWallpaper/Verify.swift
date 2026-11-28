@@ -1,6 +1,7 @@
 import AppKit
 import CityArt
 import CityEngine
+import IOSurface
 import QuartzCore
 
 @main
@@ -40,11 +41,11 @@ enum VerifyWallpaper {
                   Mirror(reflecting: item).descendant("choice", "id", "descriptor", "provider", "rawValue") as? String
                       == wallpaperChoice.bundleID,
                   let options = Mirror(reflecting: item).descendant("choice", "options") as? [Any],
-                  options.compactMap({ Mirror(reflecting: $0).descendant("picker", "id") as? String })
-                      == ["environment"],
-                  Mirror(reflecting: options[0]).descendant("picker", "defaultValueID") as? String == EnvironmentMode.simulationWorld.rawValue,
-                  let choices = Mirror(reflecting: options[0]).descendant("picker", "items") as? [Any],
-                  choices.compactMap({ Mirror(reflecting: $0).descendant("item", "id") as? String }) == EnvironmentMode.allCases.map(\.rawValue) else {
+                  options.count == 2,
+                  matchesPicker(options[0], id: "environment", defaultID: EnvironmentMode.simulationWorld.rawValue,
+                                items: EnvironmentMode.allCases.map(\.rawValue)),
+                  matchesPicker(options[1], id: "skin", defaultID: CitySkin.original.rawValue,
+                                items: CitySkin.allCases.map(\.rawValue)) else {
                 throw ProbeError("The decoded \(surface) model is missing the City Simulation choice.")
             }
         }
@@ -54,7 +55,7 @@ enum VerifyWallpaper {
 
         let unchanged = City()
         let defaults = RemoteView(size: CGSize(width: 640, height: 360), request: requested)
-        precondition(defaults.environmentMode == .simulationWorld)
+        precondition(defaults.environmentMode == .simulationWorld && defaults.skin == .original)
         for mode in EnvironmentMode.allCases {
             let request = try creationRequest(options: ["environment": mode.rawValue])
             let view = RemoteView(size: CGSize(width: 640, height: 360), request: request)
@@ -139,6 +140,14 @@ enum VerifyWallpaper {
         print("\(layers) and IOSurface snapshots, suspended display, settling, zero idle timers and checkpoint resume passed.")
     }
 
+    private static func matchesPicker(_ option: Any, id: String, defaultID: String, items: [String]) -> Bool {
+        let mirror = Mirror(reflecting: option)
+        guard mirror.descendant("picker", "id") as? String == id,
+              mirror.descendant("picker", "defaultValueID") as? String == defaultID,
+              let choices = mirror.descendant("picker", "items") as? [Any] else { return false }
+        return choices.compactMap { Mirror(reflecting: $0).descendant("item", "id") as? String } == items
+    }
+
     private static func verifyNativeDownloadStatus() async throws {
         guard let native = NSProtocolFromString("WallpaperExtensionKit.WallpaperExtensionXPCProtocol"),
               let models = NSClassFromString("WallpaperSettingsViewModelsXPC") else {
@@ -220,11 +229,21 @@ enum VerifyWallpaper {
         for _ in 0..<100 { driver.update(id, southern) }
         precondition(invalidations == 2, "Suspended settings updates must not cause a refresh loop")
 
+        var skinChange = Presentation(nil)
+        skinChange.optionIDs = ["skin": CitySkin.contemporary.rawValue]
+        driver.update(id, skinChange)
+        precondition(invalidations == 3, "Changing skin on the suspended desktop must invalidate its snapshot")
+        driver.update(id, skinChange)
+        driver.update(id, noChange)
+        precondition(invalidations == 3)
+        _ = try driver.snapshot(id)
+
         let previewID = UUID()
         _ = try driver.acquire(previewID, requested)
         driver.update(previewID, night)
+        driver.update(previewID, skinChange)
         driver.invalidate(previewID)
-        precondition(invalidations == 2, "Disposable Settings previews must not invalidate desktop snapshots")
+        precondition(invalidations == 3, "Disposable Settings previews must not invalidate desktop snapshots")
         print("No-op updates, activity updates, duplicate appearance updates and Settings previews caused no snapshot refresh loops.")
     }
 
@@ -243,8 +262,25 @@ enum VerifyWallpaper {
             playback.views[UUID()] = view
             playback.refresh(hint: false)
             view.draw(city)
-            try verifyImage(view, width: 640, height: 360)
-            precondition(!view.needsEnvironmentRedraw(city))
+            precondition(!view.needsArtworkRedraw(city))
+            let original = try snapshotBytes(view, city)
+            let originalLayer = try verifyImage(view, width: 640, height: 360)
+            var skinChange = Presentation(nil)
+            skinChange.optionIDs = try creationRequest(options: ["skin": CitySkin.contemporary.rawValue]).optionIDs
+            _ = view.apply(skinChange)
+            precondition(view.skin == .contemporary && view.needsArtworkRedraw(city))
+            view.draw(city)
+            precondition(!view.needsArtworkRedraw(city))
+            let contemporary = try snapshotBytes(view, city)
+            let contemporaryLayer = try verifyImage(view, width: 640, height: 360)
+            precondition(original != contemporary && originalLayer != contemporaryLayer)
+            _ = view.apply(Presentation(nil))
+            precondition(view.skin == .contemporary && !view.needsArtworkRedraw(city))
+            skinChange.optionIDs = ["skin": CitySkin.original.rawValue]
+            _ = view.apply(skinChange)
+            view.draw(city)
+            let restored = try snapshotBytes(view, city)
+            precondition(restored == original)
             var night = Presentation(nil)
             night.systemDark = true
             _ = view.apply(night)
@@ -253,7 +289,7 @@ enum VerifyWallpaper {
             guard view.snapshot(city) != nil else { throw BridgeError.noSurface }
             precondition(view.suspended && !playback.hasTimer && playback.city == city)
         }
-        print("Initially suspended city surfaces have visible day/night frames without starting playback.")
+        print("Suspended layers and snapshots switch skins at the same tick and redraw day/night frames without starting playback.")
     }
 
     private static func creationRequest(options: [String: String] = [:]) throws -> Presentation {
@@ -282,7 +318,15 @@ enum VerifyWallpaper {
         return Presentation(decoded)
     }
 
-    private static func verifyImage(_ view: RemoteView, width: Int, height: Int) throws {
+    private static func snapshotBytes(_ view: RemoteView, _ city: City) throws -> Data {
+        guard let surface = view.snapshot(city), LifeWrapWallpaperSnapshot(surface) != nil,
+              surface.lock(options: .readOnly, seed: nil) == 0 else { throw BridgeError.noSurface }
+        defer { _ = surface.unlock(options: .readOnly, seed: nil) }
+        return Data(bytes: surface.baseAddress, count: surface.bytesPerRow * surface.height)
+    }
+
+    @discardableResult
+    private static func verifyImage(_ view: RemoteView, width: Int, height: Int) throws -> Data {
         let space = CGColorSpace(name: CGColorSpace.sRGB)!
         guard let context = CGContext(data: nil, width: width, height: height, bitsPerComponent: 8,
                                       bytesPerRow: width * 4, space: space,
@@ -302,6 +346,7 @@ enum VerifyWallpaper {
             }
         }
         precondition(colors.count > 16, "The wallpaper frame must show city detail, not a blank surface")
+        return Data(bytes: bytes, count: context.bytesPerRow * height)
     }
 }
 

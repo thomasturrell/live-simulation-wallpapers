@@ -55,12 +55,16 @@ extension Pixels {
     }
 
     private mutating func shadePixel(x: Int, y: Int, strength: Double) {
-        let index = y * width + x
-        let pixel = storage[index]
-        var result = pixel & 0xFF00_0000
-        for shift in [0, 8, 16] {
-            result |= UInt32(Double((pixel >> shift) & 255) * (1 - strength)) << shift
+        for row in y * rasterScale..<(y + 1) * rasterScale {
+            let start = row * rasterWidth + x * rasterScale
+            for index in start..<start + rasterScale {
+                let pixel = storage[index]
+                var result = pixel & 0xFF00_0000
+                for shift in [0, 8, 16] {
+                    result |= UInt32(Double((pixel >> shift) & 255) * (1 - strength)) << shift
+                }
+                storage[index] = result
+            }
         }
-        storage[index] = result
     }
 }

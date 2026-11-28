@@ -9,6 +9,19 @@ public struct Vehicle: Codable, Equatable {
     public let origin: Plot
     public let destination: Plot
     public internal(set) var progress: Int
+    // Older checkpoints contain only moving trips.
+    var parkedTicks: Int? = nil
+    var originDriveway: Plot? = nil
+    var destinationDriveway: Plot? = nil
+    static let parkingDuration = 2 * City.ticksPerSecond
+    fileprivate static let mergeLength = 0.52
+
+    package var originAccess: ParkingAccess {
+        ParkingAccess(road: route[0], lot: originDriveway ?? origin, isDriveway: originDriveway != nil)
+    }
+    package var destinationAccess: ParkingAccess {
+        ParkingAccess(road: route[route.count - 1], lot: destinationDriveway ?? destination, isDriveway: destinationDriveway != nil)
+    }
 
     public struct Pose {
         public let x: Double
@@ -25,11 +38,17 @@ public struct Vehicle: Codable, Equatable {
 
     func pose(at distance: Double, in convention: TrafficConvention) -> Pose {
         let end = Double(route.count - 1)
+        if parkedTicks != nil || distance >= end {
+            let bay = destinationAccess
+            let position = bay.center, heading = bay.heading(in: convention)
+            return Pose(x: position.x, y: position.y, dx: heading.x, dy: heading.y,
+                        visibility: parkedTicks.map { min(1, Double($0) / 12) } ?? 1)
+        }
         let center = position(at: distance, in: convention)
         let before = position(at: max(0, distance - 0.04), in: convention)
         let after = position(at: min(end, distance + 0.04), in: convention)
         return Pose(x: center.x, y: center.y, dx: after.x - before.x, dy: after.y - before.y,
-                    visibility: min(1, distance * 4, (end - distance) * 4))
+                    visibility: min(1, distance * Double(pace) / 5))
     }
 
     private func position(at distance: Double, in convention: TrafficConvention) -> SIMD2<Double> {
@@ -43,32 +62,39 @@ public struct Vehicle: Codable, Equatable {
         let lane = lateral(direction)
         let fraction = distance - Double(segment)
         let turn = 0.24
+        // Match the lane tangent at one end and the painted bay or drive at the other.
+        let merge = Self.mergeLength
+        if segment == 0 && fraction < merge {
+            return parkingCurve(bay: originAccess, lanePoint: from + direction * merge + lane,
+                                travel: direction, departing: true, phase: fraction / merge, convention: convention)
+        }
+        if segment + 2 == route.count && fraction > 1 - merge {
+            return parkingCurve(bay: destinationAccess, lanePoint: to - direction * merge + lane,
+                                travel: direction, departing: false, phase: (1 - fraction) / merge, convention: convention)
+        }
         if fraction < turn {
-            let entry: SIMD2<Double>
-            let control: SIMD2<Double>
-            if segment == 0 {
-                entry = from + (vector(origin) - from) * 0.43
-                control = from + lane * 0.5
-            } else {
-                let previous = from - vector(route[segment - 1])
-                entry = from - previous * turn + lateral(previous)
-                control = from + (lane + lateral(previous)) * 0.5
-            }
-            let phase = segment == 0 ? fraction / turn : (fraction + turn) / (2 * turn)
-            return curve(entry, control, from + direction * turn + lane, phase)
+            let previous = from - vector(route[segment - 1])
+            let entry = from - previous * turn + lateral(previous)
+            let control = from + (lane + lateral(previous)) * 0.5
+            return curve(entry, control, from + direction * turn + lane, (fraction + turn) / (2 * turn))
         }
         if fraction > 1 - turn {
-            let exit: SIMD2<Double>
-            if segment + 2 == route.count {
-                exit = to + (vector(destination) - to) * 0.43
-                return curve(to - direction * turn + lane, to + lane * 0.5, exit, (fraction - 1 + turn) / turn)
-            }
             let next = vector(route[segment + 2]) - to
-            exit = to + next * turn + lateral(next)
+            let exit = to + next * turn + lateral(next)
             return curve(to - direction * turn + lane, to + (lane + lateral(next)) * 0.5, exit,
                          (fraction - 1 + turn) / (2 * turn))
         }
         return from + direction * fraction + lane
+    }
+
+    private func parkingCurve(bay: ParkingAccess, lanePoint: SIMD2<Double>, travel: SIMD2<Double>,
+                              departing: Bool, phase: Double, convention: TrafficConvention) -> SIMD2<Double> {
+        let handle = departing ? 0.19 : -0.19
+        let start = bay.center, first = start + bay.heading(in: convention, departing: departing) * handle
+        let second = lanePoint - travel * handle
+        let t = phase, r = 1 - t
+        return start * (r * r * r) + first * (3 * r * r * t)
+             + second * (3 * r * t * t) + lanePoint * (t * t * t)
     }
 
     private func vector(_ p: Plot) -> SIMD2<Double> { SIMD2(Double(p.x), Double(p.y)) }
@@ -83,6 +109,7 @@ extension City {
         let lot: Plot
         let road: Plot
         let zone: Zone
+        var driveway: Plot? = nil
     }
 
     mutating func seedTraffic() {
@@ -104,6 +131,10 @@ extension City {
         for index in order {
             let vehicle = vehicles[index]
             let occupiedJunctions = currentJunctions[vehicle.id, default: []]
+            if let remaining = vehicle.parkedTicks {
+                vehicles[index].parkedTicks = remaining - 1
+                continue
+            }
             var next = vehicle
             next.progress += 1
             // Keep a length-aware following gap until the leader's rear has
@@ -150,12 +181,15 @@ extension City {
                 if occupiedJunctions.contains(where: { currentJunctions[id, default: []].contains($0) }) { return true }
                 return !path.overlaps(middle, clearance: 0.06) && !path.overlaps(destination, clearance: 0.06)
             }) else { continue }
+            if next.progress == (next.route.count - 1) * next.pace {
+                next.parkedTicks = Vehicle.parkingDuration
+            }
             vehicles[index] = next
             // Later cars also avoid the positions accepted earlier this tick.
             footprints[vehicle.id] = destination
             reservedPaths[vehicle.id] = reservedPath(for: next)
         }
-        vehicles.removeAll { $0.progress >= ($0.route.count - 1) * $0.pace }
+        vehicles.removeAll { $0.parkedTicks == 0 }
 
         let interval = darkness > 0.65 ? 37 : 12
         if tick.isMultiple(of: interval), vehicles.count < (darkness > 0.65 ? 25 : 51) {
@@ -166,8 +200,8 @@ extension City {
     func trafficAddresses() -> [Address] {
         CityMap.plots.compactMap { point in
             let lot = map[point]
-            guard lot.building != nil, let road = map.roadAccess(at: point) else { return nil }
-            return Address(lot: point, road: road, zone: lot.zone)
+            guard let access = map.parkingAccess(at: point), construction?.plot != access.lot else { return nil }
+            return Address(lot: point, road: access.road, zone: lot.zone, driveway: access.isDriveway ? access.lot : nil)
         }
     }
 
@@ -178,23 +212,35 @@ extension City {
         let morning = (6..<13).contains(hour)
         let outgoing: Zone = freight ? .industry : (morning ? .homes : .commerce)
         let incoming: Zone = freight || morning ? .commerce : .homes
-        let origins = addresses.filter { $0.zone == outgoing }
-        let destinations = addresses.filter { $0.zone == incoming }
+        // Some journeys return against the main flow of commuters and deliveries.
+        let returning = random.pick(4) == 0
+        let origins = addresses.filter { $0.zone == (returning ? incoming : outgoing) }
+        let destinations = addresses.filter { $0.zone == (returning ? outgoing : incoming) }
         guard !origins.isEmpty, !destinations.isEmpty else { return }
-        let start = origins[random.pick(origins.count)]
-        let end = destinations[random.pick(destinations.count)]
+        // Occasional cross-town journeys enter and leave the wallpaper crop.
+        // Pick real outer neighbourhoods in map space, independent of the display.
+        let crossTown = random.pick(5) == 0
+        let outskirts = crossTown ? origins.filter { $0.road.distance(to: CityMap.center) >= 34 } : []
+        let departures = outskirts.isEmpty ? origins : outskirts
+        let start = departures[random.pick(departures.count)]
+        let farSide = outskirts.isEmpty ? [] : destinations.filter {
+            $0.road.distance(to: CityMap.center) >= 34 && $0.road.distance(to: start.road) >= 65
+        }
+        let arrivals = farSide.isEmpty ? destinations : farSide
+        let end = arrivals[random.pick(arrivals.count)]
         dispatchJourney(from: start, to: end, freight: freight, underway: underway)
     }
 
     private mutating func dispatchJourney(from start: Address, to end: Address, freight: Bool, underway: Bool = false) {
         guard vehicles.count < 60 else { return }
-        guard let route = map.route(from: start.road, to: end.road, origin: start.lot, destination: end.lot,
+        guard let route = map.route(from: start.road, to: end.road, origin: start.driveway ?? start.lot, destination: end.driveway ?? end.lot,
                                     convention: trafficConvention), route.count > 3 else { return }
         let pace = 21 + random.pick(9)
         let color = random.pick(8)
         let progress = underway ? 4 + random.pick((route.count - 2) * pace) : 1
         let vehicle = Vehicle(id: nextVehicle, route: route, color: color, pace: pace, long: freight,
-                              origin: start.lot, destination: end.lot, progress: progress)
+                              origin: start.lot, destination: end.lot, progress: progress,
+                              originDriveway: start.driveway, destinationDriveway: end.driveway)
         let reservation = reservedPath(for: vehicle)
         let path = reservation.isEmpty ? TrafficPath([vehicle.footprint(in: trafficConvention)]) : reservation
         guard !vehicles.contains(where: { other in
@@ -205,11 +251,12 @@ extension City {
         nextVehicle &+= 1
     }
 
-    private func drivewayEnd(for vehicle: Vehicle) -> Double? {
-        if vehicle.distance < 0.28 { return 0.28 }
+    private func parkingManeuverEnd(for vehicle: Vehicle) -> Double? {
+        let mergeEnd = Vehicle.mergeLength + 0.04
+        if vehicle.distance < mergeEnd { return mergeEnd }
         let end = Double(vehicle.route.count - 1)
         // Include the curve and the heading sample on either side of it.
-        return vehicle.distance > end - 0.28 ? end : nil
+        return vehicle.distance > end - mergeEnd ? end : nil
     }
 
     private func reservedPath(for vehicle: Vehicle) -> TrafficPath {
@@ -217,7 +264,8 @@ extension City {
     }
 
     private func reservationEnd(for vehicle: Vehicle) -> Double? {
-        var end = drivewayEnd(for: vehicle)
+        guard vehicle.parkedTicks == nil else { return nil }
+        var end = parkingManeuverEnd(for: vehicle)
         var node = max(0, vehicle.segment - 1)
         // Adjacent junctions share space, so reserve them together. Driveway
         // turns start only after the vehicle's rear has cleared the crossing.

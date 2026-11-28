@@ -11,7 +11,7 @@ public struct City: Codable, Equatable {
     public static let ticksPerSecond = 30
     public static let dayLength = 8 * 60 * ticksPerSecond
     public static let defaultSeed: UInt64 = 0x7661_6C65_7269_6467
-    private static let checkpointVersion = 7
+    private static let checkpointVersion = 8
     private static let environmentSeedSalt: UInt64 = 0x656E_7669_726F_6E6D
 
     public internal(set) var map: CityMap
@@ -81,8 +81,17 @@ public struct City: Codable, Equatable {
     }
 
     private mutating func planDevelopment() {
+        var drives = Set(CityMap.plots.compactMap { point -> Plot? in
+            guard let access = map.parkingAccess(at: point), access.isDriveway else { return nil }
+            return access.lot
+        })
+        for vehicle in vehicles {
+            if let lot = vehicle.originDriveway { drives.insert(lot) }
+            if let lot = vehicle.destinationDriveway { drives.insert(lot) }
+        }
         if revision > 0, revision.isMultiple(of: 5) {
             let connections = CityMap.plots.filter { p in
+                guard !drives.contains(p) else { return false }
                 let lot = map[p]
                 guard lot.ground == .grass, lot.building == nil,
                       (5...51).contains(p.x), (6...50).contains(p.y),
@@ -115,7 +124,7 @@ public struct City: Codable, Equatable {
         var best: (Plot, Int)?
         for point in CityMap.plots {
             let lot = map[point]
-            guard lot.ground == .grass, lot.zone != .civic,
+            guard !drives.contains(point), lot.ground == .grass, lot.zone != .civic,
                   map.roadAccess(at: point) != nil,
                   (5...51).contains(point.x), (6...50).contains(point.y),
                   (lot.building?.level ?? 0) < map.capacity(at: point) else { continue }
@@ -143,10 +152,10 @@ public struct City: Codable, Equatable {
         self = saved.city
         switch (saved.version, savedTrafficConvention) {
         case (5, nil): savedTrafficConvention = .rightHand
-        case (6, .some), (Self.checkpointVersion, .some): break
+        case (6, .some), (7, .some), (Self.checkpointVersion, .some): break
         default: return nil
         }
-        if saved.version < Self.checkpointVersion {
+        if saved.version < 7 {
             let hadAirport = map.hasLegacyAirport
             if hadAirport {
                 guard let terminal = map.removeLegacyAirport(seed: environmentSeed ^ Self.environmentSeedSalt) else { return nil }
@@ -192,12 +201,20 @@ public struct City: Codable, Equatable {
         return Set(vehicles.map(\.id)).count == vehicles.count && vehicles.allSatisfy { vehicle in
             guard vehicle.id < nextVehicle, (4...map.lots.count).contains(vehicle.route.count),
                   (21...29).contains(vehicle.pace), (0..<8).contains(vehicle.color),
-                  (0..<(vehicle.route.count - 1) * vehicle.pace).contains(vehicle.progress),
                   map.contains(vehicle.origin), map.contains(vehicle.destination),
                   vehicle.route.allSatisfy(map.isRoad) else { return false }
-            return vehicle.origin.distance(to: vehicle.route[0]) == 1 &&
-                vehicle.destination.distance(to: vehicle.route.last!) == 1 &&
-                zip(vehicle.route, vehicle.route.dropFirst()).allSatisfy { $0.distance(to: $1) == 1 }
+            let arrival = (vehicle.route.count - 1) * vehicle.pace
+            if let remaining = vehicle.parkedTicks {
+                guard (1...Vehicle.parkingDuration).contains(remaining), vehicle.progress == arrival else { return false }
+            } else if !(0..<arrival).contains(vehicle.progress) { return false }
+            for (access, address) in [(vehicle.originAccess, vehicle.origin), (vehicle.destinationAccess, vehicle.destination)] {
+                guard map.contains(access.lot), access.road.distance(to: access.lot) == 1 else { return false }
+                if access.isDriveway {
+                    guard address.distance(to: access.lot) == 1, map[access.lot].ground == .grass,
+                          map[access.lot].building == nil else { return false }
+                }
+            }
+            return zip(vehicle.route, vehicle.route.dropFirst()).allSatisfy { $0.distance(to: $1) == 1 }
         }
     }
 }

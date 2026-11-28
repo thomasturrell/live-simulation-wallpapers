@@ -85,6 +85,8 @@ func vehiclesStopWithTheirWholeBodyBeforeTheCrossing(pace: Int, long: Bool) {
             #expect(remaining >= RoadGeometry.stopLineDistance - 0.000001)
             #expect(remaining <= RoadGeometry.stopLineDistance + 1 / Double(pace) + 0.000001)
             for _ in 0..<220 { city.step() }
+            #expect(city.vehicles.allSatisfy { $0.parkedTicks != nil })
+            for _ in 0..<Vehicle.parkingDuration { city.step() }
             #expect(city.vehicles.isEmpty)
         }
     }
@@ -253,10 +255,10 @@ func tripsUseTheLaneOnTheSameSideAsTheirDriveways(seed: UInt64, convention: Traf
     for vehicle in city.vehicles {
         let first = vehicle.route[0], second = vehicle.route[1]
         let end = vehicle.route.last!, previous = vehicle.route[vehicle.route.count - 2]
-        let originSide = (vehicle.origin.x - first.x) * (first.y - second.y)
-            + (vehicle.origin.y - first.y) * (second.x - first.x)
-        let destinationSide = (vehicle.destination.x - end.x) * (previous.y - end.y)
-            + (vehicle.destination.y - end.y) * (end.x - previous.x)
+        let originSide = (vehicle.originAccess.lot.x - first.x) * (first.y - second.y)
+            + (vehicle.originAccess.lot.y - first.y) * (second.x - first.x)
+        let destinationSide = (vehicle.destinationAccess.lot.x - end.x) * (previous.y - end.y)
+            + (vehicle.destinationAccess.lot.y - end.y) * (end.x - previous.x)
         let expectedSign = convention == .uk ? -1 : 1
         #expect(expectedSign * originSide >= 0)
         #expect(expectedSign * destinationSide >= 0)

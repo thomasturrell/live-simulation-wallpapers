@@ -1,3 +1,4 @@
+import CityArt
 import CityEngine
 
 let wallpaperChoice = WallpaperChoice(
@@ -12,6 +13,14 @@ let wallpaperChoice = WallpaperChoice(
             localizedLabel: "Environment",
             defaultValueID: EnvironmentMode.simulationWorld.rawValue,
             items: EnvironmentMode.allCases.map {
+                .item(MenuPickerItem(id: $0.rawValue, localizedName: $0.title, isDownloaded: true))
+            }
+        )),
+        .picker(MenuPickerOption(
+            id: "skin",
+            localizedLabel: "Skin",
+            defaultValueID: CitySkin.original.rawValue,
+            items: CitySkin.allCases.map {
                 .item(MenuPickerItem(id: $0.rawValue, localizedName: $0.title, isDownloaded: true))
             }
         ))

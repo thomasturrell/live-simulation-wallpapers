@@ -1,4 +1,4 @@
-import CityArt
+@testable import CityArt
 @testable import CityEngine
 import CoreGraphics
 import Foundation
@@ -43,8 +43,8 @@ import Testing
     #expect(Set(initial.keys).subtracting(city.vehicles.map(\.id)).count > 15)
     for car in city.vehicles {
         #expect(car.route.allSatisfy(city.map.isRoad))
-        #expect(car.origin.distance(to: car.route[0]) == 1)
-        #expect(car.destination.distance(to: car.route.last!) == 1)
+        #expect(car.originAccess.lot.distance(to: car.route[0]) == 1)
+        #expect(car.destinationAccess.lot.distance(to: car.route.last!) == 1)
         #expect(zip(car.route, car.route.dropFirst()).allSatisfy { $0.distance(to: $1) == 1 })
         #expect(city.map[car.origin].building != nil)
         #expect(city.map[car.destination].building != nil)
@@ -60,7 +60,8 @@ import Testing
         #expect(hypot(next.x - previous.x, next.y - previous.y) < 0.18)
         previous = next
     }
-    #expect(previous.visibility == 0)
+    #expect(previous.visibility == 1)
+    #expect(previous.x == car.destinationAccess.center.x && previous.y == car.destinationAccess.center.y)
 }
 
 @Test func developmentUsesZonedFrontageAndKeepsParksAndRoads() throws {
@@ -236,4 +237,119 @@ func integerPixelsCoverTheDisplay(size: CGSize) throws {
     let sample = 4 * (viewport.width * 302 + 12)
     let sum: (Data) -> Int = { $0[sample..<(sample + 3)].reduce(0) { $0 + Int($1) } }
     #expect(sum(nightPixels) < sum(dayPixels))
+}
+
+@Test func switchingSkinsRebuildsArtworkAtTheSavedTick() throws {
+    var city = City()
+    for _ in 0..<300 { city.step() }
+    let checkpoint = try city.checkpoint()
+    let saved = try #require(City(checkpoint: checkpoint))
+    let renderer = CityRenderer()
+    let viewport = CityViewport(pixelWidth: 640, pixelHeight: 360)
+    let original = renderer.image(for: saved, viewport: viewport)
+    #expect(renderer.image(for: saved, viewport: viewport, skin: .original) === original)
+
+    let contemporary = renderer.image(for: saved, viewport: viewport, skin: .contemporary)
+    #expect(renderer.image(for: saved, viewport: viewport, skin: .contemporary) === contemporary)
+    let originalBytes = try #require(original.dataProvider?.data) as Data
+    let contemporaryBytes = try #require(contemporary.dataProvider?.data) as Data
+    #expect(contemporaryBytes != originalBytes)
+
+    let fresh = CityRenderer().image(for: saved, viewport: viewport, skin: .contemporary)
+    #expect(try #require(fresh.dataProvider?.data) as Data == contemporaryBytes)
+    let switchedBack = renderer.image(for: saved, viewport: viewport, skin: .original)
+    #expect(try #require(switchedBack.dataProvider?.data) as Data == originalBytes)
+    #expect(try saved.checkpoint() == checkpoint)
+}
+
+@Test func contemporaryRasterResolvesEdgesAndOcclusionWithinALogicalPixel() {
+    let background = Ink(0x112233), roof = Ink(0x556677), car = Ink(0xAABBCC)
+    var pixels = Pixels(width: 4, height: 4, background: background, rasterScale: 4)
+    pixels.depth = 8
+    pixels.polygon([Dot(0, 0), Dot(4, 0), Dot(0, 4)], roof)
+    pixels.overlay = true
+    pixels.depth = 7
+    pixels.box(Dot(0, 0), 4, 4, car)
+
+    // The diagonal splits the logical pixel at (1, 2). Only the exposed
+    // samples should show a car passing behind the roof.
+    let start = 8 * pixels.rasterWidth + 4
+    #expect(pixels.storage[start] == roof.pixel)
+    #expect(pixels.storage[start + 3 * pixels.rasterWidth + 3] == car.pixel)
+    #expect(pixels.image().shouldInterpolate)
+}
+
+@Test func contemporaryUsesAFinerRasterWithTheOriginalCameraFraming() {
+    let city = City(), renderer = CityRenderer()
+    let view = CityViewport(pixelWidth: 1280, pixelHeight: 720)
+    let original = renderer.image(for: city, viewport: view)
+    let fine = renderer.image(for: city, viewport: view, skin: .contemporary)
+    #expect(original.width == 640 && original.height == 360)
+    #expect(fine.width >= view.pixelWidth && fine.height >= view.pixelHeight)
+    #expect(fine.width * original.height == fine.height * original.width)
+    #expect(fine.shouldInterpolate && !original.shouldInterpolate)
+}
+
+@Test(arguments: TrafficConvention.allCases)
+func tripsCanCrossTheGalleryWithBothEndsOffscreen(convention: TrafficConvention) {
+    let city = City(trafficConvention: convention)
+    let viewport = CityViewport(pixelWidth: 1280, pixelHeight: 720)
+    func onScreen(_ plot: Plot) -> Bool {
+        let point = viewport.project(plot)
+        return (0..<viewport.width).contains(point.x) && (0..<viewport.height).contains(point.y)
+    }
+    #expect(city.vehicles.contains { trip in
+        !onScreen(trip.originAccess.road) && !onScreen(trip.destinationAccess.road)
+            && trip.route.contains(where: onScreen)
+    })
+}
+
+@Test(arguments: [false, true], TrafficConvention.allCases)
+func arrivalsParkAtTheirMarkedSpaceAndResumeFromCheckpoint(driveway: Bool, convention: TrafficConvention) throws {
+    var city = City(trafficConvention: convention)
+    var trip = try #require(city.vehicles.first { $0.destinationAccess.isDriveway == driveway })
+    let access = trip.destinationAccess
+    #expect(city.map.parkingAccess(at: trip.destination) == access)
+    if driveway {
+        #expect(city.map[access.lot].building == nil && city.map[access.lot].ground == .grass)
+        #expect(access.lot.distance(to: trip.destination) == 1)
+    }
+    trip.progress = (trip.route.count - 1) * trip.pace - 1
+    city.vehicles = [trip]
+    let approach = trip.pose(in: convention)
+    #expect(approach.visibility == 1)
+    city.step()
+    var parked = try #require(city.vehicles.first)
+    #expect(parked.parkedTicks == Vehicle.parkingDuration)
+    let pose = parked.pose(in: convention)
+    let heading = SIMD2(pose.dx, pose.dy)
+    let outward = SIMD2<Double>(access.outward)
+    #expect(SIMD2(pose.x, pose.y) == access.center)
+    #expect(driveway ? heading == outward : heading.x * outward.x + heading.y * outward.y == 0)
+    #expect(hypot(approach.x - pose.x, approach.y - pose.y) < 0.08)
+    for _ in 0..<Vehicle.parkingDuration - 6 { city.step() }
+    parked = try #require(city.vehicles.first { $0.id == trip.id })
+    let fading = parked.pose(in: convention)
+    #expect(fading.x == pose.x && fading.y == pose.y && fading.dx == pose.dx && fading.dy == pose.dy)
+    #expect(fading.visibility > 0 && fading.visibility < 1)
+    var restored = try #require(City(checkpoint: city.checkpoint()))
+    #expect(restored == city)
+    for _ in 0..<6 {
+        city.step()
+        restored.step()
+    }
+    #expect(restored == city)
+    #expect(!city.vehicles.contains { $0.id == trip.id })
+}
+
+@Test func versionSevenTripsWithoutParkingFieldsKeepTheirFrontage() throws {
+    var city = City()
+    let trip = try #require(city.vehicles.first { !$0.originAccess.isDriveway && !$0.destinationAccess.isDriveway })
+    city.vehicles = [trip]
+    var plist = try #require(PropertyListSerialization.propertyList(from: city.checkpoint(), format: nil) as? [String: Any])
+    plist["version"] = 7
+    let data = try PropertyListSerialization.data(fromPropertyList: plist, format: .binary, options: 0)
+    let restored = try #require(City(checkpoint: data))
+    #expect(restored == city)
+    #expect(restored.vehicles.first?.destinationAccess == ParkingAccess(road: trip.route.last!, lot: trip.destination))
 }

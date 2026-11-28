@@ -26,7 +26,7 @@ public struct CityViewport: Equatable {
     }
 
     public func draw(_ image: CGImage, in context: CGContext) {
-        context.interpolationQuality = .none
+        context.interpolationQuality = image.shouldInterpolate ? .high : .none
         context.setShouldAntialias(false)
         context.draw(image, in: imageRect)
     }
@@ -40,7 +40,7 @@ public struct CityViewport: Equatable {
 
     func project(_ x: Double, _ y: Double, altitude: Double = 0) -> Dot {
         let u = x - Double(CityMap.center.x), v = y - Double(CityMap.center.y)
-        return origin.offset(Int(((u - v) * 16).rounded()), Int(((u + v) * 8 - altitude).rounded()))
+        return origin.projectedOffset((u - v) * 16, (u + v) * 8 - altitude)
     }
 
     /// Invert the projection over the view and allow for tall buildings just below the crop.
@@ -69,6 +69,8 @@ public final class CityRenderer {
         let site: Construction?
         let stage: Int
         let trafficConvention: TrafficConvention
+        let skin: CitySkin
+        let previousAccesses: Set<ParkingAccess>
     }
 
     private struct Background {
@@ -102,13 +104,22 @@ public final class CityRenderer {
         return pixels.image()
     }
 
-    public func image(for city: City, viewport: CityViewport, environment: EnvironmentFrame? = nil) -> CGImage {
+    public func image(for city: City, viewport: CityViewport, environment: EnvironmentFrame? = nil,
+                      skin: CitySkin = .original) -> CGImage {
         let environment = (environment ?? Environment.frame(city: city)).quantized
+        // A newly built street can change the preferred frontage of an address.
+        // Keep the entrance used by an in-flight or restored trip until it ends.
+        var previousAccesses: Set<ParkingAccess> = []
+        for vehicle in city.vehicles {
+            if city.map.parkingAccess(at: vehicle.origin) != vehicle.originAccess { previousAccesses.insert(vehicle.originAccess) }
+            if city.map.parkingAccess(at: vehicle.destination) != vehicle.destinationAccess { previousAccesses.insert(vehicle.destinationAccess) }
+        }
         let key = BackgroundKey(viewport: viewport, map: city.map, environment: environment,
-                                site: city.construction, stage: city.constructionStage, trafficConvention: city.trafficConvention)
-        let palette = Palette(night: environment.darkness, environment: environment)
+                                site: city.construction, stage: city.constructionStage,
+                                trafficConvention: city.trafficConvention, skin: skin, previousAccesses: previousAccesses)
+        let palette = Palette(night: environment.darkness, environment: environment, skin: skin)
         if lastKey != key {
-            background = makeBackground(city, viewport, palette)
+            background = makeBackground(city, viewport, palette, previousAccesses)
             lastKey = key
             lastTick = nil
         }
@@ -128,12 +139,14 @@ public final class CityRenderer {
         // behind a roof disappears along the actual silhouette of that roof.
         let vehicles = city.vehicles.map { ($0, $0.pose(in: city.trafficConvention)) }
             .sorted { $0.1.x + $0.1.y < $1.1.x + $1.1.y }
-        for (vehicle, pose) in vehicles where pose.visibility > 0.18 {
+        for (vehicle, pose) in vehicles where pose.visibility > 0 {
             pixels.depth = depth(pose.x + pose.y)
             let dot = viewport.project(pose.x, pose.y)
             guard (-12...pixels.width + 12).contains(dot.x), (-10...pixels.height + 10).contains(dot.y) else { continue }
+            pixels.opacity = pose.visibility
             pixels.car(at: dot, pose: pose, color: vehicle.color, long: vehicle.long, palette: palette)
         }
+        pixels.opacity = 1
         for (p, plot, style) in base.stacks {
             pixels.depth = depth(Double(plot.x + plot.y)) + 1
             let cycle = (city.tick + style * 37) % 187
@@ -161,11 +174,21 @@ public final class CityRenderer {
 
     private func depth(_ worldSum: Double) -> Int16 { Int16((worldSum + 128) * 32) }
 
-    private func makeBackground(_ city: City, _ viewport: CityViewport, _ c: Palette) -> Background {
-        var pixels = Pixels(width: viewport.width, height: viewport.height, background: c.grass(0))
+    private func makeBackground(_ city: City, _ viewport: CityViewport, _ c: Palette,
+                                _ previousAccesses: Set<ParkingAccess>) -> Background {
+        // Keep the camera in logical units. Bound the moving colour and depth buffers on 5K displays.
+        let scale = c.skin == .contemporary ? min(4, max(2, viewport.zoom + 1)) : 1
+        var pixels = Pixels(width: viewport.width, height: viewport.height, background: c.grass(0), rasterScale: scale)
         var water: [(Dot, Int)] = []
         var stacks: [(Dot, Plot, Int)] = []
         let plots = viewport.drawingOrder.map { ($0, viewport.project($0), city.map[$0]) }
+        var accesses = previousAccesses
+        for (plot, _, lot) in plots where lot.building != nil {
+            if let access = city.map.parkingAccess(at: plot), city.construction?.plot != access.lot || !access.isDriveway {
+                accesses.insert(access)
+            }
+        }
+        let driveways = Set(accesses.filter(\.isDriveway).map(\.lot))
         for (plot, p, lot) in plots {
             pixels.ground(lot, at: p, plot: plot, map: city.map, convention: city.trafficConvention, palette: c)
             if lot.ground == .water, lot.detail % 3 == 0 { water.append((p, lot.detail)) }
@@ -173,11 +196,19 @@ public final class CityRenderer {
         for (plot, p, lot) in plots where lot.ground == .grass || lot.ground == .park {
             if lot.building != nil {
                 pixels.tile(p.offset(4, 1), -6, -5, 12, 13, c.shadow)
-            } else if hasTree(lot, at: plot) {
+            } else if !driveways.contains(plot) && hasTree(lot, at: plot) {
                 let shadow = p.offset(4, 1)
+                if c.skin == .contemporary {
+                    pixels.oval(at: shadow, radiusX: 4.8, radiusY: 1.9, top: c.shadow, bottom: c.grass(lot.detail))
+                    continue
+                }
                 pixels.span(shadow.x - 2, shadow.x + 4, shadow.y, c.shadow)
                 pixels.span(shadow.x, shadow.x + 3, shadow.y + 1, c.shadow)
             }
+        }
+
+        for access in accesses.sorted(by: { ($0.road.y, $0.road.x, $0.lot.y, $0.lot.x) < ($1.road.y, $1.road.x, $1.lot.y, $1.lot.x) }) {
+            pixels.parkingAccess(access, at: viewport.project(access.road), palette: c)
         }
 
         for (plot, p, lot) in plots {
@@ -192,12 +223,15 @@ public final class CityRenderer {
                 if lot.zone == .industry && building.style.isMultiple(of: 4) {
                     stacks.append((p.iso(5, -4, 22), plot, building.style))
                 }
-            } else if hasTree(lot, at: plot) {
+            } else if !driveways.contains(plot) && hasTree(lot, at: plot) {
                 let pos = lot.ground == .park ? p.iso(5, 5) : p.offset(lot.detail % 7 - 3, 1)
                 pixels.tree(at: pos, style: lot.detail, palette: c)
                 if lot.ground == .park && lot.detail.isMultiple(of: 2) {
                     pixels.tree(at: p.iso(-5, -4), style: lot.detail / 2, palette: c)
                 }
+            } else if c.skin == .contemporary && lot.ground == .bridge {
+                pixels.bridgeRails(at: p, palette: c)
+                if plot.x.isMultiple(of: 2) { pixels.lamp(at: p.iso(0, 7), palette: c) }
             } else if lot.ground == .road && lot.detail.isMultiple(of: 3) {
                 pixels.depth += 22
                 pixels.lamp(at: p.iso(6, 6), palette: c)
@@ -216,31 +250,6 @@ public final class CityRenderer {
             return !(path.across && path.down) && lot.detail % 5 != 0
         case .promenade: return lot.detail % 5 == 1
         default: return false
-        }
-    }
-}
-
-private extension Pixels {
-    mutating func car(at p: Dot, pose: Vehicle.Pose, color: Int, long: Bool, palette c: Palette) {
-        let alongX = abs(pose.dx) >= abs(pose.dy)
-        let rightward = alongX ? pose.dx >= 0 : pose.dy < 0
-        let slope = alongX ? 1 : -1
-        let half = pose.visibility < 0.65 ? 2 : long ? 5 : 3
-        let hue: UInt32 = [0xD67C56, 0xE4BB77, 0xC5BBA8, 0x739A98, 0xA85C55, 0x8B8CA2, 0xCFD1BB, 0x72939D][color]
-        let body = c.color(hue)
-        let windshield = c.color(0x44646D, 0x4B6070)
-        let left = p.offset(-half, -(half * slope) / 2)
-        let right = p.offset(half, (half * slope) / 2)
-        line(left.offset(0, 1), right.offset(0, 1), c.roadEdge)
-        line(left.offset(0, -1), right.offset(0, -1), body)
-        line(left.offset(0, -2), right.offset(0, -2), body.mix(c.curb, 0.33))
-        let cab = p.offset((rightward ? 1 : -1) * (long ? 2 : 1), -2)
-        line(cab, cab.offset(1, slope > 0 ? 1 : 0), windshield)
-        if c.night > 0.4 {
-            let head = rightward ? right : left
-            let tail = rightward ? left : right
-            span(head.x, head.x + 1, head.y, c.gold)
-            span(tail.x, tail.x, tail.y, c.color(0xC56D59, 0xBC654D))
         }
     }
 }

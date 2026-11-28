@@ -71,8 +71,8 @@ final class WallpaperDriver {
         guard let playback = owners[id], let view = playback.views[id] else { return }
         let wasSaver = view.isSaver
         let applied = view.apply(request)
-        let environmentChanged = view.needsEnvironmentRedraw(playback.city)
-        if applied || environmentChanged { view.draw(playback.city) }
+        let artworkChanged = view.needsArtworkRedraw(playback.city)
+        if applied || artworkChanged { view.draw(playback.city) }
         if !view.preview && wasSaver != view.isSaver {
             saverHint = nil
             refreshAll()
@@ -82,7 +82,7 @@ final class WallpaperDriver {
         // Host activity/geometry updates and its own preview refreshes must not
         // invalidate snapshots again. WallpaperAgent can answer an invalidation
         // with another update, creating a refresh loop while Settings loads.
-        if environmentChanged && !view.preview { invalidateSnapshots?() }
+        if artworkChanged && !view.preview { invalidateSnapshots?() }
     }
 
     func invalidate(_ id: UUID) {
@@ -96,7 +96,7 @@ final class WallpaperDriver {
 
     func snapshot(_ id: UUID) throws -> Any {
         guard let playback = owners[id], let view = playback.views[id],
-              let snapshot = view.snapshot(playback.city) else { throw BridgeError.noSurface }
+              let surface = view.snapshot(playback.city), let snapshot = LifeWrapWallpaperSnapshot(surface) else { throw BridgeError.noSurface }
         return snapshot
     }
 
@@ -112,7 +112,7 @@ final class WallpaperDriver {
         for playback in displays.values {
             for view in playback.views.values {
                 if appearanceChanged { view.refreshSystemAppearance() }
-                guard view.needsEnvironmentRedraw(playback.city) else { continue }
+                guard view.needsArtworkRedraw(playback.city) else { continue }
                 changed = !view.preview || changed
                 view.draw(playback.city)
             }
@@ -237,6 +237,8 @@ final class RemoteView {
     private var mode: String
     private var systemDark: Bool
     private(set) var environmentMode: EnvironmentMode = .simulationWorld
+    private(set) var skin: CitySkin = .original
+    private var renderedSkin: CitySkin?
     private var renderedEnvironment: EnvironmentFrame?
     private(set) var suspended: Bool
     let preview: Bool
@@ -251,6 +253,7 @@ final class RemoteView {
         suspended = request.activity == "suspended"
         preview = request.preview
         systemDark = request.systemDark ?? (UserDefaults.standard.string(forKey: "AppleInterfaceStyle") == "Dark")
+        if let selected = request.optionIDs["skin"].flatMap(CitySkin.init(rawValue:)) { skin = selected }
         if let mode = request.optionIDs["environment"].flatMap(EnvironmentMode.init(rawValue:)) { environmentMode = mode }
         root.frame = CGRect(origin: .zero, size: size)
         root.contentsScale = scale
@@ -271,6 +274,7 @@ final class RemoteView {
         let previous = (size, scale, suspended)
         let oldMode = environmentMode
         let oldDark = systemDark
+        if let selected = request.optionIDs["skin"].flatMap(CitySkin.init(rawValue:)) { skin = selected }
         if let mode = request.optionIDs["environment"].flatMap(EnvironmentMode.init(rawValue:)) { environmentMode = mode }
         if let dark = request.systemDark { systemDark = dark }
         if let mode = request.mode {
@@ -289,8 +293,8 @@ final class RemoteView {
         Environment.frame(city: city, mode: environmentMode, systemDark: systemDark)
     }
 
-    func needsEnvironmentRedraw(_ city: City) -> Bool {
-        renderedEnvironment != environment(for: city).quantized
+    func needsArtworkRedraw(_ city: City) -> Bool {
+        renderedSkin != skin || renderedEnvironment != environment(for: city).quantized
     }
 
     func draw(_ city: City) {
@@ -305,12 +309,15 @@ final class RemoteView {
         let environment = environment(for: city)
         pixels.frame = CGRect(x: rect.minX / scale, y: rect.minY / scale,
                               width: rect.width / scale, height: rect.height / scale)
-        pixels.contents = renderer.image(for: city, viewport: frame, environment: environment)
+        pixels.minificationFilter = skin == .contemporary ? .linear : .nearest
+        pixels.magnificationFilter = skin == .contemporary ? .linear : .nearest
+        pixels.contents = renderer.image(for: city, viewport: frame, environment: environment, skin: skin)
+        renderedSkin = skin
         renderedEnvironment = environment.quantized
         CATransaction.commit()
     }
 
-    func snapshot(_ city: City) -> Any? {
+    func snapshot(_ city: City) -> IOSurface? {
         let frame = viewport(min(scale, 5120 / max(size.width, size.height)))
         guard let surface = IOSurface(properties: [
             .width: frame.pixelWidth, .height: frame.pixelHeight, .bytesPerElement: 4,
@@ -323,10 +330,11 @@ final class RemoteView {
                                       bitmapInfo: CGImageAlphaInfo.premultipliedFirst.rawValue |
                                           CGBitmapInfo.byteOrder32Little.rawValue) else { return nil }
         // A snapshot should not evict the animation's cached viewport.
-        let image = (frame == viewport(scale) ? renderer : CityRenderer()).image(for: city, viewport: frame, environment: environment(for: city))
+        let snapshotRenderer = frame == viewport(scale) ? renderer : CityRenderer()
+        let image = snapshotRenderer.image(for: city, viewport: frame, environment: environment(for: city), skin: skin)
         frame.draw(image, in: context)
         context.flush()
-        return LifeWrapWallpaperSnapshot(surface)
+        return surface
     }
 
     private func viewport(_ factor: CGFloat) -> CityViewport {

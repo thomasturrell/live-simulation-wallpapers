@@ -201,6 +201,25 @@ public struct CityMap: Codable, Equatable {
         point.neighbors.first { contains($0) && self[$0].ground == .road }
     }
 
+    package func parkingAccess(at address: Plot) -> ParkingAccess? {
+        let lot = self[address]
+        guard lot.building != nil, let road = roadAccess(at: address) else { return nil }
+        // An adjoining vacant lot can hold an actual drive without taking space
+        // from the house or blocking the pavement. Its entrance faces the same street.
+        if lot.zone == .homes || lot.zone == .industry {
+            let dx = address.x - road.x, dy = address.y - road.y
+            for side in [1, -1] {
+                let drive = Plot(address.x - side * dy, address.y + side * dx)
+                let entrance = Plot(road.x - side * dy, road.y + side * dx)
+                if contains(drive), self[drive].ground == .grass, self[drive].building == nil,
+                   self[entrance].ground == .road, roadAccess(at: drive) == entrance {
+                    return ParkingAccess(road: entrance, lot: drive, isDriveway: true)
+                }
+            }
+        }
+        return ParkingAccess(road: road, lot: address)
+    }
+
     public func capacity(at point: Plot) -> Int {
         switch self[point].zone {
         case .civic, .industry: return 1
