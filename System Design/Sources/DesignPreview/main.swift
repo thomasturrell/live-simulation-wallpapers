@@ -11,8 +11,9 @@ private func run() throws {
         LivePreview.run()
         return
     }
-    if args.count == 2, args[0] == "--icon-png" {
-        guard let data = iconPNG() else { throw PreviewError.render }
+    if args.count == 2, args[0] == "--icon-png" || args[0] == "--icns" {
+        let data = args[0] == "--icns" ? iconICNS() : iconPNG()
+        guard let data else { throw PreviewError.render }
         try data.write(to: URL(fileURLWithPath: args[1]), options: .atomic)
         return
     }
