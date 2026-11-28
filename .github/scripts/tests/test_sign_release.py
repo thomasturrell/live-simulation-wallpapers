@@ -16,6 +16,10 @@ import zipfile
 
 ROOT = Path(__file__).resolve().parents[3]
 SCRIPT = ROOT / ".github/scripts/sign-release.sh"
+ORIGINAL_KEYCHAINS = [
+    "/Users/runner/Library/Keychains/login.keychain-db",
+    "/Users/runner/Library/Keychains/Existing keychain.keychain-db",
+]
 PACKAGES = (
     ("Game-of-Life", "Game of Life Wallpaper.app", "LifeWallpaper"),
     ("City-Simulation", "City Simulation Wallpaper.app", "CityWallpaper"),
@@ -35,12 +39,31 @@ import sys
 command = Path(sys.argv[0]).name
 args = sys.argv[1:]
 failure = os.environ.get("RELEASE_TEST_FAILURE", "")
+search_list = Path(os.environ["RELEASE_TEST_LOG"]).with_name("keychain-search-list.json")
+original_keychains = [
+    "/Users/runner/Library/Keychains/login.keychain-db",
+    "/Users/runner/Library/Keychains/Existing keychain.keychain-db",
+]
+def current_search_list():
+    return json.loads(search_list.read_text()) if search_list.exists() else original_keychains
+
 with open(os.environ["RELEASE_TEST_LOG"], "a") as stream:
     stream.write(json.dumps([command] + args) + "\n")
 if command == "codesign" and "--verify" in args and "-R" in args:
     subprocess.run(["/usr/bin/csreq", "-r", args[args.index("-R") + 1], "-t"], check=True, capture_output=True)
 if command == "security":
-    if args[0] == "create-keychain":
+    if args[0] == "list-keychains":
+        if args[1:3] != ["-d", "user"]:
+            sys.exit("Expected user keychain search list")
+        if "-s" in args:
+            paths = args[args.index("-s") + 1:]
+            if failure == "search-list" and any(path.endswith("/signing.keychain-db") for path in paths):
+                sys.exit(1)
+            search_list.write_text(json.dumps(paths))
+        else:
+            for path in current_search_list():
+                print("    " + json.dumps(path))
+    elif args[0] == "create-keychain":
         Path(args[-1]).touch()
     elif args[0] == "import" and failure == "import":
         sys.exit(1)
@@ -51,6 +74,12 @@ if command == "security":
     elif args[0] == "find-identity":
         team = "WRONGTEAM1" if failure == "identity" else "ABC1234567"
         print('1) ' + 'A' * 40 + ' "Developer ID Application: Test (' + team + ')"')
+elif command == "codesign" and "--force" in args:
+    # The temporary keychain must be on the search list, even with --keychain.
+    if args[args.index("--keychain") + 1] not in current_search_list():
+        sys.exit("no identity found")
+    if failure == "signing":
+        sys.exit(1)
 elif command == "codesign" and "--display" in args:
     if "--entitlements" in args:
         entitlements = {"com.apple.security.app-sandbox": True} if args[-1].endswith(".appex") else {}
@@ -111,6 +140,7 @@ class SigningTests(unittest.TestCase):
         self.unsigned = self.runner / "unsigned-assets"
         self.unsigned.mkdir()
         self.log = self.directory / "commands.jsonl"
+        self.search_list = self.directory / "keychain-search-list.json"
         mock_bin = self.directory / "bin"
         mock_bin.mkdir()
         for command in ("security", "xcrun", "codesign", "lipo", "spctl", "file"):
@@ -140,9 +170,12 @@ class SigningTests(unittest.TestCase):
 
     def run_signing(self, failure=""):
         self.env["RELEASE_TEST_FAILURE"] = failure
+        original = json.loads(self.search_list.read_text()) if self.search_list.exists() else ORIGINAL_KEYCHAINS
         result = subprocess.run(["bash", str(SCRIPT)], cwd=ROOT, env=self.env,
                                 capture_output=True, text=True)
         self.assertFalse((self.runner / "wallpaper-signing").exists())
+        if self.search_list.exists():
+            self.assertEqual(json.loads(self.search_list.read_text()), original)
         for name in ("APPLE_CERTIFICATE_BASE64", "APPLE_CERTIFICATE_PASSWORD", "APPLE_ID", "APPLE_TEAM_ID", "APPLE_APP_SPECIFIC_PASSWORD"):
             for value in {self.env.get(name, ""), self.env.get(name, "").strip()} - {""}:
                 self.assertNotIn(value, result.stdout + result.stderr)
@@ -157,6 +190,11 @@ class SigningTests(unittest.TestCase):
         commands = self.commands()
         signing = [command for command in commands if command[:2] == ["codesign", "--force"]]
         self.assertEqual(len(signing), 6)
+        temporary_keychain = str(self.runner / "wallpaper-signing/signing.keychain-db")
+        register = ["security", "list-keychains", "-d", "user", "-s", temporary_keychain] + ORIGINAL_KEYCHAINS
+        restore = ["security", "list-keychains", "-d", "user", "-s"] + ORIGINAL_KEYCHAINS
+        self.assertLess(commands.index(register), commands.index(signing[0]))
+        self.assertEqual(commands[-2], restore)
         for extension, app in zip(signing[::2], signing[1::2]):
             self.assertTrue(extension[-1].endswith(".appex"))
             self.assertTrue(app[-1].endswith(".app"))
@@ -175,6 +213,12 @@ class SigningTests(unittest.TestCase):
                 if name != "Game-of-Life":
                     self.assertEqual(archive.read("assets/example.png"), b"image fixture")
         self.assertEqual(commands[-1][0:2], ["security", "delete-keychain"])
+
+    def test_restores_empty_original_keychain_search_list(self):
+        self.search_list.write_text("[]")
+        result = self.run_signing()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(self.commands()[-2], ["security", "list-keychains", "-d", "user", "-s"])
 
     def test_keeps_two_wallpaper_historical_tags_supported(self):
         self.env["RELEASE_HAS_SYSTEM_DESIGN"] = "false"
@@ -208,7 +252,7 @@ class SigningTests(unittest.TestCase):
         self.assertFalse(any(command[:3] == ["xcrun", "notarytool", "submit"] for command in self.commands()))
 
     def test_failures_remove_all_outputs_and_credentials(self):
-        for failure in ("import", "identity", "architecture", "signature", "runtime", "timestamp", "entitlements", "rejected", "timeout", "staple", "gatekeeper", "extracted", "cleanup"):
+        for failure in ("import", "search-list", "identity", "architecture", "signing", "signature", "runtime", "timestamp", "entitlements", "rejected", "timeout", "staple", "gatekeeper", "extracted", "cleanup"):
             with self.subTest(failure=failure):
                 result = self.run_signing(failure)
                 self.assertNotEqual(result.returncode, 0)
@@ -242,9 +286,12 @@ class SigningTests(unittest.TestCase):
         private.mkdir()
         (private / "signing.keychain-db").touch()
         (private / "certificate.p12").write_bytes(b"private fixture")
+        (private / "original-keychain-search-list.txt").write_text("\n".join(ORIGINAL_KEYCHAINS) + "\n")
+        self.search_list.write_text(json.dumps([str(private / "signing.keychain-db")] + ORIGINAL_KEYCHAINS))
         for _ in range(2):
             subprocess.run(["bash", str(SCRIPT), "cleanup"], cwd=ROOT, env=self.env, check=True)
         self.assertFalse(private.exists())
+        self.assertEqual(json.loads(self.search_list.read_text()), ORIGINAL_KEYCHAINS)
 
 
 if __name__ == "__main__":

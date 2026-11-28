@@ -7,9 +7,23 @@ umask 077
 private="$RUNNER_TEMP/wallpaper-signing"
 keychain="$private/signing.keychain-db"
 output="$RUNNER_TEMP/release-assets"
+search_list="$private/original-keychain-search-list.txt"
+
+# Preserve each original path as a separate argument (including spaces).
+# An empty original list is also valid.
+set_search_list() {
+    local entry
+    while IFS= read -r entry; do
+        set -- "$@" "$entry"
+    done < "$search_list"
+    security list-keychains -d user -s "$@"
+}
 
 cleanup() {
     local status=0
+    if [[ -f "$search_list" ]]; then
+        set_search_list >/dev/null 2>&1 || status=1
+    fi
     if [[ -e "$keychain" ]]; then
         security delete-keychain "$keychain" >/dev/null 2>&1 || status=1
     fi
@@ -26,7 +40,7 @@ finish() {
     local status=$?
     trap - EXIT
     if ! cleanup; then
-        echo '::error::Could not delete the temporary signing keychain.'
+        echo '::error::Could not restore the keychain search list or delete the temporary signing keychain.'
         status=1
     fi
     if [[ "$status" != 0 ]]; then rm -rf "$output"; fi
@@ -58,6 +72,13 @@ mkdir "$output"
 password="$(openssl rand -base64 32)"
 printf '::add-mask::%s\n' "$password"
 printf '%s' "$APPLE_CERTIFICATE_BASE64" | base64 -D > "$private/certificate.p12"
+# Capture the original list before creating the keychain, since creation may
+# itself change the user's search list. Save only a complete, parsed list.
+if ! security list-keychains -d user |
+    python3 -c 'import shlex, sys; sys.stdout.writelines(path + "\n" for path in shlex.split(sys.stdin.read()))' > "$search_list.tmp"; then
+    fail 'Could not read the original keychain search list.'
+fi
+mv "$search_list.tmp" "$search_list"
 security create-keychain -p "$password" "$keychain" >/dev/null 2>&1
 security set-keychain-settings -lut 7200 "$keychain"
 security unlock-keychain -p "$password" "$keychain"
@@ -69,6 +90,11 @@ rm "$private/certificate.p12"
 if ! security set-key-partition-list -S apple-tool:,apple:,codesign: -s \
     -k "$password" "$keychain" >/dev/null 2>&1; then
     fail 'Could not allow codesign to use the temporary signing key.'
+fi
+# codesign uses the user search list for certificate-chain lookups even when
+# --keychain explicitly selects the keychain for the signing identity.
+if ! set_search_list "$keychain"; then
+    fail 'Could not add the temporary signing keychain to the user search list.'
 fi
 
 # Select exactly one valid Developer ID Application identity from this keychain
