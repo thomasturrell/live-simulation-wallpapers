@@ -25,6 +25,9 @@ jobs:
           test -s LICENSE
           git diff --check HEAD^1 HEAD
 
+      - name: Test release automation without credentials
+        run: python3 -m unittest discover -s .github/scripts/tests -v
+
       - name: Test wallpaper packages
         run: |
           "Game of Life/Packaging/test.sh"
