@@ -11,13 +11,19 @@ on:
 concurrency:
   group: release-${{ inputs.tag }}
 
+permissions:
+  contents: read
+
 jobs:
-  release:
-    name: Prepare wallpaper release draft
+  build:
+    name: Build wallpaper release packages
+    # Only the reviewed workflow on main may prepare an official release.
+    if: github.ref == 'refs/heads/main' && github.repository == 'thomasturrell/live-simulation-wallpapers'
     runs-on: macos-26
     timeout-minutes: 30
-    permissions:
-      contents: write
+    outputs:
+      commit: ${{ steps.release.outputs.commit }}
+      system-design: ${{ steps.packages.outputs.system-design }}
     env:
       GH_REPO: ${{ github.repository }}
       RELEASE_TAG: ${{ inputs.tag }}
@@ -25,19 +31,30 @@ jobs:
       run:
         shell: bash
     steps:
-      - name: Check out the selected commit
+      - name: Check out the trusted workflow commit
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          fetch-depth: 0
           persist-credentials: false
+
+      - name: Check release automation without credentials
+        run: python3 -m unittest discover -s .github/scripts/tests -v
 
       - name: Resolve the release commit
         id: release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          # Keep the workflow's script available when checking out an older tag.
-          cp .github/scripts/prepare-release.sh "$RUNNER_TEMP/prepare-release.sh"
-          bash "$RUNNER_TEMP/prepare-release.sh" resolve
+          bash .github/scripts/prepare-release.sh resolve
+
+      - name: Require a release commit from main history
+        env:
+          RELEASE_COMMIT: ${{ steps.release.outputs.commit }}
+        run: |
+          if ! git merge-base --is-ancestor "$RELEASE_COMMIT" "$GITHUB_SHA"; then
+            echo "::error::The release commit must belong to the selected main-branch history."
+            exit 1
+          fi
 
       - name: Check out the release commit
         if: steps.release.outputs.commit != github.sha
@@ -45,6 +62,15 @@ jobs:
         with:
           ref: ${{ steps.release.outputs.commit }}
           persist-credentials: false
+
+      - name: Identify available wallpaper packages
+        id: packages
+        run: |
+          if [[ -f 'System Design/Package.swift' ]]; then
+            echo 'system-design=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'system-design=false' >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Test Game of Life and City Simulation
         run: |
@@ -80,8 +106,100 @@ jobs:
           ./NativeWallpaper/build.sh "$packages"
           mv "$packages/System Design Wallpaper.zip" "$RUNNER_TEMP/release-assets/System-Design-Native-Wallpaper.zip"
 
-      - name: Upload the downloads to the release draft
+      - name: Pass packages to the isolated signing job
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: unsigned-wallpapers
+          path: ${{ runner.temp }}/release-assets/*.zip
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0
+
+  sign:
+    name: Sign, notarise and verify wallpapers
+    needs: build
+    runs-on: macos-26
+    timeout-minutes: 90
+    environment: release
+    defaults:
+      run:
+        shell: bash
+    steps:
+      # Never run a package's build scripts or executables on this runner.
+      - name: Check out the trusted signing scripts
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Download this run's packages
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: unsigned-wallpapers
+          path: ${{ runner.temp }}/unsigned-assets
+          digest-mismatch: error
+
+      - name: Sign and notarise with the release credentials
+        env:
+          APPLE_CERTIFICATE_BASE64: ${{ secrets.APPLE_CERTIFICATE_BASE64 }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          RELEASE_HAS_SYSTEM_DESIGN: ${{ needs.build.outputs.system-design }}
+        run: bash .github/scripts/sign-release.sh
+
+      - name: Remove signing credentials even after cancellation
+        if: always()
+        run: bash .github/scripts/sign-release.sh cleanup
+
+      - name: Pass verified downloads to the draft job
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: verified-wallpapers
+          path: ${{ runner.temp }}/release-assets/*.zip
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0
+
+  release:
+    name: Prepare wallpaper release draft
+    needs: [build, sign]
+    runs-on: macos-26
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    env:
+      GH_REPO: ${{ github.repository }}
+      RELEASE_TAG: ${{ inputs.tag }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Check out the trusted release script
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Preserve the trusted release script
+        run: cp .github/scripts/prepare-release.sh "$RUNNER_TEMP/prepare-release.sh"
+
+      - name: Check out the verified release commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.build.outputs.commit }}
+          persist-credentials: false
+
+      - name: Download only the verified packages
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: verified-wallpapers
+          path: ${{ runner.temp }}/release-assets
+          digest-mismatch: error
+
+      - name: Upload the verified downloads to the release draft
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE_COMMIT: ${{ steps.release.outputs.commit }}
+          RELEASE_COMMIT: ${{ needs.build.outputs.commit }}
         run: bash "$RUNNER_TEMP/prepare-release.sh" upload

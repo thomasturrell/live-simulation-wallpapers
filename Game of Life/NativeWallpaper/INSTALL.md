@@ -13,7 +13,7 @@ Use the **Appearance** menu for Game of Life in Wallpaper settings. **Automatic*
 
 In the **Colour** menu, **Spectrum** blends through six hues as the simulation runs, **Random** picks a hue for each simulation cycle, and **Accent** follows the macOS accent colour. Choose a named colour for a fixed hue or **Original** for the default palette.
 
-This developer build is ad-hoc signed. The extension targets macOS 26 and later and contains Apple silicon and Intel slices. For distribution, use Developer ID signing and notarization. The wallpaper interface is undocumented and may change with macOS updates. If the choice is absent or renders incorrectly, select another wallpaper. The [source documentation](https://github.com/thomasturrell/live-simulation-wallpapers/tree/main/Game%20of%20Life#alternatives-for-macos-13-or-later) covers the standalone screen saver and scheduled HEIC fallback, which cannot animate through unlock.
+New GitHub release downloads prepared by the signing workflow use Developer ID signing, Apple notarisation and a stapled ticket. Local builds use ad-hoc signing by default. The extension targets macOS 26 and later and contains Apple silicon and Intel slices. The wallpaper interface is undocumented and may change with macOS updates. If the choice is absent or renders incorrectly, select another wallpaper. The [source documentation](https://github.com/thomasturrell/live-simulation-wallpapers/tree/main/Game%20of%20Life#alternatives-for-macos-13-or-later) covers the standalone screen saver and scheduled HEIC fallback, which cannot animate through unlock.
 
 ## Integration
 
