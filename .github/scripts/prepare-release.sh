@@ -63,7 +63,7 @@ case "$1" in
             if [[ "$has_tag" == true ]]; then
                 target=(--verify-tag)
             fi
-            notes="$(printf 'See the [release download guide](%s/%s#release-downloads) for ZIP contents and macOS requirements.\n\nThe macOS bundles use ad-hoc signing.' \
+            notes="$(printf 'See the [release download guide](%s/%s#release-downloads) for ZIP contents and macOS requirements.\n\nThe macOS apps and embedded extensions are Developer ID signed with Hardened Runtime, notarised by Apple and distributed with stapled tickets.' \
                 "$GITHUB_SERVER_URL" "$GH_REPO")"
             draft_url="$(gh release create "$RELEASE_TAG" "${assets[@]}" \
                 --draft "${target[@]}" --generate-notes --notes "$notes")"
@@ -79,6 +79,11 @@ case "$1" in
             fi
             gh release upload "$RELEASE_TAG" "${assets[@]}" --clobber
             if [[ "$retarget" == false ]]; then remove_draft_assets "${obsolete[@]}"; fi
+            notes="$(jq -r '.body // ""' <<< "$draft")"
+            if [[ "$notes" == *'The macOS bundles use ad-hoc signing.'* ]]; then
+                notes="${notes//The macOS bundles use ad-hoc signing./The macOS apps and embedded extensions are Developer ID signed with Hardened Runtime, notarised by Apple and distributed with stapled tickets.}"
+                gh release edit "$RELEASE_TAG" --notes "$notes"
+            fi
             draft_url="$(jq -r '.html_url' <<< "$draft")"
         fi
 
